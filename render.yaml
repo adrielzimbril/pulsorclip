@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: pulsorclip
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/render.Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://pulsorclip.adrielzimbril.com
+      - key: YTDLP_BIN
+        value: yt-dlp
+      - key: FFMPEG_BIN
+        value: ffmpeg
+      - key: PULSORCLIP_DOWNLOAD_DIR
+        value: /tmp/pulsorclip-downloads
+      - key: PULSORCLIP_DEFAULT_LOCALE
+        value: en
+      - key: TELEGRAM_BOT_ENABLED
+        value: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        value: pulsorclip_bot
+      - key: TELEGRAM_UPLOAD_LIMIT_MB
+        value: 45
+      - key: TELEGRAM_ADMIN_IDS
+        sync: false
+      - key: TELEGRAM_MAINTENANCE_MODE
+        value: false
+      - key: YTDLP_COOKIES_FROM_BROWSER
+        sync: false
+      - key: YTDLP_COOKIES_FILE
+        sync: false
+      - key: YTDLP_COOKIES_BASE64
+        sync: false

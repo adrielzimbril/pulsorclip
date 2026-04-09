@@ -1,0 +1,51 @@
+{
+  "name": "pulsorclip-monorepo",
+  "version": "0.2.0",
+  "private": true,
+  "description": "PulsorClip monorepo with a Next.js 16 web app, a Telegram bot, and a shared downloader core.",
+  "author": "Adriel Zimbril <hello@adrielzimbril.com> (https://www.adrielzimbril.com/)",
+  "license": "MIT",
+  "homepage": "https://pulsorclip.adrielzimbril.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adrielzimbril/pulsorclip.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adrielzimbril/pulsorclip/issues"
+  },
+  "keywords": [
+    "pulsorclip",
+    "nextjs",
+    "telegram-bot",
+    "yt-dlp",
+    "ffmpeg",
+    "self-hosted",
+    "media-downloader",
+    "adriel-zimbril"
+  ],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @pulsorclip/web",
+    "dev:bot": "npm run dev --workspace @pulsorclip/bot",
+    "build": "npm run build --workspace @pulsorclip/core && npm run build --workspace @pulsorclip/web && npm run build --workspace @pulsorclip/bot",
+    "lint": "npm run lint --workspace @pulsorclip/web && npm run check --workspace @pulsorclip/bot && npm run check --workspace @pulsorclip/core",
+    "start": "npm run start:all",
+    "start:web": "npm run start --workspace @pulsorclip/web",
+    "start:bot": "npm run start --workspace @pulsorclip/bot",
+    "start:all": "node ./docker/start-render.mjs",
+    "start:render": "node ./docker/start-render.mjs",
+    "test": "npm run test --workspace @pulsorclip/core"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

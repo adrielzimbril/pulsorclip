@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f5f6;
+  --surface: #ffffff;
+  --surface-muted: #eceff2;
+  --foreground: #111318;
+  --muted: #687382;
+  --line: #d9dee5;
+  --accent: #111318;
+  --accent-foreground: #ffffff;
+  --success: #157347;
+  --danger: #c43d3d;
+}
+
+html[data-theme="dark"] {
+  --background: #0f1217;
+  --surface: #161a20;
+  --surface-muted: #1f252d;
+  --foreground: #f5f7fa;
+  --muted: #9da7b5;
+  --line: #2a313b;
+  --accent: #f5f7fa;
+  --accent-foreground: #111318;
+  --success: #53c483;
+  --danger: #ff8d8d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display), sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
