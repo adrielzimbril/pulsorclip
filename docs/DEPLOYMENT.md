@@ -30,7 +30,7 @@ Use the repo root because:
 
 Important keys:
 
-- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_APP_URL` - set this to your own public domain or deployment URL
 - `TELEGRAM_BOT_ENABLED`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`

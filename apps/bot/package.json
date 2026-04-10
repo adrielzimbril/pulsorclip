@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "PulsorClip Telegram bot powered by the shared downloader core.",
+  "description": "PulsorClip Telegram bot with guided media inspection, format selection, and admin startup notifications.",
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",

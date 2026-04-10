@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { getSiteUrl } from "@/lib/site-url";
 
 const bodyFont = Manrope({
   subsets: ["latin"],
@@ -13,7 +14,7 @@ const displayFont = Sora({
   variable: "--font-display",
 });
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pulsorclip.adrielzimbril.com";
+const appUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   title: {

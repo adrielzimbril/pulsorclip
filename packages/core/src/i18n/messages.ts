@@ -1,4 +1,4 @@
-import type { AppLocale } from "../shared/types";
+﻿import type { AppLocale } from "../shared/types";
 
 export const messages = {
   en: {
@@ -11,8 +11,13 @@ export const messages = {
       "PulsorClip keeps the workflow explicit: inspect metadata first, queue the conversion second, and let the user manually download the final file once the job is complete.",
     navOverview: "Overview",
     navWorkspace: "Workspace",
+    navDocs: "Docs",
+    navFaq: "FAQ",
     navPlatforms: "Platforms",
     navDeployment: "Deployment",
+    menuLabel: "Menu",
+    languageLabel: "Language",
+    themeLabel: "Theme",
     normalMode: "Normal",
     bulkMode: "Bulk",
     workspaceTitle: "Download workspace",
@@ -69,8 +74,11 @@ export const messages = {
     supportedSitesBody:
       "PulsorClip relies on yt-dlp extractors. The list below covers the platforms people ask for most often.",
     supportedSitesCta: "View supported sites",
+    faqCardTitle: "FAQ",
+    faqCardBody: "Common yt-dlp, cookie, and platform troubleshooting now lives in a dedicated page.",
+    faqCardCta: "Open FAQ",
     closeModal: "Close",
-    supportedSitesFootnote: "Compatibility depends on the current extractor support and whether the target platform requires cookies or authentication.",
+    supportedSitesFootnote: "Compatibility depends on current extractor support and whether the target platform requires cookies or authentication.",
     deployTitle: "Deployment",
     deployBody:
       "Run PulsorClip on a Docker-capable host with yt-dlp and ffmpeg available. Render works, but storage stays ephemeral on the free tier.",
@@ -88,8 +96,7 @@ export const messages = {
     patienceBody: "Large files and post-processing can take time. Keep this tab open while the exporter finishes.",
     backToTop: "Back to top",
     botWelcome: "PulsorClip is online. Send one media URL to inspect it, then choose mode, quality, and container.",
-    botHelp:
-      "Commands: /start, /help, /status, /video, /audio, /formats. Send a direct media URL at any time to inspect it.",
+    botHelp: "Commands: /start, /help, /status, /video, /audio, /formats. Send a direct media URL at any time to inspect it.",
     botChooseMode: "Choose the export mode for this URL.",
     botChooseQuality: "Pick the final container and quality preset.",
     botModeSetVideo: "Default mode set to video.",
@@ -119,21 +126,25 @@ export const messages = {
     creatorLine: "Par Adriel Zimbril",
     creatorRole: "Product et UI/UX Designer",
     tagline: "Operations media privees",
-    heroTitle:
-      "Inspecte un media, prepare l export, puis laisse l utilisateur telecharger seulement quand le fichier est vraiment pret.",
+    heroTitle: "Inspecte un media, prepare l export, puis laisse l utilisateur telecharger seulement quand le fichier est vraiment pret.",
     heroBody:
       "PulsorClip garde un flux clair: inspection des metadonnees d abord, preparation de l export ensuite, telechargement manuel uniquement quand le job est termine.",
     navOverview: "Vue d ensemble",
     navWorkspace: "Workspace",
+    navDocs: "Docs",
+    navFaq: "FAQ",
     navPlatforms: "Plateformes",
     navDeployment: "Deploiement",
+    menuLabel: "Menu",
+    languageLabel: "Langue",
+    themeLabel: "Theme",
     normalMode: "Normal",
     bulkMode: "Bulk",
     workspaceTitle: "Espace de telechargement",
     workspaceBody: "Utilise le mode Normal pour une URL, ou passe en mode Bulk pour traiter plusieurs liens.",
     normalTitle: "Lien unique",
     normalBody: "Inspecte une URL media et controle le format, la qualite et le telechargement final.",
-    bulkTitle: "File groupée",
+    bulkTitle: "File groupee",
     bulkBody: "Inspecte une liste de liens en une fois, puis prepare les exports element par element ou en lot.",
     queueTitle: "Entree media",
     queueHint: "Colle une URL media prise en charge. En mode Bulk, separe les liens avec des espaces, virgules ou retours a la ligne.",
@@ -183,6 +194,9 @@ export const messages = {
     supportedSitesBody:
       "PulsorClip repose sur les extracteurs yt-dlp. La liste ci-dessous couvre les plateformes les plus demandees.",
     supportedSitesCta: "Voir les sites pris en charge",
+    faqCardTitle: "FAQ",
+    faqCardBody: "Les problemes courants yt-dlp, cookies et plateformes sont maintenant regroupes dans une page dediee.",
+    faqCardCta: "Ouvrir la FAQ",
     closeModal: "Fermer",
     supportedSitesFootnote:
       "La compatibilite depend du support actuel des extracteurs et du fait que la plateforme cible demande ou non des cookies ou une authentification.",

@@ -12,7 +12,7 @@ const deploymentContent = {
     steps: [
       "Create a new Render Blueprint from the GitHub repository.",
       "Keep the repository root unchanged so Docker can access apps/web, apps/bot, and packages/core.",
-      "Set NEXT_PUBLIC_APP_URL to https://pulsorclip.adrielzimbril.com.",
+      "Set NEXT_PUBLIC_APP_URL to your own public domain or deployment URL.",
       "Fill TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_IDS, and optional yt-dlp cookie variables.",
       "Deploy the free web service and attach the custom domain in Render settings.",
     ],
@@ -41,7 +41,7 @@ const deploymentContent = {
     steps: [
       "Cree un nouveau Blueprint Render depuis le repository GitHub.",
       "Garde la racine du repository telle quelle pour que Docker puisse acceder a apps/web, apps/bot et packages/core.",
-      "Definis NEXT_PUBLIC_APP_URL sur https://pulsorclip.adrielzimbril.com.",
+      "Definis NEXT_PUBLIC_APP_URL sur ton propre domaine public ou ton URL de deploiement.",
       "Renseigne TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_IDS et les cookies yt-dlp si necessaire.",
       "Deploie le web service gratuit puis attache le domaine custom dans les reglages Render.",
     ],

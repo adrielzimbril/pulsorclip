@@ -1,5 +1,6 @@
 import { ClipWorkbench } from "@/components/clip-workbench";
 import { getRequestLocale } from "@/lib/request-locale";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default async function RootPage({
   searchParams,
@@ -9,7 +10,7 @@ export default async function RootPage({
   const locale = await getRequestLocale();
   const params = await searchParams;
   const initialUrl = typeof params.url === "string" ? params.url : "";
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pulsorclip.adrielzimbril.com";
+  const baseUrl = getSiteUrl();
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",

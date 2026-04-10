@@ -2,10 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import type { AppLocale, ThemeMode } from "@pulsorclip/core/shared";
+import type { AppLocale } from "@pulsorclip/core/shared";
 import { t } from "@pulsorclip/core/i18n";
-
-const themeModes: ThemeMode[] = ["light", "dark", "system"];
 
 export function ThemeToggle({ locale }: { locale: AppLocale }) {
   const { theme, setTheme } = useTheme();
@@ -26,19 +24,18 @@ export function ThemeToggle({ locale }: { locale: AppLocale }) {
   }
 
   return (
-    <div className="inline-flex rounded-full border border-line bg-surface p-1">
-      {themeModes.map((mode) => (
-        <button
-          className={`rounded-full px-3 py-2 text-xs font-medium transition ${
-            theme === mode ? "bg-foreground text-background" : "text-muted hover:text-foreground"
-          }`}
-          key={mode}
-          onClick={() => setTheme(mode)}
-          type="button"
-        >
-          {mode === "light" ? t(locale, "themeLight") : mode === "dark" ? t(locale, "themeDark") : t(locale, "themeSystem")}
-        </button>
-      ))}
-    </div>
+    <label className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-2 text-sm text-muted">
+      <span className="sr-only">{t(locale, "themeLabel")}</span>
+      <select
+        aria-label={t(locale, "themeLabel")}
+        className="bg-transparent outline-none"
+        onChange={(event) => setTheme(event.target.value)}
+        value={theme || "system"}
+      >
+        <option value="light">{t(locale, "themeLight")}</option>
+        <option value="dark">{t(locale, "themeDark")}</option>
+        <option value="system">{t(locale, "themeSystem")}</option>
+      </select>
+    </label>
   );
 }

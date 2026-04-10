@@ -3,13 +3,15 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "PulsorClip web application built with Next.js 16.",
-  "homepage": "https://pulsorclip.adrielzimbril.com",
+  "description": "PulsorClip web workspace built with Next.js 16, cookie-based i18n, and manual final downloads.",
+  "homepage": "https://github.com/adrielzimbril/pulsorclip",
   "keywords": [
     "pulsorclip",
     "nextjs",
     "media-downloader",
     "self-hosted",
+    "manual-download",
+    "cookie-i18n",
     "adriel-zimbril"
   ],
   "scripts": {

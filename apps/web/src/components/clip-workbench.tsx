@@ -270,48 +270,38 @@ export function ClipWorkbench({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1320px] flex-col gap-8 px-4 py-5 sm:px-6 lg:px-8" id="top">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1320px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8" id="top">
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]" id="overview">
-        <div className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
-          <h1 className="mt-4 max-w-5xl text-4xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
-            {t(locale, "heroTitle")}
-          </h1>
-          <p className="mt-5 max-w-4xl text-base leading-8 text-muted">{t(locale, "heroBody")}</p>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            {[t(locale, "fetchMetaLabel"), t(locale, "prepareLabel"), t(locale, "readyLabel")].map((item) => (
-              <div className="rounded-[22px] border border-line bg-background px-4 py-4 text-sm font-medium" key={item}>
-                {item}
-              </div>
-            ))}
+      <section className="rounded-[28px] border border-line bg-surface p-5 shadow-sm" id="overview">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-4xl">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
+            <h1 className="mt-3 max-w-4xl text-2xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
+              {t(locale, "heroTitle")}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted sm:text-base">
+              {t(locale, "heroBody")}
+            </p>
           </div>
-        </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-[28px] border border-line bg-surface p-5 shadow-sm" id="platforms">
-            <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
-            <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
+          <div className="flex flex-wrap gap-3">
             <button
-              className="mt-5 rounded-full border border-line px-4 py-3 text-sm font-semibold"
+              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+              onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              type="button"
+            >
+              {t(locale, "navWorkspace")}
+            </button>
+            <button
+              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
               onClick={() => setShowPlatforms(true)}
               type="button"
             >
               {t(locale, "supportedSitesCta")}
             </button>
           </div>
-
-          <div className="rounded-[28px] border border-line bg-surface p-5 shadow-sm">
-            <p className="text-sm font-semibold">FAQ</p>
-            <p className="mt-3 text-sm leading-7 text-muted">Common yt-dlp, cookie, and platform troubleshooting lives in a dedicated page now.</p>
-            <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">
-              Open FAQ
-            </Link>
-          </div>
-        </aside>
+        </div>
       </section>
 
       <section className="rounded-[32px] border border-line bg-surface p-6 shadow-sm" id="workspace">
@@ -367,7 +357,7 @@ export function ClipWorkbench({
                 />
               ) : (
                 <textarea
-                  className="min-h-64 w-full resize-none rounded-[22px] border border-line bg-surface px-4 py-4 text-sm leading-7 outline-none transition focus:border-foreground"
+                  className="min-h-48 w-full resize-none rounded-[22px] border border-line bg-surface px-4 py-4 text-sm leading-7 outline-none transition focus:border-foreground"
                   onChange={(event) => setBulkInput(event.target.value)}
                   placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."}
                   value={bulkInput}
@@ -408,7 +398,7 @@ export function ClipWorkbench({
 
           <div className="space-y-5">
             {visibleCards.length === 0 ? (
-              <div className="rounded-[28px] border border-dashed border-line bg-background px-6 py-16 text-center text-sm leading-7 text-muted">
+              <div className="rounded-[28px] border border-dashed border-line bg-background px-6 py-12 text-center text-sm leading-7 text-muted">
                 {t(locale, "emptyState")}
               </div>
             ) : null}
@@ -438,6 +428,28 @@ export function ClipWorkbench({
               />
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2" id="platforms">
+        <div className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
+          <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
+          <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
+          <button
+            className="mt-5 rounded-full border border-line px-4 py-3 text-sm font-semibold"
+            onClick={() => setShowPlatforms(true)}
+            type="button"
+          >
+            {t(locale, "supportedSitesCta")}
+          </button>
+        </div>
+
+        <div className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
+          <p className="text-sm font-semibold">{t(locale, "faqCardTitle")}</p>
+          <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "faqCardBody")}</p>
+          <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">
+            {t(locale, "faqCardCta")}
+          </Link>
         </div>
       </section>
 

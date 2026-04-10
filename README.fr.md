@@ -1,13 +1,15 @@
-# PulsorClip
+﻿# PulsorClip
 
 PulsorClip est un workspace self-hosted d inspection et d export media par **Adriel Zimbril**.
+
+Prive par conception. Pratique par defaut.
 
 - Createur: `Adriel Zimbril`
 - Site: `https://www.adrielzimbril.com/`
 - GitHub: `https://github.com/adrielzimbril`
-- Domaine public cible: `https://pulsorclip.adrielzimbril.com`
+- Depot: `https://github.com/adrielzimbril/pulsorclip`
 
-## Ce Que Fait Le Projet
+## Ce Que C Est
 
 PulsorClip propose un flux controle pour les operations media:
 
@@ -18,36 +20,39 @@ PulsorClip propose un flux controle pour les operations media:
 
 Le projet est pense pour le self-hosting, pas pour un SaaS public de download.
 
+## Pourquoi Le Projet Existe
+
+- garder un telechargement final explicite
+- inspecter les metadonnees avant traitement
+- supporter le web et Telegram depuis la meme base de code
+- rester assez simple pour tourner dans un seul service Docker
+
+## Points Forts
+
+- ⚙️ application web Next.js 16 App Router
+- 🤖 bot Telegram avec flow guide
+- 🌍 i18n via cookies avec `en` et `fr`
+- 🌗 themes clair, sombre et systeme
+- 📦 exports video: `mp4`, `webm`, `mkv`
+- 🎵 exports audio: `mp3`, `m4a`
+- 🧱 package core partage avec `yt-dlp` et `ffmpeg`
+- 📈 suivi de progression cote serveur avec telechargement final manuel
+- 📚 pages web dediees pour `FAQ`, `Docs` et `Deployment`
+
 ## Structure Du Monorepo
 
 - `apps/web`
   - Next.js 16 App Router
-  - i18n via cookies (`en`, `fr`)
-  - theme clair, sombre, systeme
-  - workflows Normal et Bulk
-  - pages FAQ et Deployment
+  - i18n via cookies
+  - workflows Normal et Bulk responsive
+  - pages FAQ, Docs et Deployment
 - `apps/bot`
-  - bot Telegram avec flow guide
-  - notifications admin au demarrage
+  - bot Telegram avec commandes, claviers inline et notifications admin
   - mode maintenance
-  - support inline
+  - selection guidee du mode, du conteneur et de la qualite
 - `packages/core`
   - orchestration `yt-dlp` et `ffmpeg`
-  - types et validation partages
-  - suivi de progression
-  - messages i18n
-
-## Points Produit
-
-- langue stockee dans les cookies, jamais dans l URL
-- exports video: `mp4`, `webm`, `mkv`
-- exports audio: `mp3`, `m4a`
-- telechargement final manuel depuis le web apres preparation cote serveur
-- le bot Telegram supporte:
-  - choix guide du mode
-  - selection de qualite et de conteneur
-  - commandes directes comme `/video <url> --format=mp4`
-  - fallback web pour les fichiers trop gros pour Telegram
+  - validation, progression et messages i18n partages
 
 ## Prerequis Runtime
 
@@ -90,7 +95,7 @@ Notes:
 - `.env.example`
   - template local documente
 - `.env.render`
-  - template Render free documente
+  - template Render documente
 
 Variables importantes:
 
@@ -106,7 +111,7 @@ Variables importantes:
 
 ## Deploiement
 
-Cible actuelle: **Render free Web Service** avec un seul runtime Docker pour le web et le bot.
+Cible par defaut: **Render free Web Service** avec un seul runtime Docker pour le web et le bot.
 
 Pourquoi cette topologie:
 
@@ -116,7 +121,7 @@ Pourquoi cette topologie:
 
 Limite importante:
 
-- le stockage Render free est ephemere, donc les fichiers prepares peuvent disparaitre apres restart ou redeploy
+- le stockage du plan gratuit est ephemere, donc les fichiers prepares peuvent disparaitre apres restart ou redeploy
 
 Si tu vois cette erreur Telegram:
 
@@ -126,14 +131,15 @@ Si tu vois cette erreur Telegram:
 
 cela signifie qu une autre instance polling utilise deja le meme token. Garde une seule instance active, ou desactive le bot local avec `TELEGRAM_BOT_ENABLED=false`.
 
-## Docs Web
+## Docs
 
-Le site contient maintenant des pages dediees:
+Pages web disponibles dans l application:
 
 - `/faq`
+- `/docs`
 - `/deployment`
 
-Documentation repo:
+Documentation du depot:
 
 - [README.md](README.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)

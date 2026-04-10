@@ -169,7 +169,7 @@ export function registerBotHandlers(bot: Telegraf) {
     modeByChat.set(ctx.chat.id, "video");
 
     if (!request.url) {
-      await ctx.reply(`?? ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
+      await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
       return;
     }
 
@@ -186,7 +186,7 @@ export function registerBotHandlers(bot: Telegraf) {
     modeByChat.set(ctx.chat.id, "audio");
 
     if (!request.url) {
-      await ctx.reply(`?? ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
+      await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
       return;
     }
 
@@ -200,13 +200,13 @@ export function registerBotHandlers(bot: Telegraf) {
   bot.command("mp4", async (ctx) => {
     const locale = localeForTelegram(ctx.from?.language_code);
     modeByChat.set(ctx.chat.id, "video");
-    await ctx.reply(`?? ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
+    await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
   });
 
   bot.command("mp3", async (ctx) => {
     const locale = localeForTelegram(ctx.from?.language_code);
     modeByChat.set(ctx.chat.id, "audio");
-    await ctx.reply(`?? ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
+    await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
   });
 
   bot.on("inline_query", async (ctx) => {
@@ -340,7 +340,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const targetExt = selectedExt === "default" ? fallbackExt : selectedExt;
 
     await ctx.answerCbQuery();
-    await ctx.reply(`? ${t(choice.locale, "botQueued")}`);
+    await ctx.reply(`⏳ ${t(choice.locale, "botQueued")}`);
 
     try {
       const job = createDownloadJob({
