@@ -8,6 +8,10 @@ services:
     envVars:
       - key: NEXT_PUBLIC_APP_URL
         value: https://your-domain.example.com
+      - key: PULSORCLIP_DEBUG_LOGS
+        value: false
+      - key: PULSORCLIP_LOG_FULL_URLS
+        value: false
       - key: YTDLP_BIN
         value: yt-dlp
       - key: FFMPEG_BIN
