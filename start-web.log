@@ -1,0 +1,12 @@
+
+> pulsorclip-monorepo@0.2.0 start:web
+> npm run start --workspace @pulsorclip/web
+
+
+> @pulsorclip/web@0.2.0 start
+> next start
+
+▲ Next.js 16.2.3
+- Local:         http://localhost:3100
+- Network:       http://192.168.1.2:3100
+✓ Ready in 312ms
