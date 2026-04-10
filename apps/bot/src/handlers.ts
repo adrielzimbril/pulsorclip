@@ -319,20 +319,29 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       .filter(Boolean)
       .join("\n");
     
-    // Add audio download option if music is present in the carousel
+    // Add options for Video, Audio, and Images
     const inline_keyboard: any[][] = [];
     
-    // 1. Audio (Music) option if present
-    if (info.resolvedUrl) {
-      inline_keyboard.push([{ text: `🎧 ${t(locale, "botAudioLabel")}`, callback_data: `dl:${choice.id}:audio:best:mp3` }]);
+    // 1. Video option if present
+    if (info.videoOptions && info.videoOptions.length > 0) {
+      inline_keyboard.push([{ text: `🎬 ${t(locale, "botVideoLabel")}`, callback_data: `dl:${choice.id}:video:best:mp4` }]);
     }
 
-    // 2. Send Images option
+    // 2. Audio (Music) option if present
+    const hasAudio = (info.audioOptions && info.audioOptions.length > 0);
+    // For carousels with resolvedUrl but no videoOptions, it's likely just background music
+    const isMusicOnly = info.resolvedUrl && (!info.videoOptions || info.videoOptions.length === 0);
+    
+    if (hasAudio || isMusicOnly) {
+      inline_keyboard.push([{ text: `🎧 ${t(locale, "botAudioLabel")}`, callback_data: `dl:${choice.id}:audio:best:mp3` }]);
+    }
+    
+    // 3. Send Images option
     if (info.images && info.images.length > 0) {
       inline_keyboard.push([{ text: t(locale, "botSendImages"), callback_data: `imgs:${choice.id}` }]);
     }
 
-    // 3. Web Gallery option (always last/bottom)
+    // 4. Web Gallery option (always last/bottom)
     inline_keyboard.push([{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]);
 
     const keyboard = {

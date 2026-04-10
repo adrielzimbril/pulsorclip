@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  createWriteStream,
   copyFileSync,
   mkdirSync,
   readdirSync,
@@ -7,6 +8,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { pipeline } from "node:stream/promises";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
@@ -288,6 +290,30 @@ async function convertAudio(
   }
 }
 
+async function downloadDirectFile(url: string, outputPath: string) {
+  logServer("info", "media.download.direct.started", { url: urlForLogs(url), outputPath });
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Referer": "https://www.threads.net/",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Direct download failed: ${response.status} ${response.statusText}`);
+  }
+
+  if (!response.body) {
+    throw new Error("Direct download failed: Response body is empty");
+  }
+
+  const writer = createWriteStream(outputPath);
+  // @ts-ignore - ReadableStream/Readable type mismatch in some Node environments
+  await pipeline(response.body, writer);
+}
+
 async function convertVideo(
   job: DownloadJob,
   sourcePath: string,
@@ -498,26 +524,37 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 
     // 1. Try to find video versions in the JSON bootstrap (High Quality)
     // Threads embeds its data in application/json scripts
-    const jsonVersionsMatch = html.match(
-      /"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i,
-    );
+    const jsonVersionsMatch = 
+      html.match(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i) ||
+      html.match(/"video_url":\s*"([^"]+)"/i) ||
+      html.match(/"video":\s*\{\s*"url":\s*"([^"]+)"/i);
+
     if (jsonVersionsMatch) {
       resolvedUrl = jsonVersionsMatch[1]
         .replace(/\\u0025/g, "%")
-        .replace(/\\\//g, "/");
+        .replace(/\\\//g, "/")
+        .replace(/&amp;/g, "&");
     }
 
     // 2. Fallback to OpenGraph meta tags if JSON fails
     if (!resolvedUrl) {
       const videoMatch =
         html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
-        html.match(
-          /<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i,
-        ) ||
-        html.match(/<video[^>]+src="([^"]+)"/i); // New fallback for direct video tags
+        html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i) ||
+        html.match(/<meta\s+property="og:video:url"\s+content="([^"]+)"/i) ||
+        html.match(/<meta\s+property="og:video:secure_url"\s+content="([^"]+)"/i) ||
+        html.match(/<video[^>]+src="([^"]+)"/i);
       if (videoMatch) {
         resolvedUrl = videoMatch[1].replace(/&amp;/g, "&");
       }
+    }
+
+    // 3. Try to find images for carousel support
+    const images: string[] = [];
+    const imageMatches = html.matchAll(/"image_versions2":\s*\{\s*"candidates":\s*\[\s*\{\s*"url":\s*"([^"]+)"/gi);
+    for (const match of imageMatches) {
+      const imgUrl = match[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/").replace(/&amp;/g, "&");
+      if (!images.includes(imgUrl)) images.push(imgUrl);
     }
 
     const thumbnailMatch =
@@ -554,6 +591,7 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
         extractorNote: "Scraped via high-quality metadata fallback",
         videoOptions,
         audioOptions: [],
+        images,
         resolvedUrl,
       };
     }
@@ -751,14 +789,18 @@ async function executeDownload(jobId: string) {
   }
 
   let jobUrl = job.resolvedUrl || job.url;
-  jobUrl = jobUrl.replace(
-    /https:\/\/(www\.)?(twitter\.com|x\.com)/i,
-    "https://vxtwitter.com",
-  );
-  jobUrl = jobUrl.replace(
-    /https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i,
-    "https://vxtiktok.com",
-  );
+  const isDirect = !!job.resolvedUrl;
+
+  if (!isDirect) {
+    jobUrl = jobUrl.replace(
+      /https:\/\/(www\.)?(twitter\.com|x\.com)/i,
+      "https://vxtwitter.com",
+    );
+    jobUrl = jobUrl.replace(
+      /https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i,
+      "https://vxtiktok.com",
+    );
+  }
 
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
@@ -775,59 +817,67 @@ async function executeDownload(jobId: string) {
     source: job.source,
     platform: sourceProfile.platform,
     url: urlForLogs(job.url),
+    isDirect,
   });
 
-  const sourceArgs = [
-    ...getAuthArgs(),
-    ...sourceProfile.extractorArgs,
-    "--no-playlist",
-    "--newline",
-    "--progress",
-    "--socket-timeout",
-    "30",
-    "--retries",
-    "3",
-    "--no-part",
-    "--ffmpeg-location",
-    appConfig.ffmpegBin,
-    "-o",
-    getTempOutputTemplate(jobId),
-  ];
-
-  if (job.mode === "audio") {
-    sourceArgs.push("-f", job.formatId || "bestaudio/best");
-  } else {
-    sourceArgs.push(
-      "-f",
-      job.formatId
-        ? `${job.formatId}+bestaudio/${job.formatId}/bestvideo+bestaudio/best`
-        : "bestvideo+bestaudio/best",
-      "--merge-output-format",
-      "mkv",
-    );
-  }
-
-  sourceArgs.push(jobUrl);
-
   try {
-    const downloadResult = await runCommand(appConfig.ytDlpBin, sourceArgs, {
-      timeoutMs: DOWNLOAD_TIMEOUT_MS,
-      onStdoutLine: (line) => parseProgressLine(job, line),
-      onStderrLine: (line) => parseProgressLine(job, line),
-    });
+    if (isDirect) {
+      updateJobProgress(job, 10, "Downloading direct media stream");
+      const directExt = job.mode === "audio" ? "mp3" : "mp4";
+      const directPath = join(tempDir, `source.${directExt}`);
+      await downloadDirectFile(jobUrl, directPath);
+    } else {
+      const sourceArgs = [
+        ...getAuthArgs(),
+        ...sourceProfile.extractorArgs,
+        "--no-playlist",
+        "--newline",
+        "--progress",
+        "--socket-timeout",
+        "30",
+        "--retries",
+        "3",
+        "--no-part",
+        "--ffmpeg-location",
+        appConfig.ffmpegBin,
+        "-o",
+        getTempOutputTemplate(jobId),
+      ];
 
-    if (downloadResult.exitCode !== 0) {
-      job.status = "error";
-      job.error = simplifyError(downloadResult.stderr);
-      job.updatedAt = Date.now();
-      logServer("error", "media.download.fetch.failed", {
-        jobId: job.id,
-        platform: sourceProfile.platform,
-        url: urlForLogs(job.url),
-        exitCode: downloadResult.exitCode,
-        stderrTail: stderrTail(downloadResult.stderr),
+      if (job.mode === "audio") {
+        sourceArgs.push("-f", job.formatId || "bestaudio/best");
+      } else {
+        sourceArgs.push(
+          "-f",
+          job.formatId
+            ? `${job.formatId}+bestaudio/${job.formatId}/bestvideo+bestaudio/best`
+            : "bestvideo+bestaudio/best",
+          "--merge-output-format",
+          "mkv",
+        );
+      }
+
+      sourceArgs.push(jobUrl);
+
+      const downloadResult = await runCommand(appConfig.ytDlpBin, sourceArgs, {
+        timeoutMs: DOWNLOAD_TIMEOUT_MS,
+        onStdoutLine: (line) => parseProgressLine(job, line),
+        onStderrLine: (line) => parseProgressLine(job, line),
       });
-      return;
+
+      if (downloadResult.exitCode !== 0) {
+        job.status = "error";
+        job.error = simplifyError(downloadResult.stderr);
+        job.updatedAt = Date.now();
+        logServer("error", "media.download.fetch.failed", {
+          jobId: job.id,
+          platform: sourceProfile.platform,
+          url: urlForLogs(job.url),
+          exitCode: downloadResult.exitCode,
+          stderrTail: stderrTail(downloadResult.stderr),
+        });
+        return;
+      }
     }
 
     const sourceFile = findPrimaryMediaFile(tempDir);
