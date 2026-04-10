@@ -65,38 +65,10 @@ export function SiteHeader({
         <nav className="flex flex-col gap-2 rounded-[20px] border border-line bg-background p-2 text-sm lg:flex-row lg:flex-wrap lg:items-center lg:gap-2 lg:rounded-full lg:p-1">
           <Link
             className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
-            href="/"
-            onClick={() => setMenuOpen(false)}
-          >
-            {t(locale, "navOverview")}
-          </Link>
-          <Link
-            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
-            href="/#workspace"
-            onClick={() => setMenuOpen(false)}
-          >
-            {t(locale, "navWorkspace")}
-          </Link>
-          <Link
-            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
             href="/faq"
             onClick={() => setMenuOpen(false)}
           >
             {t(locale, "navFaq")}
-          </Link>
-          <Link
-            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
-            href="/docs"
-            onClick={() => setMenuOpen(false)}
-          >
-            {t(locale, "navDocs")}
-          </Link>
-          <Link
-            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
-            href="/deployment"
-            onClick={() => setMenuOpen(false)}
-          >
-            {t(locale, "navDeployment")}
           </Link>
           <a
             className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"

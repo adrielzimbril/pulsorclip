@@ -397,8 +397,6 @@ export function ClipWorkbench({
               />
             ))}
           </div>
-        </div>
-      </section>
 
       <SiteFooter locale={locale} />
     </main>
