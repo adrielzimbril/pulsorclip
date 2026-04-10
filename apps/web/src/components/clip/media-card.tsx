@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Skeleton } from "boneyard-js/react";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale, DownloadMode, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
 import type { ClipCard, CardStatus } from "./types";
@@ -67,19 +68,19 @@ export function MediaCard({
   const canDownload = card.status === "done" && !!card.jobId;
 
   return (
-    <article className="animate-fadein rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
+    <article className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
       <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-[20px] border border-line bg-background">
-          {card.status === "loading" ? (
-            <div className="skeleton h-56" />
-          ) : card.thumbnail && mode === "video" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover" src={card.thumbnail} />
-          ) : (
-            <div className="flex h-56 items-center justify-center bg-surface-muted text-sm font-semibold tracking-[0.18em] text-muted">
-              {mode === "video" ? "🎥 VIDEO" : "🎧 AUDIO"}
-            </div>
-          )}
+        <div className="overflow-hidden rounded-[16px] border border-line bg-background">
+          <Skeleton name="media-thumb" loading={card.status === "loading"}>
+            {card.thumbnail && mode === "video" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover" src={card.thumbnail} />
+            ) : (
+              <div className="flex h-56 items-center justify-center bg-surface-muted text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+                {mode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
+              </div>
+            )}
+          </Skeleton>
         </div>
 
         <div className="min-w-0">
@@ -187,7 +188,7 @@ export function MediaCard({
               onClick={onPrepare}
               type="button"
             >
-              {card.status === "error" ? t(locale, "retry") : card.status === "done" ? t(locale, "statusDone") : `🚀 ${t(locale, "prepareDownload")}`}
+              {card.status === "error" ? t(locale, "retry") : card.status === "done" ? t(locale, "statusDone") : t(locale, "prepareDownload")}
             </button>
 
             <button
@@ -196,7 +197,7 @@ export function MediaCard({
               onClick={onDownload}
               type="button"
             >
-              ⬇️ {t(locale, "download")}
+              {t(locale, "download")}
             </button>
           </div>
 

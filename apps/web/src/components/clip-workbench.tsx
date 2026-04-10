@@ -388,7 +388,7 @@ export function ClipWorkbench({
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
 
-      <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[32px] sm:p-6" id="workspace">
+      <section className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[32px] sm:p-6" id="workspace">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
@@ -453,16 +453,32 @@ export function ClipWorkbench({
                     title="Paste from clipboard"
                     aria-label="Paste from clipboard"
                   >
-                    ðŸ“‹ Paste
+                    {t(locale, "pasteFromClipboard")}
                   </button>
                 </div>
               ) : (
-                <textarea
-                  className="min-h-48 w-full resize-none rounded-[22px] border border-line bg-surface px-4 py-4 text-sm leading-7 outline-none transition focus:border-foreground"
-                  onChange={(event) => setBulkInput(event.target.value)}
-                  placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."}
-                  value={bulkInput}
-                />
+                <div className="relative">
+                  <textarea
+                    className="min-h-48 w-full resize-none rounded-[18px] border border-line bg-surface px-4 py-4 pr-24 text-sm leading-7 outline-none transition focus:border-foreground"
+                    onChange={(event) => setBulkInput(event.target.value)}
+                    placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."}
+                    value={bulkInput}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) setBulkInput((prev) => prev ? `${prev}\n${text}` : text);
+                      } catch { /* clipboard permission denied */ }
+                    }}
+                    className="absolute right-3 top-3 rounded-full border border-line bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-foreground hover:text-foreground"
+                    title={t(locale, "pasteFromClipboard")}
+                    aria-label={t(locale, "pasteFromClipboard")}
+                  >
+                    {t(locale, "pasteFromClipboard")}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -473,7 +489,7 @@ export function ClipWorkbench({
                 onClick={() => void inspectCurrentInput()}
                 type="button"
               >
-                {isFetching ? t(locale, "inspecting") : view === "normal" ? `âœ¨ ${t(locale, "inspect")}` : `âœ¨ ${t(locale, "inspectBulk")}`}
+                {isFetching ? t(locale, "inspecting") : view === "normal" ? t(locale, "inspect") : t(locale, "inspectBulk")}
               </button>
               <button
                 className="btn-outline w-full sm:w-auto"
@@ -543,7 +559,7 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[28px] sm:p-5" id="overview">
+      <section className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[28px] sm:p-5" id="overview">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="max-w-4xl">
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
@@ -600,13 +616,13 @@ export function ClipWorkbench({
       </section>
 
       <section className="grid gap-4" id="platforms">
-        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
+        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "supportSectionTitle")}</p>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">{t(locale, "supportSectionBody")}</p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6">
+        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
           <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
           <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
           <button
@@ -618,7 +634,7 @@ export function ClipWorkbench({
           </button>
         </div>
 
-        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6">
+        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
           <p className="text-sm font-semibold">{t(locale, "faqCardTitle")}</p>
           <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "faqCardBody")}</p>
           <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">

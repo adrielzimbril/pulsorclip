@@ -2,61 +2,52 @@
 
 /* ── Design tokens ─────────────────────────────────────────────── */
 :root {
-  --background:       #f5f6f8;
+  --background:       #f6f7f9;
   --surface:          #ffffff;
-  --surface-muted:    #eef0f4;
-  --foreground:       #0e0f14;
-  --muted:            #6b7280;
-  --line:             #e2e5ea;
+  --surface-muted:    #f0f1f4;
+  --foreground:       #0d0e12;
+  --muted:            #6b7180;
+  --line:             #e3e5ea;
 
-  /* Accent — clean violet (Cobalt-style flat, no gradient) */
-  --accent:           #7c3aed;
-  --accent-hover:     #6d28d9;
-  --accent-faint:     #ede9fe;
-  --accent-foreground: #ffffff;
+  /* Primary action — black */
+  --primary:          #0d0e12;
+  --primary-fg:       #ffffff;
+  --primary-hover:    #2a2c34;
 
-  /* Status */
-  --success:          #059669;
-  --danger:           #dc2626;
+  /* Subtle accent — used for links and active states only */
+  --accent:           #0d0e12;
+  --accent-faint:     #f0f1f4;
 }
 
 html[data-theme="dark"] {
-  --background:       #09090f;
-  --surface:          #111118;
-  --surface-muted:    #17171f;
-  --foreground:       #f1f1f6;
-  --muted:            #8b8fa8;
-  --line:             #222230;
-  --accent:           #8b5cf6;
-  --accent-hover:     #7c3aed;
-  --accent-faint:     rgba(139,92,246,0.10);
-  --accent-foreground: #ffffff;
-  --success:          #34d399;
-  --danger:           #f87171;
+  --background:       #0a0a0f;
+  --surface:          #111116;
+  --surface-muted:    #18181f;
+  --foreground:       #f0f1f6;
+  --muted:            #8b8fa5;
+  --line:             #202028;
+  --primary:          #f0f1f6;
+  --primary-fg:       #0a0a0f;
+  --primary-hover:    #d8d9e0;
+  --accent:           #f0f1f6;
+  --accent-faint:     #18181f;
 }
 
 /* ── Tailwind bindings ─────────────────────────────────────────── */
 @theme inline {
-  --color-background:         var(--background);
-  --color-surface:            var(--surface);
-  --color-surface-muted:      var(--surface-muted);
-  --color-foreground:         var(--foreground);
-  --color-muted:              var(--muted);
-  --color-line:               var(--line);
-  --color-accent:             var(--accent);
-  --color-accent-foreground:  var(--accent-foreground);
-  --color-accent-faint:       var(--accent-faint);
-  --color-success:            var(--success);
-  --color-danger:             var(--danger);
+  --color-background:    var(--background);
+  --color-surface:       var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground:    var(--foreground);
+  --color-muted:         var(--muted);
+  --color-line:          var(--line);
+  --color-accent:        var(--accent);
+  --color-accent-faint:  var(--accent-faint);
 }
 
 /* ── Base ──────────────────────────────────────────────────────── */
-* { box-sizing: border-box; }
-
-html {
-  color-scheme: light;
-  scroll-behavior: smooth;
-}
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: light; scroll-behavior: smooth; }
 html[data-theme="dark"] { color-scheme: dark; }
 
 body {
@@ -66,144 +57,114 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display), system-ui, sans-serif;
-}
-
+h1, h2, h3, h4 { font-family: var(--font-display), system-ui, sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
 
-/* ── Animations ────────────────────────────────────────────────── */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes shimmer {
-  0%   { background-position: -600px 0; }
-  100% { background-position:  600px 0; }
-}
-
 /* ── Utility classes ───────────────────────────────────────────── */
 
-/* Accent button — flat fill, no gradient */
-.btn-accent {
+/* Primary button — solid black / dark, no shadow, no gradient */
+.btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  background: var(--accent);
-  color: var(--accent-foreground);
-  border: none;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border: 1.5px solid var(--primary);
   border-radius: 9999px;
-  padding: 0.65rem 1.25rem;
+  padding: 0.6rem 1.2rem;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
   white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
 }
-.btn-accent:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-accent:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.38; cursor: not-allowed; }
+/* Alias kept for back-compat */
+.btn-accent { display: inline-flex; align-items: center; gap: 0.375rem; background: var(--primary); color: var(--primary-fg); border: 1.5px solid var(--primary); border-radius: 9999px; padding: 0.6rem 1.2rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.12s; }
+.btn-accent:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-accent:disabled { opacity: 0.38; cursor: not-allowed; }
 
-/* Outline button */
+/* Outline button — border only, no fill */
 .btn-outline {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   background: transparent;
   color: var(--foreground);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: 9999px;
-  padding: 0.65rem 1.25rem;
+  padding: 0.6rem 1.2rem;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
   white-space: nowrap;
+  transition: border-color 0.12s;
 }
-.btn-outline:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--accent-faint);
-}
-.btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline:hover:not(:disabled) { border-color: var(--foreground); }
+.btn-outline:disabled { opacity: 0.38; cursor: not-allowed; }
 
-/* Input field */
+/* Input / textarea */
 .input-field {
   background: var(--surface);
   border: 1.5px solid var(--line);
   border-radius: 14px;
   padding: 0 1rem;
-  height: 3.25rem;
+  height: 3rem;
   width: 100%;
   font-size: 0.9rem;
   color: var(--foreground);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.12s;
 }
-.input-field:focus { border-color: var(--accent); }
+.input-field:focus { border-color: var(--foreground); }
 .input-field::placeholder { color: var(--muted); opacity: 0.7; }
-
-/* Skeleton shimmer */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--surface-muted) 25%,
-    var(--surface) 50%,
-    var(--surface-muted) 75%
-  );
-  background-size: 600px 100%;
-  animation: shimmer 1.4s infinite linear;
-}
 
 /* Badge */
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.65rem;
+  padding: 0.18rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border: 1px solid var(--line);
   background: var(--surface-muted);
   color: var(--muted);
 }
 
-/* Progress bar */
+/* Progress bar — plain foreground fill, no gradient */
 .progress-bar-accent {
-  height: 4px;
+  height: 3px;
   border-radius: 9999px;
-  background: var(--accent);
-  transition: width 0.4s ease;
+  background: var(--foreground);
+  transition: width 0.3s ease;
 }
 
-/* Card fade in */
-.animate-fadein { animation: fadeIn 0.25s ease both; }
-
-/* Modal backdrop */
+/* Modal backdrop — no blur, just dim overlay */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(3px);
+  background: rgba(0,0,0,0.48);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  animation: fadeIn 0.15s ease both;
 }
 
-/* Focus ring */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+/* Focus ring — no outline on form elements, just border change */
+:focus-visible { outline: none; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { border-color: var(--foreground) !important; }
+button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px; border-radius: 4px; }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Header subtle shadow — the ONLY shadow in the app */
+.header-shadow { box-shadow: 0 1px 0 var(--line); }
