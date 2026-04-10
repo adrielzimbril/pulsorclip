@@ -1,4 +1,4 @@
-﻿import type { AppLocale } from "../shared/types";
+import type { AppLocale } from "../shared/types";
 
 export const messages = {
   en: {
@@ -147,6 +147,26 @@ export const messages = {
     botInlineTitle: "Open this URL in PulsorClip",
     botInlineDescription: "Open the link in PulsorClip and continue the full download flow in the web app.",
     botInlineEmpty: "Type or paste a media URL after @pulsorclip_bot to generate a PulsorClip shortcut.",
+    // Image carousel / gallery
+    imageGallery: "Image Gallery",
+    imageSelected: "image selected",
+    imagesSelected: "images selected",
+    clickToToggle: "Click to toggle selection",
+    downloadAsZip: "Download as ZIP",
+    downloadZipGenerating: "Generating ZIP...",
+    selectAll: "Select all",
+    deselectAll: "Deselect all",
+    downloadImage: "Download",
+    pasteFromClipboard: "Paste",
+    detectingCarousel: "Detecting image gallery...",
+    carouselError: "Could not extract images from this gallery.",
+    generatingZip: "Generating ZIP...",
+    zipReady: "images downloaded successfully.",
+    networkError: "Network error, please try again.",
+    // Bot carousel
+    botImageCarousel: "Image gallery detected",
+    botImageGalleryHint: "This post contains images. Open in the web app to select and download them.",
+    botOpenWebGallery: "Open gallery in web app",
   },
   fr: {
     appName: "PulsorClip",
@@ -296,6 +316,26 @@ export const messages = {
     botInlineTitle: "Ouvrir cette URL dans PulsorClip",
     botInlineDescription: "Ouvre le lien dans PulsorClip et poursuis le telechargement complet dans l app web.",
     botInlineEmpty: "Tape ou colle une URL media apres @pulsorclip_bot pour generer un raccourci PulsorClip.",
+    // Image carousel / gallery
+    imageGallery: "Galerie d images",
+    imageSelected: "image selectionnee",
+    imagesSelected: "images selectionnees",
+    clickToToggle: "Cliquer pour selectionner",
+    downloadAsZip: "Telecharger en ZIP",
+    downloadZipGenerating: "Generation du ZIP...",
+    selectAll: "Tout selectionner",
+    deselectAll: "Tout deselectionner",
+    downloadImage: "Telecharger",
+    pasteFromClipboard: "Coller",
+    detectingCarousel: "Detection de la galerie...",
+    carouselError: "Impossible d extraire les images de cette galerie.",
+    generatingZip: "Generation du ZIP...",
+    zipReady: "images telechargees avec succes.",
+    networkError: "Erreur reseau, veuillez reessayer.",
+    // Bot carousel
+    botImageCarousel: "Galerie d images detectee",
+    botImageGalleryHint: "Ce post contient des images. Ouvre l app web pour les selectionner et les telecharger.",
+    botOpenWebGallery: "Ouvrir la galerie dans l app",
   },
 } satisfies Record<AppLocale, Record<string, string>>;
 

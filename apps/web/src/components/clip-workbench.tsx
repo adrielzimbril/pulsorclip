@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -96,7 +96,7 @@ export function ClipWorkbench({
   }
 
   async function fetchTikTokCarousel(url: string) {
-    setNotice("ðŸŽžï¸ DÃ©tection de diaporama...");
+    setNotice(t(locale, "detectingCarousel"));
     try {
       const res = await fetch("/api/tiktok-carousel", {
         method: "POST",
@@ -105,19 +105,19 @@ export function ClipWorkbench({
       });
       const data = (await res.json()) as { images?: string[]; title?: string; postId?: string; error?: string };
       if (!res.ok || data.error || !data.images?.length) {
-        setNotice(data.error || "Impossible d'extraire les images de ce diaporama.");
+        setNotice(data.error || t(locale, "carouselError"));
         return;
       }
-      openImageCarousel(data.images, data.title || "Carousel", data.postId || "");
+      openImageCarousel(data.images, data.title || t(locale, "imageGallery"), data.postId || "");
     } catch {
-      setNotice("Erreur rÃ©seau lors de l'extraction du diaporama.");
+      setNotice(t(locale, "networkError"));
     }
   }
 
   async function downloadCarouselZip() {
     if (!tiktokCarousel || selectedImages.size === 0) return;
     setIsZipping(true);
-    setNotice("ðŸ“¦ GÃ©nÃ©ration du ZIP en cours...");
+    setNotice(t(locale, "generatingZip"));
     try {
       const res = await fetch("/api/tiktok-zip", {
         method: "POST",
@@ -126,7 +126,7 @@ export function ClipWorkbench({
       });
       if (!res.ok) {
         const err = (await res.json()) as { error?: string };
-        setNotice(err.error || "Erreur lors de la gÃ©nÃ©ration du ZIP.");
+        setNotice(err.error || t(locale, "networkError"));
         return;
       }
       const blob = await res.blob();
@@ -139,12 +139,23 @@ export function ClipWorkbench({
       anchor.click();
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-      setNotice(`âœ… ${selectedImages.size} image(s) tÃ©lÃ©chargÃ©e(s) avec succÃ¨s.`);
+      setNotice(`${selectedImages.size} ${t(locale, "zipReady")}`);
     } catch {
-      setNotice("Erreur rÃ©seau lors du tÃ©lÃ©chargement du ZIP.");
+      setNotice(t(locale, "networkError"));
     } finally {
       setIsZipping(false);
     }
+  }
+
+  function downloadSingleImage(url: string, index: number) {
+    const ext = url.match(/\.(jpg|jpeg|png|webp)/i)?.[0] ?? ".jpg";
+    const a = document.createElement("a");
+    a.href = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    a.download = `image-${String(index + 1).padStart(3, "0")}${ext}`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   async function inspectUrls(urls: string[]) {
@@ -617,77 +628,85 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      {/* Image Gallery Carousel Modal â€” generic, additive overlay, no JSX grid changes */}
+      {/* Image Gallery Carousel Modal — generic, no JSX grid changes */}
       {tiktokCarousel && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Image gallery selection"
+          aria-label={t(locale, "imageGallery")}
           className="modal-backdrop"
           onClick={(e) => { if (e.target === e.currentTarget) setTiktokCarousel(null); }}
         >
-          <div className="glass flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-[28px] p-6 shadow-2xl">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-[28px] border border-line bg-surface p-6">
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                  ðŸ–¼ï¸ Image Gallery
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                  {t(locale, "imageGallery")}
                 </p>
-                <h2 className="mt-1 truncate text-lg font-bold">
+                <h2 className="mt-1 truncate text-base font-bold">
                   {tiktokCarousel.title}
                 </h2>
                 <p className="mt-1 text-xs text-muted">
-                  {selectedImages.size} / {tiktokCarousel.images.length} image(s) selected â€” click to toggle
+                  {selectedImages.size} / {tiktokCarousel.images.length} {selectedImages.size <= 1 ? t(locale, "imageSelected") : t(locale, "imagesSelected")} — {t(locale, "clickToToggle")}
                 </p>
               </div>
               <button
                 type="button"
-                aria-label="Close"
+                aria-label={t(locale, "closeModal")}
                 onClick={() => setTiktokCarousel(null)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-muted transition hover:border-accent hover:text-accent"
               >
-                âœ•
+                x
               </button>
             </div>
 
-            {/* Image grid */}
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+            {/* Image grid — each image shows a per-image download button on hover */}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2">
               {tiktokCarousel.images.map((imgUrl, index) => {
                 const isSelected = selectedImages.has(imgUrl);
                 return (
-                  <button
-                    key={imgUrl}
-                    type="button"
-                    aria-label={`Image ${index + 1}${isSelected ? " (selected)" : ""}`}
-                    onClick={() => {
-                      setSelectedImages((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(imgUrl)) next.delete(imgUrl);
-                        else next.add(imgUrl);
-                        return next;
-                      });
-                    }}
-                    className="relative overflow-hidden rounded-xl p-0 outline-none transition"
-                    style={{
-                      border: isSelected ? "3px solid var(--accent)" : "3px solid transparent",
-                      aspectRatio: "9/16",
-                      background: "var(--surface-muted)",
-                      boxShadow: isSelected ? "0 0 0 1px var(--accent), 0 0 12px var(--glow)" : "none",
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imgUrl}
-                      alt={`Image ${index + 1}`}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                    {isSelected && (
-                      <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[0.65rem] font-bold text-white shadow">
-                        âœ“
-                      </span>
-                    )}
-                  </button>
+                  <div key={imgUrl} className="group relative">
+                    <button
+                      type="button"
+                      aria-label={`Image ${index + 1}${isSelected ? " (selected)" : ""}`}
+                      onClick={() => {
+                        setSelectedImages((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(imgUrl)) next.delete(imgUrl);
+                          else next.add(imgUrl);
+                          return next;
+                        });
+                      }}
+                      className="relative w-full overflow-hidden rounded-xl outline-none"
+                      style={{
+                        border: isSelected ? "2px solid var(--accent)" : "2px solid transparent",
+                        aspectRatio: "9/16",
+                        background: "var(--surface-muted)",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imgUrl}
+                        alt={`Image ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      {isSelected && (
+                        <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[0.65rem] font-bold text-white">
+                          v
+                        </span>
+                      )}
+                    </button>
+                    {/* Per-image download button */}
+                    <button
+                      type="button"
+                      onClick={() => downloadSingleImage(imgUrl, index)}
+                      className="absolute bottom-1.5 left-0 right-0 mx-auto hidden w-[calc(100%-12px)] rounded-lg border border-line bg-surface px-2 py-1 text-center text-[0.65rem] font-semibold text-foreground transition group-hover:flex group-hover:items-center group-hover:justify-center"
+                    >
+                      {t(locale, "downloadImage")}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -700,21 +719,21 @@ export function ClipWorkbench({
                 onClick={() => void downloadCarouselZip()}
                 className="btn-accent"
               >
-                {isZipping ? "ðŸ“¦ Generating..." : `â¬‡ï¸ Download ${selectedImages.size} image(s) as ZIP`}
+                {isZipping ? t(locale, "downloadZipGenerating") : `${t(locale, "downloadAsZip")} (${selectedImages.size})`}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedImages(new Set(tiktokCarousel.images))}
                 className="btn-outline text-sm"
               >
-                Select all
+                {t(locale, "selectAll")}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedImages(new Set())}
                 className="btn-outline text-sm"
               >
-                Deselect all
+                {t(locale, "deselectAll")}
               </button>
             </div>
           </div>
@@ -723,4 +742,3 @@ export function ClipWorkbench({
     </main>
   );
 }
-

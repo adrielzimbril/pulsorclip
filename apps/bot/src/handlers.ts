@@ -329,6 +329,25 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   pendingByChat.set(ctx.chat.id, choice);
   await safeDeleteMessage(bot, ctx.chat.id, loadingMessage.message_id);
 
+  // Image gallery detected — redirect user to web app for carousel selection
+  if (info.images && info.images.length > 0) {
+    const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
+    const text = [t(locale, "botImageCarousel"), countLine, trimTitle(info.title || ""), "", t(locale, "botImageGalleryHint")]
+      .filter(Boolean)
+      .join("\n");
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [[{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]],
+      },
+    };
+    if (info.thumbnail) {
+      await ctx.replyWithPhoto(info.thumbnail, { caption: text, ...keyboard });
+    } else {
+      await ctx.reply(text, keyboard);
+    }
+    return;
+  }
+
   if (forcedMode) {
     await sendChoiceMessage(
       ctx,

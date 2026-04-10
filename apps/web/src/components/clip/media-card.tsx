@@ -85,7 +85,7 @@ export function MediaCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
-              <h3 className="gradient-text text-2xl font-semibold leading-tight tracking-[-0.03em]">
+              <h3 className="text-xl font-semibold leading-tight tracking-[-0.02em]">
                 {card.title || t(locale, "inspecting")}
               </h3>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
@@ -100,7 +100,7 @@ export function MediaCard({
           </div>
 
           {(card.status === "queued" || card.status === "downloading" || card.status === "done") && (
-            <div className="mt-5 rounded-[20px] border border-accent/20 bg-accent-faint p-4">
+            <div className="mt-5 rounded-[16px] border border-line bg-surface-muted p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
                 <span className="text-sm font-medium text-accent">
