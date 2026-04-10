@@ -1,8 +1,10 @@
 import { normalizeLocale } from "@pulsorclip/core/i18n";
 import { appConfig } from "@pulsorclip/core/server";
+import { getUserPreferences } from "./preferences";
 
-export function localeForTelegram(languageCode?: string) {
-  return normalizeLocale(languageCode || appConfig.defaultLocale, appConfig.defaultLocale);
+export function localeForTelegram(userId?: number, languageCode?: string) {
+  const savedLocale = getUserPreferences(userId).locale;
+  return normalizeLocale(savedLocale || languageCode || appConfig.defaultLocale, appConfig.defaultLocale);
 }
 
 export function firstHttpUrl(text: string) {

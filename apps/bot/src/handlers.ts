@@ -3,14 +3,23 @@ import { statSync } from "node:fs";
 import { extname } from "node:path";
 import { Telegraf } from "telegraf";
 import type { InlineKeyboardMarkup } from "telegraf/types";
-import { appConfig, createDownloadJob, fetchMediaInfo, getDownloadJob, getDailySummary, requireCompletedJob, trackBotUser } from "@pulsorclip/core/server";
+import {
+  appConfig,
+  createDownloadJob,
+  fetchMediaInfo,
+  getDownloadJob,
+  getDailySummary,
+  requireCompletedJob,
+  trackBotUser,
+} from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
-import { getCurrentDailySummaryText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
-import { modeKeyboard, qualityKeyboard, webKeyboard } from "./keyboards";
-import { isAdmin, firstHttpUrl, localeForTelegram, shouldGateForMaintenance } from "./utils";
+import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard } from "./keyboards";
+import { sendHealthSnapshot, getCurrentDailySummaryText, sendDailySnapshot } from "./monitoring";
+import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
 import { modeByChat, pendingByChat } from "./state";
 import type { PendingChoice } from "./types";
+import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance } from "./utils";
 
 function statusMessage(locale: AppLocale) {
   return appConfig.telegramMaintenanceMode ? t(locale, "botStatusMaintenance") : t(locale, "botStatusReady");
@@ -40,6 +49,7 @@ function helpMessage(locale: AppLocale, admin = false) {
       "Envoie une URL media directe pour lancer l inspection.",
       "",
       "Raccourcis:",
+      "/language",
       "/video <url> --format=mp4",
       "/audio <url> --format=mp3",
       "/mp4",
@@ -48,7 +58,9 @@ function helpMessage(locale: AppLocale, admin = false) {
       admin ? "/status, /health, /report, /daily" : null,
       "",
       "Si tu envoies seulement une URL, le bot te guidera vers le mode, le conteneur, puis la qualite.",
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   return [
@@ -57,6 +69,7 @@ function helpMessage(locale: AppLocale, admin = false) {
     "Send one direct media URL to start inspection.",
     "",
     "Shortcuts:",
+    "/language",
     "/video <url> --format=mp4",
     "/audio <url> --format=mp3",
     "/mp4",
@@ -65,7 +78,9 @@ function helpMessage(locale: AppLocale, admin = false) {
     admin ? "/status, /health, /report, /daily" : null,
     "",
     "If you send only a URL, the bot will guide you through mode, container, and quality.",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function promptForMode(locale: AppLocale, title?: string) {
@@ -102,6 +117,19 @@ function rememberUser(userId?: number) {
   trackBotUser(userId);
 }
 
+function trimTitle(value: string) {
+  return value.length > 82 ? `${value.slice(0, 79)}...` : value;
+}
+
+function buildMediaSummary(choice: PendingChoice) {
+  const parts = [choice.info.uploader, formatDuration(choice.info.duration)].filter(Boolean);
+  return [trimTitle(choice.info.title || "Media"), parts.join(" • ")].filter(Boolean).join("\n");
+}
+
+function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, copy: string) {
+  return [buildMediaSummary(choice), "", copy].join("\n");
+}
+
 async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLocale, jobId: string, title: string) {
   const file = requireCompletedJob(jobId);
 
@@ -135,9 +163,7 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
 
 function inlineResult(locale: AppLocale, query: string) {
   const hasUrl = !!firstHttpUrl(query);
-  const text = hasUrl
-    ? `${t(locale, "botInlineTitle")}\n${query}`
-    : t(locale, "botInlineEmpty");
+  const text = hasUrl ? `${t(locale, "botInlineTitle")}\n${query}` : t(locale, "botInlineEmpty");
 
   return {
     type: "article",
@@ -148,31 +174,58 @@ function inlineResult(locale: AppLocale, query: string) {
       message_text: text,
     },
     reply_markup: {
-      inline_keyboard: [
-        [{ text: t(locale, "botOpenWeb"), url: hasUrl ? `${appConfig.baseUrl}?url=${encodeURIComponent(query)}` : appConfig.baseUrl }],
-      ],
+      inline_keyboard: [[{ text: t(locale, "botOpenWeb"), url: hasUrl ? `${appConfig.baseUrl}?url=${encodeURIComponent(query)}` : appConfig.baseUrl }]],
     },
   };
 }
 
-function buildMediaSummary(choice: PendingChoice) {
-  const parts = [choice.info.uploader, formatDuration(choice.info.duration)].filter(Boolean);
-  return [choice.info.title || "Media", parts.join(" • ")].filter(Boolean).join("\n");
-}
-
-function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, copy: string) {
-  return [buildMediaSummary(choice), "", copy].join("\n");
-}
-
-async function sendPreview(ctx: any, choice: PendingChoice) {
-  if (!choice.info.thumbnail) {
+async function safeDeleteMessage(bot: Telegraf, chatId: number, messageId?: number) {
+  if (!messageId) {
     return;
   }
 
   try {
-    await ctx.replyWithPhoto(choice.info.thumbnail);
+    await bot.telegram.deleteMessage(chatId, messageId);
   } catch {
-    // Ignore thumbnail failures and continue with text flow.
+    // Ignore cleanup failures.
+  }
+}
+
+async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, replyMarkup: InlineKeyboardMarkup) {
+  if (choice.info.thumbnail) {
+    const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
+      caption: text,
+      reply_markup: replyMarkup,
+    });
+
+    choice.messageId = message.message_id;
+    choice.messageKind = "photo";
+    return;
+  }
+
+  const message = await ctx.reply(text, { reply_markup: replyMarkup });
+  choice.messageId = message.message_id;
+  choice.messageKind = "text";
+}
+
+async function editChoiceMessage(bot: Telegraf, chatId: number, choice: PendingChoice, text: string, replyMarkup?: InlineKeyboardMarkup) {
+  if (!choice.messageId) {
+    return;
+  }
+
+  try {
+    if (choice.messageKind === "photo") {
+      await bot.telegram.editMessageCaption(chatId, choice.messageId, undefined, text, {
+        reply_markup: replyMarkup,
+      });
+      return;
+    }
+
+    await bot.telegram.editMessageText(chatId, choice.messageId, undefined, text, {
+      reply_markup: replyMarkup,
+    });
+  } catch {
+    // Ignore transient edit issues.
   }
 }
 
@@ -191,40 +244,32 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
 
   if (job.status === "queued") {
     return [
-      locale === "fr" ? "File d attente active" : "Queue active",
-      locale === "fr" ? `Position: #${job.queuePosition || 1}` : `Position: #${job.queuePosition || 1}`,
-      locale === "fr" ? "L inspection est terminee. Le worker attend un slot libre pour preparer le fichier." : "Inspection is complete. The worker is waiting for a free slot to prepare the file.",
+      t(locale, "botQueued"),
+      "",
+      t(locale, "botQueueLine").replace("{position}", String(job.queuePosition || 1)),
+      locale === "fr"
+        ? "Le worker attend un slot libre avant de lancer la preparation."
+        : "The worker is waiting for a free slot before starting the export.",
     ].join("\n");
   }
 
   if (job.status === "downloading") {
     return [
-      locale === "fr" ? "Preparation du fichier" : "Preparing your file",
+      t(locale, "botProgressLine"),
       `${progressBar(job.progress)} ${job.progress}%`,
-      job.progressLabel || (locale === "fr" ? "Le moteur travaille en arriere-plan." : "The export worker is still processing the file."),
-      locale === "fr" ? "Le fichier sera envoye ici des qu il est pret." : "The file will be delivered here as soon as it is ready.",
+      job.progressLabel || (locale === "fr" ? "Le moteur traite encore le fichier." : "The exporter is still processing the file."),
     ].join("\n");
   }
 
   if (job.status === "done") {
-    return locale === "fr" ? "Fichier pret. Envoi dans cette conversation..." : "File ready. Delivering it in this chat...";
+    return t(locale, "botReadyLine");
   }
 
   return job.error || t(locale, "botDownloadFailed");
 }
 
-async function updateJobMessage(bot: Telegraf, chatId: number, messageId: number, text: string) {
-  try {
-    await bot.telegram.editMessageText(chatId, messageId, undefined, text);
-  } catch {
-    // Ignore transient edit issues.
-  }
-}
-
-async function trackJobInChat(bot: Telegraf, ctx: any, locale: AppLocale, jobId: string, title: string) {
-  const firstText = renderJobUpdate(locale, jobId);
-  const initial = await ctx.reply(firstText);
-  let lastText = firstText;
+async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jobId: string, title: string) {
+  let lastText = "";
 
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -234,34 +279,22 @@ async function trackJobInChat(bot: Telegraf, ctx: any, locale: AppLocale, jobId:
       break;
     }
 
-    const nextText = renderJobUpdate(locale, jobId);
+    const nextText = renderJobUpdate(choice.locale, jobId);
 
     if (nextText !== lastText) {
-      await updateJobMessage(bot, ctx.chat.id, initial.message_id, nextText);
+      await editChoiceMessage(bot, ctx.chat.id, choice, nextText);
       lastText = nextText;
     }
 
     if (job.status === "done") {
-      await updateJobMessage(bot, ctx.chat.id, initial.message_id, nextText);
-      await sendDeliveredMedia(bot, ctx.chat.id, locale, jobId, title);
+      await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
       break;
     }
 
     if (job.status === "error") {
-      await updateJobMessage(bot, ctx.chat.id, initial.message_id, nextText);
-      await ctx.reply(job.error || t(locale, "botDownloadFailed"), webKeyboard(locale));
+      await ctx.reply(job.error || t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
       break;
     }
-  }
-}
-
-async function editInspectMessage(bot: Telegraf, ctx: any, messageId: number, text: string, replyMarkup: InlineKeyboardMarkup) {
-  try {
-    await bot.telegram.editMessageText(ctx.chat.id, messageId, undefined, text, {
-      reply_markup: replyMarkup,
-    });
-  } catch {
-    await ctx.reply(text, { reply_markup: replyMarkup });
   }
 }
 
@@ -276,41 +309,49 @@ async function inspectAndPrompt(bot: Telegraf, ctx: any, url: string, locale: Ap
   };
 
   pendingByChat.set(ctx.chat.id, choice);
-  await sendPreview(ctx, choice);
+  await safeDeleteMessage(bot, ctx.chat.id, inspectingMessage.message_id);
 
   if (forcedMode) {
-    modeByChat.set(ctx.chat.id, forcedMode);
-    await editInspectMessage(
-      bot,
+    await sendChoiceMessage(
       ctx,
-      inspectingMessage.message_id,
-      buildSelectionMessage(choice, locale, t(locale, "botChooseQuality")),
+      choice,
+      buildSelectionMessage(choice, locale, t(locale, "botPreviewReady")),
       qualityKeyboard(choice, forcedMode, forcedExt || undefined).reply_markup,
     );
     return;
   }
 
-  await editInspectMessage(
-    bot,
-    ctx,
-    inspectingMessage.message_id,
-    buildSelectionMessage(choice, locale, t(locale, "botChooseMode")),
-    modeKeyboard(locale).reply_markup,
-  );
+  await sendChoiceMessage(ctx, choice, buildSelectionMessage(choice, locale, t(locale, "botChooseMode")), modeKeyboard(locale).reply_markup);
+}
+
+async function replyWelcome(ctx: any, locale: AppLocale) {
+  const intro = [statusMessage(locale), t(locale, "botWelcome"), "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
+  await ctx.reply(intro, modeKeyboard(locale));
 }
 
 export function registerBotHandlers(bot: Telegraf) {
   bot.start(async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
     rememberUser(ctx.from?.id);
-    const intro = [statusMessage(locale), helpMessage(locale, isAdmin(ctx.from?.id))].join("\n\n");
-    await ctx.reply(intro, modeKeyboard(locale));
+    const savedLocale = getUserPreferences(ctx.from?.id).locale;
+
+    if (!savedLocale) {
+      await ctx.reply(t("en", "botChooseLanguage"), languageKeyboard());
+      return;
+    }
+
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    await replyWelcome(ctx, locale);
   });
 
   bot.help(async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), modeKeyboard(locale));
+  });
+
+  bot.command("language", async (ctx) => {
+    rememberUser(ctx.from?.id);
+    await ctx.reply(t("en", "botChooseLanguage"), languageKeyboard());
   });
 
   bot.command("status", async (ctx) => {
@@ -318,7 +359,7 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     const summary = getDailySummary();
     const text = [
@@ -332,7 +373,7 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.command("formats", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await ctx.reply(t(locale, "botFormats"), webKeyboard(locale));
   });
@@ -342,9 +383,10 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendHealthSnapshot(bot);
-    await ctx.reply("Admin health check sent.");
+    await ctx.reply(t(locale, "botHealthSent"));
   });
 
   bot.command("report", async (ctx) => {
@@ -361,16 +403,18 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendDailySnapshot(bot);
-    await ctx.reply("Daily report sent to admins.");
+    await ctx.reply(t(locale, "botReportSent"));
   });
 
   bot.command("video", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     const request = parseCommandRequest(ctx.message.text, "video");
     modeByChat.set(ctx.chat.id, "video");
+    setUserMode(ctx.from?.id, "video");
 
     if (!request.url) {
       await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
@@ -385,10 +429,11 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.command("audio", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     const request = parseCommandRequest(ctx.message.text, "audio");
     modeByChat.set(ctx.chat.id, "audio");
+    setUserMode(ctx.from?.id, "audio");
 
     if (!request.url) {
       await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
@@ -403,21 +448,23 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.command("mp4", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     modeByChat.set(ctx.chat.id, "video");
+    setUserMode(ctx.from?.id, "video");
     await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
   });
 
   bot.command("mp3", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     modeByChat.set(ctx.chat.id, "audio");
+    setUserMode(ctx.from?.id, "audio");
     await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
   });
 
   bot.on("inline_query", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await ctx.answerInlineQuery([inlineResult(locale, ctx.inlineQuery.query) as never], {
       cache_time: 0,
@@ -426,7 +473,7 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.on("text", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
 
     if (shouldGateForMaintenance(ctx.from?.id)) {
@@ -448,30 +495,47 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     try {
-      const preferredMode = modeByChat.get(ctx.chat.id);
+      const preferredMode = modeByChat.get(ctx.chat.id) || getUserPreferences(ctx.from?.id).mode;
       await inspectAndPrompt(bot, ctx, url, locale, preferredMode);
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
     }
   });
 
+  bot.action(/lang:(en|fr)/, async (ctx) => {
+    const locale = ctx.match[1] as AppLocale;
+    rememberUser(ctx.from?.id);
+    setUserLocale(ctx.from?.id, locale);
+    await ctx.answerCbQuery();
+    try {
+      await ctx.editMessageText([t(locale, "botLanguageSaved"), "", t(locale, "botWelcome")].join("\n"), modeKeyboard(locale));
+    } catch {
+      await ctx.reply([t(locale, "botLanguageSaved"), "", t(locale, "botWelcome")].join("\n"), modeKeyboard(locale));
+    }
+  });
+
   bot.action("back:mode", async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     const chatId = ctx.chat?.id;
     const choice = chatId ? pendingByChat.get(chatId) : null;
-    await ctx.editMessageText(promptForMode(locale, choice?.info.title), modeKeyboard(locale));
+    if (!chatId || !choice) {
+      await ctx.answerCbQuery();
+      return;
+    }
+    await ctx.answerCbQuery();
+    await editChoiceMessage(bot, chatId, choice, promptForMode(locale, choice.info.title), modeKeyboard(locale).reply_markup);
   });
 
   bot.action(/mode:(video|audio)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
-      const locale = localeForTelegram(ctx.from?.language_code);
+      const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
       await ctx.answerCbQuery();
       await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
       return;
     }
 
     const chatId = ctx.chat?.id;
-    const locale = localeForTelegram(ctx.from?.language_code);
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
 
     if (!chatId) {
       await ctx.answerCbQuery("Chat unavailable.");
@@ -480,6 +544,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     const mode = ctx.match[1] as DownloadMode;
     modeByChat.set(chatId, mode);
+    setUserMode(ctx.from?.id, mode);
 
     const choice = pendingByChat.get(chatId);
 
@@ -490,12 +555,12 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     await ctx.answerCbQuery();
-    await ctx.editMessageText(buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseQuality")), qualityKeyboard(choice, mode));
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botPreviewReady")), qualityKeyboard(choice, mode).reply_markup);
   });
 
   bot.action(/ext:([a-z0-9]+):(video|audio):(mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
-      const locale = localeForTelegram(ctx.from?.language_code);
+      const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
       await ctx.answerCbQuery();
       await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
       return;
@@ -518,12 +583,12 @@ export function registerBotHandlers(bot: Telegraf) {
 
     const mode = rawMode as DownloadMode;
     await ctx.answerCbQuery();
-    await ctx.editMessageText(buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseQuality")), qualityKeyboard(choice, mode, ext));
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botPreviewReady")), qualityKeyboard(choice, mode, ext).reply_markup);
   });
 
   bot.action(/dl:([a-z0-9]+):(video|audio):(best|[0-9A-Za-z_-]+):(default|mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
-      const locale = localeForTelegram(ctx.from?.language_code);
+      const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
       await ctx.answerCbQuery();
       await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
       return;
@@ -561,7 +626,7 @@ export function registerBotHandlers(bot: Telegraf) {
       });
 
       pendingByChat.delete(chatId);
-      void trackJobInChat(bot, ctx, choice.locale, job.id, choice.info.title || "PulsorClip export");
+      void trackJobInChat(bot, ctx, choice, job.id, choice.info.title || "PulsorClip export");
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
     }

@@ -5,6 +5,8 @@ export type PendingChoice = {
   url: string;
   info: MediaInfo;
   locale: AppLocale;
+  messageId?: number;
+  messageKind?: "text" | "photo";
 };
 
 export type ModeMap = Map<number, DownloadMode>;

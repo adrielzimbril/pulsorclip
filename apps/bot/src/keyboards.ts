@@ -18,6 +18,15 @@ export function modeKeyboard(locale: AppLocale) {
   ]);
 }
 
+export function languageKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("🇬🇧 English", "lang:en"),
+      Markup.button.callback("🇫🇷 Français", "lang:fr"),
+    ],
+  ]);
+}
+
 export function qualityKeyboard(choice: PendingChoice, mode: DownloadMode, selectedExt?: string) {
   const locale = choice.locale;
   const options = mode === "video" ? choice.info.videoOptions.slice(0, 6) : choice.info.audioOptions.slice(0, 6);
