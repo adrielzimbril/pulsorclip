@@ -34,6 +34,9 @@ export function ClipWorkbench({
   const [isFetching, setIsFetching] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [tiktokCarousel, setTiktokCarousel] = useState<{ images: string[]; title: string; postId: string } | null>(null);
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [isZipping, setIsZipping] = useState(false);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
 
@@ -81,6 +84,64 @@ export function ClipWorkbench({
     anchor.remove();
   }
 
+  function isTikTokUrl(url: string) {
+    return /tiktok\.com|vm\.tiktok|vt\.tiktok/i.test(url);
+  }
+
+  async function fetchTikTokCarousel(url: string) {
+    setNotice("🎞️ Détection de diaporama TikTok...");
+    try {
+      const res = await fetch("/api/tiktok-carousel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = (await res.json()) as { images?: string[]; title?: string; postId?: string; error?: string };
+      if (!res.ok || data.error || !data.images?.length) {
+        setNotice(data.error || "Impossible d'extraire les images de ce diaporama TikTok.");
+        return;
+      }
+      setTiktokCarousel({ images: data.images, title: data.title || "TikTok carousel", postId: data.postId || "" });
+      setSelectedImages(new Set(data.images));
+      setNotice(null);
+    } catch {
+      setNotice("Erreur réseau lors de l'extraction du diaporama TikTok.");
+    }
+  }
+
+  async function downloadCarouselZip() {
+    if (!tiktokCarousel || selectedImages.size === 0) return;
+    setIsZipping(true);
+    setNotice("📦 Génération du ZIP en cours...");
+    try {
+      const res = await fetch("/api/tiktok-zip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: [...selectedImages], title: tiktokCarousel.title }),
+      });
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string };
+        setNotice(err.error || "Erreur lors de la génération du ZIP.");
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `${tiktokCarousel.title.slice(0, 64)}.zip`;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      setNotice(`✅ ${selectedImages.size} image(s) téléchargée(s) avec succès.`);
+    } catch {
+      setNotice("Erreur réseau lors du téléchargement du ZIP.");
+    } finally {
+      setIsZipping(false);
+    }
+  }
+
   async function inspectUrls(urls: string[]) {
     if (!urls.length) {
       return;
@@ -121,6 +182,15 @@ export function ClipWorkbench({
           });
 
           const payload = (await response.json()) as Partial<MediaInfo> & { error?: string };
+
+          // TikTok carousel detection: if yt-dlp returns Unsupported URL on a TikTok link,
+          // switch to the carousel scraper instead
+          if ((!response.ok || payload.error === "Unsupported URL") && isTikTokUrl(card.url)) {
+            setCards([]);
+            setIsFetching(false);
+            void fetchTikTokCarousel(card.url);
+            return;
+          }
 
           if (!response.ok || payload.error) {
             updateCard(card.id, (current) => ({
@@ -519,6 +589,175 @@ export function ClipWorkbench({
       </section>
 
       <SiteFooter locale={locale} />
+
+      {/* TikTok Carousel Modal — additive overlay, does not touch existing JSX grid */}
+      {tiktokCarousel && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sélection du diaporama TikTok"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setTiktokCarousel(null); }}
+        >
+          <div
+            style={{
+              background: "var(--color-surface, #fff)",
+              border: "1px solid var(--color-line, #e5e7eb)",
+              borderRadius: "24px",
+              padding: "1.5rem",
+              maxWidth: "700px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <p style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", opacity: 0.5 }}>Diaporama TikTok</p>
+                <h2 style={{ marginTop: "0.25rem", fontSize: "1rem", fontWeight: 700, maxWidth: "480px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {tiktokCarousel.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Fermer"
+                onClick={() => setTiktokCarousel(null)}
+                style={{ background: "none", border: "1px solid var(--color-line, #e5e7eb)", borderRadius: "50%", width: "36px", height: "36px", cursor: "pointer", fontSize: "1.1rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: "0.8rem", opacity: 0.6 }}>
+              {selectedImages.size} / {tiktokCarousel.images.length} image(s) sélectionnée(s) — cliquez pour (dé)sélectionner
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.75rem" }}>
+              {tiktokCarousel.images.map((imgUrl, index) => {
+                const isSelected = selectedImages.has(imgUrl);
+                return (
+                  <button
+                    key={imgUrl}
+                    type="button"
+                    aria-label={`Image ${index + 1}${isSelected ? " (sélectionnée)" : ""}`}
+                    onClick={() => {
+                      setSelectedImages((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(imgUrl)) next.delete(imgUrl);
+                        else next.add(imgUrl);
+                        return next;
+                      });
+                    }}
+                    style={{
+                      padding: 0,
+                      border: isSelected ? "3px solid var(--color-foreground, #111)" : "3px solid transparent",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      overflow: "hidden",
+                      position: "relative",
+                      background: "none",
+                      aspectRatio: "9/16",
+                      outline: "none",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imgUrl}
+                      alt={`Image ${index + 1}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      loading="lazy"
+                    />
+                    {isSelected && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "6px",
+                          right: "6px",
+                          background: "var(--color-foreground, #111)",
+                          color: "var(--color-background, #fff)",
+                          borderRadius: "50%",
+                          width: "22px",
+                          height: "22px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                disabled={selectedImages.size === 0 || isZipping}
+                onClick={() => void downloadCarouselZip()}
+                style={{
+                  borderRadius: "999px",
+                  background: "var(--color-foreground, #111)",
+                  color: "var(--color-background, #fff)",
+                  padding: "0.65rem 1.25rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: selectedImages.size === 0 || isZipping ? "not-allowed" : "pointer",
+                  opacity: selectedImages.size === 0 || isZipping ? 0.5 : 1,
+                }}
+              >
+                {isZipping ? "📦 Génération..." : `⬇️ Télécharger ${selectedImages.size} image(s) en ZIP`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedImages(new Set(tiktokCarousel.images))}
+                style={{
+                  borderRadius: "999px",
+                  border: "1px solid var(--color-line, #e5e7eb)",
+                  padding: "0.65rem 1.25rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  background: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Tout sélectionner
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedImages(new Set())}
+                style={{
+                  borderRadius: "999px",
+                  border: "1px solid var(--color-line, #e5e7eb)",
+                  padding: "0.65rem 1.25rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  background: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Tout désélectionner
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -33,3 +33,5 @@ yt-dlp.exe
 tests/
 
 HANDOFF.md
+
+console.*
