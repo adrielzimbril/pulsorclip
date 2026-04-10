@@ -1,5 +1,5 @@
 ﻿import { randomUUID } from "node:crypto";
-import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
@@ -148,6 +148,10 @@ function getFinalOutputPath(jobId: string, ext: string) {
   return join(appConfig.downloadsDir, `${jobId}.${ext}`);
 }
 
+function isImageExt(ext: string) {
+  return [".jpg", ".jpeg", ".png", ".webp"].includes(ext.toLowerCase());
+}
+
 function findPrimaryMediaFile(directory: string) {
   return readdirSync(directory)
     .map((entry) => join(directory, entry))
@@ -169,6 +173,8 @@ async function convertAudio(job: DownloadJob, sourcePath: string, outputPath: st
       "-y",
       "-i",
       sourcePath,
+      "-map",
+      "0:a:0?",
       "-map_metadata",
       "0",
       "-metadata",
@@ -200,6 +206,10 @@ async function convertVideo(job: DownloadJob, sourcePath: string, outputPath: st
       "-y",
       "-i",
       sourcePath,
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
       "-map_metadata",
       "0",
       "-metadata",
@@ -349,7 +359,7 @@ async function executeDownload(jobId: string) {
 
   job.status = "downloading";
   job.queuePosition = 0;
-  updateJobProgress(job, 2, "Queued on server");
+  updateJobProgress(job, 2, "Connecting to source");
 
   const sourceArgs = [
     ...getAuthArgs(),
@@ -367,7 +377,7 @@ async function executeDownload(jobId: string) {
   } else {
     sourceArgs.push(
       "-f",
-      job.formatId ? `${job.formatId}+bestaudio/best` : "bestvideo+bestaudio/best",
+      job.formatId ? `${job.formatId}+bestaudio/${job.formatId}/bestvideo+bestaudio/best` : "bestvideo+bestaudio/best",
       "--merge-output-format",
       "mkv",
     );
@@ -398,9 +408,16 @@ async function executeDownload(jobId: string) {
       return;
     }
 
-    const outputPath = getFinalOutputPath(jobId, job.targetExt);
+    const sourceExt = extname(sourceFile).toLowerCase();
+    let finalExt = job.targetExt;
+    let outputPath = getFinalOutputPath(jobId, finalExt);
 
-    if (job.mode === "audio") {
+    if (isImageExt(sourceExt)) {
+      finalExt = sourceExt.replace(".", "");
+      outputPath = getFinalOutputPath(jobId, finalExt);
+      copyFileSync(sourceFile, outputPath);
+      updateJobProgress(job, 100, "Image ready for download");
+    } else if (job.mode === "audio") {
       await convertAudio(job, sourceFile, outputPath);
     } else {
       await convertVideo(job, sourceFile, outputPath);
@@ -412,7 +429,7 @@ async function executeDownload(jobId: string) {
     job.progress = 100;
     job.progressLabel = "Ready for download";
     job.filePath = outputPath;
-    job.filename = `${safeTitle}.${job.targetExt}`;
+    job.filename = `${safeTitle}.${finalExt}`;
     job.updatedAt = Date.now();
     trackDownloadCompleted(job.source);
   } catch (error) {
@@ -533,3 +550,6 @@ export async function waitForJob(jobId: string, timeoutMs: number) {
 
   throw new Error("Timed out waiting for job");
 }
+
+
+

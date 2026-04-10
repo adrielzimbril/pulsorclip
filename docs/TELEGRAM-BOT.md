@@ -204,6 +204,8 @@ Recommended wording:
 
 - Admin startup notifications only work if the admin account has already started a private chat with the bot.
 - Public command scopes and admin command scopes should be maintained separately.
+- Telegram inline mode must be enabled in BotFather with `/setinline`. The code alone cannot activate inline mode on Telegram.
+- If commands do not appear immediately, restart the bot process and reopen the chat menu in Telegram so `setMyCommands` can refresh the client.
 - Stored user preferences can remain lightweight:
   - locale
   - preferred mode

@@ -91,13 +91,13 @@ function promptForMode(locale: AppLocale, title?: string) {
 function sendUrlPrompt(locale: AppLocale, mode: DownloadMode) {
   if (locale === "fr") {
     return mode === "video"
-      ? "Mode video memorise. Envoie maintenant une URL ou utilise /video <url> --format=mp4."
-      : "Mode audio memorise. Envoie maintenant une URL ou utilise /audio <url> --format=mp3.";
+      ? "Mode video enregistre.\n\nEtape suivante:\n1. envoie un lien media\n2. choisis le format et la qualite\n3. recois le fichier ici quand il est pret\n\nRaccourci possible: /video <url> --format=mp4"
+      : "Mode audio enregistre.\n\nEtape suivante:\n1. envoie un lien media\n2. choisis le format et la qualite\n3. recois le fichier ici quand il est pret\n\nRaccourci possible: /audio <url> --format=mp3";
   }
 
   return mode === "video"
-    ? "Video mode saved. Send a URL now or use /video <url> --format=mp4."
-    : "Audio mode saved. Send a URL now or use /audio <url> --format=mp3.";
+    ? "Video mode saved.\n\nNext step:\n1. send one media link\n2. choose format and quality\n3. receive the file here when it is ready\n\nShortcut: /video <url> --format=mp4"
+    : "Audio mode saved.\n\nNext step:\n1. send one media link\n2. choose format and quality\n3. receive the file here when it is ready\n\nShortcut: /audio <url> --format=mp3";
 }
 
 function parseCommandRequest(text: string, fallbackMode: DownloadMode) {
@@ -155,6 +155,11 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
 
   if (extension === ".mp3" || extension === ".m4a") {
     await bot.telegram.sendAudio(chatId, { source: file.filePath, filename: file.filename }, { caption: title });
+    return;
+  }
+
+  if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
+    await bot.telegram.sendPhoto(chatId, { source: file.filePath }, { caption: title });
     return;
   }
 
@@ -297,7 +302,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
     }
 
     if (job.status === "done") {
-      await sendPresence(ctx, title.toLowerCase().includes("mp3") ? "upload_voice" : "upload_video");
+      await sendPresence(ctx, "upload_document");
       await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
       break;
     }

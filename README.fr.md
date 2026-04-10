@@ -1,8 +1,8 @@
 ﻿# PulsorClip
 
-|               Accueil Desktop               |              Accueil Mobile               |
+|                 Mode Clair                 |               Mode Sombre                |
 | :----------------------------------------: | :--------------------------------------: |
-| ![preview-home](assets/preview-home.png) | ![preview-mobile-home](assets/preview-mobile-home.png) |
+| ![preview-light](assets/preview-light.png) | ![preview-dark](assets/preview-dark.png) |
 
 PulsorClip est un workspace self-hosted de telechargement et d export media par **Adriel Zimbril**.
 

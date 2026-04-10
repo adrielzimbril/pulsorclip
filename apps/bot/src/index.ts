@@ -24,11 +24,10 @@ registerBotHandlers(bot);
 async function bootstrap() {
   console.log(`[pulsorclip-bot] booting with ${appConfig.telegramAdminIds.length} configured admin id(s).`);
 
-  await applyTelegramMetadata(bot);
-
   try {
     await bot.telegram.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);
     await bot.launch();
+    await applyTelegramMetadata(bot);
     console.log(`PulsorClip Telegram bot running as @${appConfig.telegramBotUsername}.`);
 
     const adminMessage = appConfig.telegramMaintenanceMode

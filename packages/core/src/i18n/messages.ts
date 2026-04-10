@@ -117,7 +117,7 @@ export const messages = {
     botLanguageSaved: "✅ Language saved. PulsorClip will keep using it in this chat.",
     botWelcome:
       "🚀 PulsorClip is ready.\n\nSend one media link.\nI will guide you through mode, container, and quality.\n\nThen I prepare the file and deliver it here when possible.",
-    botHelp: "Commands: /start, /help, /video, /audio, /mp4, /mp3, /formats. Send a direct media URL at any time to start a download flow.",
+    botHelp: "Commands: /start, /language, /help, /video, /audio, /mp4, /mp3, /formats. Send a direct media URL at any time to start a guided download.",
     botChooseMode: "Choose the download mode for this URL.",
     botChooseQuality: "Pick the final container and quality preset.",
     botPreviewReady: "Link loaded. Pick the final container and quality preset.",
@@ -125,7 +125,7 @@ export const messages = {
     botModeSetAudio: "Default mode set to audio.",
     botInvalidUrl: "Send a valid media URL.",
     botInspecting: "Loading the link and download options...",
-    botQueued: "Download queued. I will send the file here if it fits Telegram limits.",
+    botQueued: "Download queued. I will keep this message updated and send the file here if it fits Telegram limits.",
     botDownloadFailed: "The download failed.",
     botQueueLine: "Queue position: #{position}",
     botProgressLine: "Download in progress",
@@ -145,7 +145,7 @@ export const messages = {
     botStartupAdmin: "✅ PulsorClip bot is now available.",
     botStartupAdminMaintenance: "🟠 PulsorClip bot started in maintenance mode.",
     botInlineTitle: "Open this URL in PulsorClip",
-    botInlineDescription: "Use the web app for a full download flow with quality, progress, and manual file release.",
+    botInlineDescription: "Open the link in PulsorClip and continue the full download flow in the web app.",
     botInlineEmpty: "Type or paste a media URL after @pulsorclip_bot to generate a PulsorClip shortcut.",
   },
   fr: {
@@ -265,7 +265,7 @@ export const messages = {
     botLanguageSaved: "✅ Langue enregistree. PulsorClip l utilisera maintenant dans cette conversation.",
     botWelcome:
       "🚀 PulsorClip est pret.\n\nEnvoie un lien media.\nJe te guide ensuite sur le mode, le conteneur et la qualite.\n\nPuis je prepare le fichier et je le livre ici quand c est possible.",
-    botHelp: "Commandes: /start, /help, /video, /audio, /mp4, /mp3, /formats. Envoie une URL media directe a tout moment pour lancer un telechargement.",
+    botHelp: "Commandes: /start, /language, /help, /video, /audio, /mp4, /mp3, /formats. Envoie une URL media directe a tout moment pour lancer un telechargement guide.",
     botChooseMode: "Choisis le mode de telechargement pour cette URL.",
     botChooseQuality: "Choisis le conteneur final et le preset de qualite.",
     botPreviewReady: "Lien charge. Choisis maintenant le conteneur final et le preset de qualite.",
@@ -273,7 +273,7 @@ export const messages = {
     botModeSetAudio: "Mode par defaut regle sur audio.",
     botInvalidUrl: "Envoie une URL media valide.",
     botInspecting: "Chargement du lien et des options de telechargement...",
-    botQueued: "Telechargement ajoute a la file. Je t enverrai le fichier ici s il respecte la limite Telegram.",
+    botQueued: "Telechargement ajoute a la file. Je garde ce message a jour et je t enverrai le fichier ici s il respecte la limite Telegram.",
     botDownloadFailed: "Le telechargement a echoue.",
     botQueueLine: "Position dans la file: #{position}",
     botProgressLine: "Telechargement en cours",
@@ -294,7 +294,7 @@ export const messages = {
     botStartupAdmin: "✅ Le bot PulsorClip est maintenant disponible.",
     botStartupAdminMaintenance: "🟠 Le bot PulsorClip a demarre en mode maintenance.",
     botInlineTitle: "Ouvrir cette URL dans PulsorClip",
-    botInlineDescription: "Utilise l app web pour un flux complet avec qualite, progression et livraison manuelle du fichier.",
+    botInlineDescription: "Ouvre le lien dans PulsorClip et poursuis le telechargement complet dans l app web.",
     botInlineEmpty: "Tape ou colle une URL media apres @pulsorclip_bot pour generer un raccourci PulsorClip.",
   },
 } satisfies Record<AppLocale, Record<string, string>>;
