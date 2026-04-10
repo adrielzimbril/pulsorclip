@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       targetExt: payload.targetExt,
       formatId: payload.formatId,
     });
-    const job = createDownloadJob(payload);
+    const job = createDownloadJob(payload as any);
     return NextResponse.json({ jobId: job.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Invalid request";
