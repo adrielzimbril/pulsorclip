@@ -318,9 +318,16 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     const text = [t(locale, "botImageCarousel"), countLine, trimTitle(info.title || ""), "", t(locale, "botImageGalleryHint")]
       .filter(Boolean)
       .join("\n");
+    
+    // Add audio download option if music is present in the carousel
+    const inline_keyboard: any[][] = [[{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]];
+    if (info.resolvedUrl) {
+      inline_keyboard.unshift([{ text: `🎧 ${t(locale, "botAudioLabel")}`, callback_data: `dl:${choice.id}:audio:best:mp3` }]);
+    }
+
     const keyboard = {
       reply_markup: {
-        inline_keyboard: [[{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]],
+        inline_keyboard,
       },
     };
     if (info.thumbnail) {

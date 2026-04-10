@@ -4,13 +4,16 @@ import { externalLinks } from "@/lib/external-links";
 
 export function SiteFooter({ locale }: { locale: AppLocale }) {
   return (
-    <footer className="rounded-[24px] border border-line bg-surface px-4 py-5 shadow-sm sm:rounded-[28px] sm:px-6 sm:py-6">
-      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-        <div>
+    <footer className="rounded-[24px] border border-line bg-surface px-4 py-5 sm:rounded-[28px] sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-md">
           <p className="text-sm font-semibold">{t(locale, "footerCredits")}</p>
           <p className="mt-1 text-sm text-muted">{t(locale, "creatorRole")}</p>
+          <p className="mt-4 text-[0.7rem] leading-relaxed text-muted uppercase tracking-wider opacity-70">
+            {t(locale, "educationalDisclaimer")}
+          </p>
         </div>
-        <div className="max-w-3xl text-sm leading-7 text-muted">{t(locale, "footerLegal")}</div>
+        <div className="max-w-2xl text-sm leading-7 text-muted">{t(locale, "footerLegal")}</div>
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex flex-wrap gap-2">
             <a className="rounded-full border border-line px-4 py-2 text-sm font-semibold" href={externalLinks.githubRepo} rel="noreferrer" target="_blank">

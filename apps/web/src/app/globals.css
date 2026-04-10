@@ -168,3 +168,15 @@ button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px
 
 /* Header subtle border — the ONLY decoration allowed */
 .header-shadow { border-bottom: 1.5px solid var(--line); }
+
+/* Skeleton loaders — flat, no gradient, subtle pulse */
+.skeleton {
+  background-color: var(--surface-muted);
+  border-radius: 6px;
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

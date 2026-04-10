@@ -34,7 +34,7 @@ export function ClipWorkbench({
   const [isFetching, setIsFetching] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tiktokCarousel, setTiktokCarousel] = useState<{ images: string[]; title: string; postId: string } | null>(null);
+  const [tiktokCarousel, setTiktokCarousel] = useState<{ images: string[]; title: string; postId: string; audioUrl?: string } | null>(null);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
   const intervalsRef = useRef<Map<string, number>>(new Map());
@@ -88,27 +88,27 @@ export function ClipWorkbench({
     return /tiktok\.com|vm\.tiktok|vt\.tiktok/i.test(url);
   }
 
-  /** Open the image carousel modal from any source (generic). */
-  function openImageCarousel(images: string[], title: string, postId = "") {
-    setTiktokCarousel({ images, title, postId });
-    setSelectedImages(new Set(images));
-    setNotice(null);
-  }
-
   async function fetchTikTokCarousel(url: string) {
-    setNotice(t(locale, "detectingCarousel"));
+    setNotice(t(locale, "detectingCarouselTikTok"));
     try {
       const res = await fetch("/api/tiktok-carousel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      const data = (await res.json()) as { images?: string[]; title?: string; postId?: string; error?: string };
+      const data = (await res.json()) as { images?: string[]; title?: string; postId?: string; audioUrl?: string; error?: string };
       if (!res.ok || data.error || !data.images?.length) {
         setNotice(data.error || t(locale, "carouselError"));
         return;
       }
-      openImageCarousel(data.images, data.title || t(locale, "imageGallery"), data.postId || "");
+      setTiktokCarousel({
+        images: data.images,
+        title: data.title || t(locale, "imageGallery"),
+        postId: data.postId || "",
+        audioUrl: data.audioUrl,
+      });
+      setSelectedImages(new Set(data.images));
+      setNotice(null);
     } catch {
       setNotice(t(locale, "networkError"));
     }
@@ -752,6 +752,17 @@ export function ClipWorkbench({
                 </div>
 
                 <div className="flex gap-2">
+                  {tiktokCarousel.audioUrl && (
+                    <a
+                      href={tiktokCarousel.audioUrl}
+                      download="tiktok-audio.mp3"
+                      className="btn-outline px-4 py-2 text-xs"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t(locale, "botAudioLabel")}
+                    </a>
+                  )}
                    <button
                     type="button"
                     disabled={selectedImages.size === 0 || isZipping}

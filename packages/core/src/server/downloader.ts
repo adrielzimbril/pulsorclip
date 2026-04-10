@@ -404,7 +404,8 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     // 2. Fallback to OpenGraph meta tags if JSON fails
     if (!resolvedUrl) {
       const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
-                         html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i);
+                         html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i) ||
+                         html.match(/<video[^>]+src="([^"]+)"/i); // New fallback for direct video tags
       if (videoMatch) {
          resolvedUrl = videoMatch[1].replace(/&amp;/g, "&");
       }
@@ -447,6 +448,69 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
   }
 }
 
+export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
+  logServer("info", "media.info.scrape.tiktok.started", { url: urlForLogs(url) });
+
+  try {
+    const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&count=12&cursor=0&web=1&hd=1`;
+    const response = await fetch(apiUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; PulsorClip/1.0)",
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`tikwm API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as any;
+    if (data.code !== 0 || !data.data) {
+      throw new Error(data.msg || "Could not extract TikTok carousel via tikwm");
+    }
+
+    const mediaData = data.data;
+    let images: string[] = [];
+
+    if (Array.isArray(mediaData.images) && mediaData.images.length > 0) {
+      images = mediaData.images;
+    } else if (mediaData.image_post_info?.images) {
+      images = mediaData.image_post_info.images
+        .map((img: any) => img.display_image?.url_list?.[0])
+        .filter((u: any): u is string => typeof u === "string");
+    }
+
+    if (images.length === 0) {
+      throw new Error("No images found in this TikTok post. It may be a video.");
+    }
+
+    const audioUrl = mediaData.music || mediaData.music_info?.play || "";
+
+    const audioOptions: MediaOption[] = audioUrl ? [{
+      id: "tiktok-audio",
+      label: "TikTok Music",
+      ext: "mp3",
+      qualityLabel: "Best",
+    }] : [];
+
+    return {
+      title: decodeHtmlEntities(mediaData.title || "TikTok carousel"),
+      thumbnail: mediaData.cover || images[0] || "",
+      duration: null,
+      uploader: "TikTok",
+      platform: "tiktok",
+      extractorNote: "Scraped via Tikwm fallback",
+      videoOptions: [],
+      audioOptions,
+      images,
+      resolvedUrl: audioUrl,
+    };
+  } catch (err) {
+    logServer("error", "media.info.scrape.tiktok.failed", { url: urlForLogs(url), error: String(err) });
+    throw err;
+  }
+}
+
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   const url = rawUrl
     .replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com")
@@ -469,6 +533,9 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     if (result.exitCode !== 0) {
       if (sourceProfile.platform === "threads") {
         return await scrapeThreadsInfo(url);
+      }
+      if (sourceProfile.platform === "tiktok") {
+        return await scrapeTikTokCarousel(url);
       }
       throw new Error(simplifyError(result.stderr));
     }

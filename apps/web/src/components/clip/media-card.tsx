@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Skeleton } from "boneyard-js/react";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale, DownloadMode, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
 import type { ClipCard, CardStatus } from "./types";
@@ -71,28 +70,42 @@ export function MediaCard({
     <article className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
       <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
         <div className="overflow-hidden rounded-[16px] border border-line bg-background">
-          <Skeleton name="media-thumb" loading={card.status === "loading"}>
-            {card.thumbnail && mode === "video" ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover" src={card.thumbnail} />
-            ) : (
-              <div className="flex h-56 items-center justify-center bg-surface-muted text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-                {mode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
-              </div>
-            )}
-          </Skeleton>
+          {card.status === "loading" ? (
+            <div className="skeleton h-56 w-full" />
+          ) : card.thumbnail && mode === "video" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover" src={card.thumbnail} />
+          ) : (
+            <div className="flex h-56 items-center justify-center bg-surface-muted text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+              {mode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
+            </div>
+          )}
         </div>
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <h3 className="text-xl font-semibold leading-tight tracking-[-0.02em]">
-                {card.title || t(locale, "inspecting")}
+                {card.status === "loading" ? (
+                  <div className="skeleton h-7 w-3/4" />
+                ) : (
+                  card.title || t(locale, "inspecting")
+                )}
               </h3>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-                <span>{t(locale, "sourceLabel")}: {card.uploader || "-"}</span>
-                <span>{t(locale, "durationLabel")}: {formatDuration(card.duration)}</span>
-                <span>{t(locale, "formatLabel")}: {activeContainer.toUpperCase()}</span>
+                {card.status === "loading" ? (
+                  <>
+                    <div className="skeleton h-5 w-24" />
+                    <div className="skeleton h-5 w-24" />
+                    <div className="skeleton h-5 w-24" />
+                  </>
+                ) : (
+                  <>
+                    <span>{t(locale, "sourceLabel")}: {card.uploader || "-"}</span>
+                    <span>{t(locale, "durationLabel")}: {formatDuration(card.duration)}</span>
+                    <span>{t(locale, "formatLabel")}: {activeContainer.toUpperCase()}</span>
+                  </>
+                )}
               </div>
             </div>
             <span className="badge">
