@@ -104,7 +104,9 @@ export function MediaCard({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
                 <span className="text-sm text-muted">
-                  {card.status === "queued" && card.queuePosition ? `#${card.queuePosition} in queue` : `${card.progress}%`}
+                  {card.status === "queued" && card.queuePosition
+                    ? t(locale, "queuePositionValue").replace("{position}", String(card.queuePosition))
+                    : `${card.progress}%`}
                 </span>
               </div>
               <ProgressBar value={card.progress} />

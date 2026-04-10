@@ -6,6 +6,9 @@ const deploymentContent = {
   en: {
     heading: "Render deployment guide",
     intro: "PulsorClip currently targets a single Docker-backed Render web service on the free plan. The bot and the web app start from the same container.",
+    strategyTitle: "Deployment strategy",
+    strategyBody:
+      "The project defaults to one Docker web service because it stays cheap, keeps setup simple, and still supports both the web workflow and Telegram polling.",
     flowTitle: "Deployment flow",
     envTitle: "Environment variables",
     notesTitle: "Notes",
@@ -35,6 +38,9 @@ const deploymentContent = {
   fr: {
     heading: "Guide de deploiement Render",
     intro: "PulsorClip cible actuellement un seul web service Render base sur Docker en plan gratuit. Le bot et l app web demarrent depuis le meme conteneur.",
+    strategyTitle: "Strategie de deploiement",
+    strategyBody:
+      "Le projet part sur un seul web service Docker pour rester economique, simple a configurer, et compatible avec le workflow web comme avec le polling Telegram.",
     flowTitle: "Flux de deploiement",
     envTitle: "Variables d environnement",
     notesTitle: "Notes",
@@ -74,6 +80,11 @@ export default async function DeploymentPage() {
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">Deployment</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em]">{content.heading}</h1>
         <p className="mt-4 max-w-3xl text-base leading-8 text-muted">{content.intro}</p>
+      </section>
+
+      <section className="rounded-[28px] border border-line bg-surface p-6 shadow-sm">
+        <h2 className="text-2xl font-semibold tracking-[-0.03em]">{content.strategyTitle}</h2>
+        <p className="mt-3 max-w-4xl text-sm leading-8 text-muted">{content.strategyBody}</p>
       </section>
 
       <section className="rounded-[28px] border border-line bg-surface p-6 shadow-sm">

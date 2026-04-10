@@ -8,6 +8,13 @@ const faqContent = {
   en: {
     heading: "yt-dlp and deployment troubleshooting",
     intro: "Common failure modes, cookie setup reminders, and practical fixes for PulsorClip on local and hosted environments.",
+    checklistTitle: "Quick triage",
+    checklist: [
+      "Confirm the source URL still opens in a browser.",
+      "Check whether the source needs authenticated cookies.",
+      "Verify yt-dlp and ffmpeg are present on the host.",
+      "Use deployment logs before changing code or env blindly.",
+    ],
     resources: "Resources",
     cookieGuide: "yt-dlp cookie guide",
     exportCookies: "Export YouTube cookies",
@@ -37,6 +44,13 @@ const faqContent = {
   fr: {
     heading: "Troubleshooting yt-dlp et deploiement",
     intro: "Erreurs frequentes, rappels sur les cookies et corrections pratiques pour PulsorClip en local comme en environnement heberge.",
+    checklistTitle: "Triage rapide",
+    checklist: [
+      "Verifie d abord que l URL fonctionne encore dans un navigateur.",
+      "Controle si la source demande des cookies authentifies.",
+      "Verifie que yt-dlp et ffmpeg sont bien presents sur l host.",
+      "Lis les logs de deploiement avant de modifier le code ou l env a l aveugle.",
+    ],
     resources: "Ressources",
     cookieGuide: "Guide cookies yt-dlp",
     exportCookies: "Exporter les cookies YouTube",
@@ -76,6 +90,15 @@ export default async function FaqPage() {
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">FAQ</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em]">{content.heading}</h1>
         <p className="mt-4 max-w-3xl text-base leading-8 text-muted">{content.intro}</p>
+      </section>
+
+      <section className="rounded-[28px] border border-line bg-surface p-6 shadow-sm">
+        <h2 className="text-2xl font-semibold tracking-[-0.03em]">{content.checklistTitle}</h2>
+        <ul className="mt-4 space-y-3 text-sm leading-8 text-muted">
+          {content.checklist.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </section>
 
       <section className="space-y-4">

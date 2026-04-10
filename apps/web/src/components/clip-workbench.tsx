@@ -298,7 +298,7 @@ export function ClipWorkbench({
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">{t(locale, "workspaceBody")}</h2>
+            <h2 className="mt-2 max-w-4xl text-3xl font-semibold tracking-[-0.03em]">{t(locale, "workspaceBody")}</h2>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -384,6 +384,17 @@ export function ClipWorkbench({
               <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
               <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "patienceBody")}</p>
             </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
+                <p className="text-sm font-semibold">{t(locale, "normalStrategyTitle")}</p>
+                <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "normalStrategyBody")}</p>
+              </div>
+              <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
+                <p className="text-sm font-semibold">{t(locale, "bulkStrategyTitle")}</p>
+                <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "bulkStrategyBody")}</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-5">
@@ -451,7 +462,13 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2" id="platforms">
+      <section className="grid gap-4" id="platforms">
+        <div className="rounded-[28px] border border-line bg-surface p-5 shadow-sm">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "supportSectionTitle")}</p>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">{t(locale, "supportSectionBody")}</p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
           <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
           <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
@@ -470,6 +487,7 @@ export function ClipWorkbench({
           <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">
             {t(locale, "faqCardCta")}
           </Link>
+        </div>
         </div>
       </section>
 
