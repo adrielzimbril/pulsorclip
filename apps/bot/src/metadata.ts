@@ -3,7 +3,6 @@
 const englishCommands = [
   { command: "start", description: "🚀 Open the guided PulsorClip flow" },
   { command: "help", description: "🧭 Show commands and URL examples" },
-  { command: "status", description: "🟢 Check bot health and maintenance" },
   { command: "video", description: "🎬 Prepare a video export" },
   { command: "audio", description: "🎧 Prepare an audio export" },
   { command: "mp4", description: "📦 Save video mode, then send a URL" },
@@ -14,7 +13,6 @@ const englishCommands = [
 const frenchCommands = [
   { command: "start", description: "🚀 Ouvrir le flow guide PulsorClip" },
   { command: "help", description: "🧭 Afficher les commandes et exemples" },
-  { command: "status", description: "🟢 Verifier l etat et la maintenance" },
   { command: "video", description: "🎬 Preparer un export video" },
   { command: "audio", description: "🎧 Preparer un export audio" },
   { command: "mp4", description: "📦 Memoriser le mode video puis envoyer une URL" },

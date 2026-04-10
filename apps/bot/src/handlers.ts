@@ -31,9 +31,9 @@ function formatDuration(value: number | null) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function helpMessage(locale: AppLocale) {
+function helpMessage(locale: AppLocale, includeAdminCommands = false) {
   if (locale === "fr") {
-    return [
+    const lines = [
       "PulsorClip Telegram",
       "",
       "Envoie une URL media directe pour lancer l inspection.",
@@ -41,14 +41,21 @@ function helpMessage(locale: AppLocale) {
       "Raccourcis:",
       "/video <url> --format=mp4",
       "/audio <url> --format=mp3",
-      "/status",
+      "/mp4",
+      "/mp3",
       "/formats",
       "",
       "Si tu envoies seulement une URL, le bot te demandera d abord si tu veux une sortie video ou audio, puis le conteneur et la qualite.",
-    ].join("\n");
+    ];
+
+    if (includeAdminCommands) {
+      lines.push("", "Commandes admin:", "/status", "/health", "/report", "/daily");
+    }
+
+    return lines.join("\n");
   }
 
-  return [
+  const lines = [
     "PulsorClip Telegram",
     "",
     "Send one direct media URL to start inspection.",
@@ -56,11 +63,18 @@ function helpMessage(locale: AppLocale) {
     "Shortcuts:",
     "/video <url> --format=mp4",
     "/audio <url> --format=mp3",
-    "/status",
+    "/mp4",
+    "/mp3",
     "/formats",
     "",
     "If you send only a URL, the bot will ask for mode first, then container and quality.",
-  ].join("\n");
+  ];
+
+  if (includeAdminCommands) {
+    lines.push("", "Admin commands:", "/status", "/health", "/report", "/daily");
+  }
+
+  return lines.join("\n");
 }
 
 function promptForMode(locale: AppLocale, title?: string) {
@@ -160,9 +174,7 @@ async function sendPreview(ctx: any, choice: PendingChoice) {
   }
 
   try {
-    await ctx.replyWithPhoto(choice.info.thumbnail, {
-      caption: buildPreviewCaption(choice),
-    });
+    await ctx.replyWithPhoto(choice.info.thumbnail);
   } catch {
     // Ignore thumbnail failures and continue with text flow.
   }
@@ -182,17 +194,47 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
   }
 
   if (job.status === "queued") {
+    const queueLead = locale === "fr"
+      ? job.queuePosition === 1
+        ? "Prochain job a demarrer"
+        : `Position dans la file: #${job.queuePosition || 1}`
+      : job.queuePosition === 1
+        ? "Next job to start"
+        : `Queue position: #${job.queuePosition || 1}`;
+
     return [
-      locale === "fr" ? "File d attente en cours" : "Queued for processing",
-      locale === "fr" ? `Position actuelle: #${job.queuePosition || 1}` : `Current position: #${job.queuePosition || 1}`,
-      job.progressLabel || (locale === "fr" ? "En attente d un slot libre" : "Waiting for a free slot"),
+      locale === "fr" ? "File d attente active" : "Queue active",
+      queueLead,
+      job.progressLabel || (locale === "fr" ? "Le worker termine encore un autre export." : "The worker is finishing another export."),
     ].join("\n");
   }
 
   if (job.status === "downloading") {
+    const phase =
+      job.progress < 10
+        ? locale === "fr"
+          ? "Preparation du worker et des fichiers temporaires"
+          : "Allocating the worker and temporary files"
+        : job.progress < 45
+          ? locale === "fr"
+            ? "Recuperation des flux source"
+            : "Fetching source streams"
+          : job.progress < 80
+            ? locale === "fr"
+              ? "Telechargement du media source"
+              : "Downloading source media"
+            : job.progress < 96
+              ? locale === "fr"
+                ? `Construction du conteneur final ${job.targetExt.toUpperCase()}`
+                : `Building the final ${job.targetExt.toUpperCase()} container`
+              : locale === "fr"
+                ? "Ecriture du fichier final et des metadonnees"
+                : "Writing the final file and metadata";
+
     return [
-      locale === "fr" ? "Preparation en cours" : "Export in progress",
+      locale === "fr" ? "Export en cours" : "Export in progress",
       `${progressBar(job.progress)} ${job.progress}%`,
+      phase,
       job.progressLabel || (locale === "fr" ? "Le moteur tourne" : "The worker is running"),
     ].join("\n");
   }
@@ -213,8 +255,9 @@ async function updateJobMessage(bot: Telegraf, chatId: number, messageId: number
 }
 
 async function trackJobInChat(bot: Telegraf, ctx: any, locale: AppLocale, jobId: string, title: string) {
-  const initial = await ctx.reply(renderJobUpdate(locale, jobId));
-  let lastText = renderJobUpdate(locale, jobId);
+  const firstText = renderJobUpdate(locale, jobId);
+  const initial = await ctx.reply(firstText);
+  let lastText = firstText;
 
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -244,7 +287,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, locale: AppLocale, jobId:
 }
 
 async function inspectAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null) {
-  await ctx.reply(t(locale, "botInspecting"));
+  const inspectionMessage = await ctx.reply(t(locale, "botInspecting"));
   const info = await fetchMediaInfo(url);
   const choice: PendingChoice = {
     id: randomUUID().slice(0, 8),
@@ -254,34 +297,39 @@ async function inspectAndPrompt(bot: Telegraf, ctx: any, url: string, locale: Ap
   };
 
   pendingByChat.set(ctx.chat.id, choice);
-  await sendPreview(ctx, choice);
 
   if (forcedMode) {
     modeByChat.set(ctx.chat.id, forcedMode);
     const summary = `${buildPreviewCaption(choice)}\n\n${statusMessage(locale)}\n${t(locale, "botChooseQuality")}`;
-    await ctx.reply(summary, qualityKeyboard(choice, forcedMode, forcedExt || undefined));
+    await bot.telegram.editMessageText(ctx.chat.id, inspectionMessage.message_id, undefined, summary, qualityKeyboard(choice, forcedMode, forcedExt || undefined));
+    await sendPreview(ctx, choice);
     return;
   }
 
   const summary = `${buildPreviewCaption(choice)}\n\n${statusMessage(locale)}\n${t(locale, "botChooseMode")}`;
-  await ctx.reply(summary, modeKeyboard(locale));
+  await bot.telegram.editMessageText(ctx.chat.id, inspectionMessage.message_id, undefined, summary, modeKeyboard(locale));
+  await sendPreview(ctx, choice);
 }
 
 export function registerBotHandlers(bot: Telegraf) {
   bot.start(async (ctx) => {
     const locale = localeForTelegram(ctx.from?.language_code);
     rememberUser(ctx.from?.id);
-    const intro = [statusMessage(locale), helpMessage(locale)].join("\n\n");
+    const intro = [statusMessage(locale), helpMessage(locale, isAdmin(ctx.from?.id))].join("\n\n");
     await ctx.reply(intro, modeKeyboard(locale));
   });
 
   bot.help(async (ctx) => {
     const locale = localeForTelegram(ctx.from?.language_code);
     rememberUser(ctx.from?.id);
-    await ctx.reply(helpMessage(locale), modeKeyboard(locale));
+    await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), modeKeyboard(locale));
   });
 
   bot.command("status", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      return;
+    }
+
     const locale = localeForTelegram(ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     const summary = getDailySummary();

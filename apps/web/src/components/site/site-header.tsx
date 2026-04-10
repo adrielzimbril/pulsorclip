@@ -28,10 +28,7 @@ export function SiteHeader({ locale, onLocaleChange }: { locale: AppLocale; onLo
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-line bg-background">
             <Image alt="PulsorClip logo" height={36} priority src="/brand/pulsorclip-mark.svg" width={36} />
           </div>
-          <div>
-            <p className="text-base font-semibold">{t(locale, "appName")}</p>
-            <p className="text-sm text-muted">{t(locale, "creatorLine")}</p>
-          </div>
+          <p className="text-base font-semibold">{t(locale, "appName")}</p>
         </Link>
 
         <button

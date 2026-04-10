@@ -34,6 +34,7 @@ export function ClipWorkbench({
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const intervalsRef = useRef<Map<string, number>>(new Map());
+  const alertedErrorsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     document.cookie = `pulsorclip-locale=${locale}; path=/; max-age=31536000; samesite=lax`;
@@ -47,6 +48,19 @@ export function ClipWorkbench({
       }
     };
   }, []);
+
+  useEffect(() => {
+    const nextAlerted = new Set(alertedErrorsRef.current);
+
+    for (const card of cards) {
+      if ((card.status === "error" || card.status === "info-error") && card.error && !nextAlerted.has(card.id)) {
+        nextAlerted.add(card.id);
+        setNotice(card.error);
+      }
+    }
+
+    alertedErrorsRef.current = nextAlerted;
+  }, [cards]);
 
   const activeInput = view === "normal" ? normalInput : bulkInput;
   const visibleCards = useMemo(() => (view === "normal" ? cards.slice(0, 1) : cards), [cards, view]);
