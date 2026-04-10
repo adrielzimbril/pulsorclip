@@ -19,3 +19,7 @@ assets/*.mov
 .env.development
 !.env.example
 !.env.render
+
+.chrome-headless/
+
+dev-web.log
