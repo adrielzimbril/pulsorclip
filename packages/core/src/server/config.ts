@@ -12,6 +12,8 @@ mkdirSync(downloadsDir, { recursive: true });
 export const appConfig = {
   appName: "PulsorClip",
   downloadsDir,
+  debugLogs: process.env.PULSORCLIP_DEBUG_LOGS === "true",
+  logFullUrls: process.env.PULSORCLIP_LOG_FULL_URLS === "true",
   ytDlpBin: process.env.YTDLP_BIN || "yt-dlp",
   ffmpegBin: process.env.FFMPEG_BIN || "ffmpeg",
   ytDlpCookiesFromBrowser: process.env.YTDLP_COOKIES_FROM_BROWSER || "",

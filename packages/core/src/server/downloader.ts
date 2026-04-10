@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync }
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
+import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
 import { getSourceProfile } from "./source-adapters";
 import type { DownloadJob, DownloadRequestPayload, MediaInfo, MediaOption } from "../shared/types";
@@ -325,6 +326,11 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
 
 export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
   const sourceProfile = getSourceProfile(url);
+  logServer("info", "media.info.fetch.started", {
+    platform: sourceProfile.platform,
+    url: urlForLogs(url),
+    extractorArgs: sourceProfile.extractorArgs,
+  });
   const result = await runCommand(
     appConfig.ytDlpBin,
     [...getAuthArgs(), ...sourceProfile.extractorArgs, "--dump-single-json", "--no-playlist", url],
@@ -332,10 +338,27 @@ export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
   );
 
   if (result.exitCode !== 0) {
+    logServer("error", "media.info.fetch.failed", {
+      platform: sourceProfile.platform,
+      url: urlForLogs(url),
+      exitCode: result.exitCode,
+      stderrTail: stderrTail(result.stderr),
+    });
     throw new Error(simplifyError(result.stderr));
   }
 
   const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
+  const videoOptions = pickVideoOptions(parsed);
+  const audioOptions = pickAudioOptions(parsed);
+
+  logServer("info", "media.info.fetch.completed", {
+    platform: sourceProfile.platform,
+    url: urlForLogs(url),
+    title: typeof parsed.title === "string" ? parsed.title : "",
+    hasThumbnail: typeof parsed.thumbnail === "string" && Boolean(parsed.thumbnail),
+    videoOptions: videoOptions.length,
+    audioOptions: audioOptions.length,
+  });
 
   return {
     title: typeof parsed.title === "string" ? parsed.title : "",
@@ -346,8 +369,8 @@ export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
     extractorNote: sourceProfile.note,
     width: typeof parsed.width === "number" ? parsed.width : undefined,
     height: typeof parsed.height === "number" ? parsed.height : undefined,
-    videoOptions: pickVideoOptions(parsed),
-    audioOptions: pickAudioOptions(parsed),
+    videoOptions,
+    audioOptions,
   };
 }
 
@@ -360,14 +383,24 @@ async function executeDownload(jobId: string) {
 
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
+  const sourceProfile = getSourceProfile(job.url);
 
   job.status = "downloading";
   job.queuePosition = 0;
   updateJobProgress(job, 2, "Connecting to source");
+  logServer("info", "media.download.started", {
+    jobId: job.id,
+    mode: job.mode,
+    targetExt: job.targetExt,
+    formatId: job.formatId,
+    source: job.source,
+    platform: sourceProfile.platform,
+    url: urlForLogs(job.url),
+  });
 
   const sourceArgs = [
     ...getAuthArgs(),
-    ...getSourceProfile(job.url).extractorArgs,
+    ...sourceProfile.extractorArgs,
     "--no-playlist",
     "--newline",
     "--progress",
@@ -401,6 +434,13 @@ async function executeDownload(jobId: string) {
       job.status = "error";
       job.error = simplifyError(downloadResult.stderr);
       job.updatedAt = Date.now();
+      logServer("error", "media.download.fetch.failed", {
+        jobId: job.id,
+        platform: sourceProfile.platform,
+        url: urlForLogs(job.url),
+        exitCode: downloadResult.exitCode,
+        stderrTail: stderrTail(downloadResult.stderr),
+      });
       return;
     }
 
@@ -410,6 +450,11 @@ async function executeDownload(jobId: string) {
       job.status = "error";
       job.error = "Download finished without a local source file";
       job.updatedAt = Date.now();
+      logServer("error", "media.download.source_file.missing", {
+        jobId: job.id,
+        platform: sourceProfile.platform,
+        tempDir,
+      });
       return;
     }
 
@@ -422,6 +467,12 @@ async function executeDownload(jobId: string) {
       outputPath = getFinalOutputPath(jobId, finalExt);
       copyFileSync(sourceFile, outputPath);
       updateJobProgress(job, 100, "Image ready for download");
+      logServer("info", "media.download.image_passthrough", {
+        jobId: job.id,
+        platform: sourceProfile.platform,
+        sourceExt,
+        finalExt,
+      });
     } else if (job.mode === "audio") {
       await convertAudio(job, sourceFile, outputPath);
     } else {
@@ -437,10 +488,23 @@ async function executeDownload(jobId: string) {
     job.filename = `${safeTitle}.${finalExt}`;
     job.updatedAt = Date.now();
     trackDownloadCompleted(job.source);
+    logServer("info", "media.download.completed", {
+      jobId: job.id,
+      platform: sourceProfile.platform,
+      filename: job.filename,
+      finalExt,
+      progressLabel: job.progressLabel,
+    });
   } catch (error) {
     job.status = "error";
     job.error = error instanceof Error ? error.message : "Unknown process failure";
     job.updatedAt = Date.now();
+    logServer("error", "media.download.failed", {
+      jobId: job.id,
+      platform: sourceProfile.platform,
+      url: urlForLogs(job.url),
+      message: job.error,
+    });
   } finally {
     try {
       rmSync(tempDir, { recursive: true, force: true });
@@ -502,6 +566,15 @@ export function createDownloadJob(input: DownloadRequestPayload) {
   queue.push(jobId);
   trackDownloadCreated(job.source);
   updateQueuePositions();
+  logServer("info", "media.download.queued", {
+    jobId: job.id,
+    mode: job.mode,
+    targetExt: job.targetExt,
+    formatId: job.formatId,
+    source: job.source,
+    url: urlForLogs(job.url),
+    queuePosition: job.queuePosition,
+  });
   void processQueue();
 
   return job;
