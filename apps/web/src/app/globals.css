@@ -1,44 +1,80 @@
 @import "tailwindcss";
 
+/* ── Design tokens ─────────────────────────────────────────────── */
 :root {
-  --background: #f4f5f6;
-  --surface: #ffffff;
-  --surface-muted: #eceff2;
-  --foreground: #111318;
-  --muted: #687382;
-  --line: #d9dee5;
-  --accent: #111318;
+  /* Backgrounds */
+  --background:     #f0f1f5;
+  --surface:        #ffffff;
+  --surface-muted:  #e8eaf0;
+  --glass:          rgba(255,255,255,0.7);
+  --glass-border:   rgba(255,255,255,0.5);
+
+  /* Text */
+  --foreground:     #0e0f14;
+  --muted:          #6b7280;
+
+  /* Borders */
+  --line:           #dee1e8;
+
+  /* Accent — Cobalt-style violet */
+  --accent:         #7c3aed;
+  --accent-hover:   #6d28d9;
+  --accent-faint:   #ede9fe;
   --accent-foreground: #ffffff;
-  --success: #157347;
-  --danger: #c43d3d;
+
+  /* Status */
+  --success:        #059669;
+  --danger:         #dc2626;
+
+  /* Glow */
+  --glow:           rgba(124,58,237,0.18);
 }
 
 html[data-theme="dark"] {
-  --background: #0f1217;
-  --surface: #161a20;
-  --surface-muted: #1f252d;
-  --foreground: #f5f7fa;
-  --muted: #9da7b5;
-  --line: #2a313b;
-  --accent: #f5f7fa;
-  --accent-foreground: #111318;
-  --success: #53c483;
-  --danger: #ff8d8d;
+  /* Backgrounds */
+  --background:     #09090f;
+  --surface:        #111118;
+  --surface-muted:  #18181f;
+  --glass:          rgba(17,17,24,0.8);
+  --glass-border:   rgba(255,255,255,0.07);
+
+  /* Text */
+  --foreground:     #f1f1f6;
+  --muted:          #8b8fa8;
+
+  /* Borders */
+  --line:           #222230;
+
+  /* Accent */
+  --accent:         #8b5cf6;
+  --accent-hover:   #7c3aed;
+  --accent-faint:   rgba(139,92,246,0.12);
+  --accent-foreground: #ffffff;
+
+  /* Status */
+  --success:        #34d399;
+  --danger:         #f87171;
+
+  /* Glow */
+  --glow:           rgba(139,92,246,0.22);
 }
 
+/* ── Tailwind color bindings ───────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-line: var(--line);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-success: var(--success);
-  --color-danger: var(--danger);
+  --color-background:         var(--background);
+  --color-surface:            var(--surface);
+  --color-surface-muted:      var(--surface-muted);
+  --color-foreground:         var(--foreground);
+  --color-muted:              var(--muted);
+  --color-line:               var(--line);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-accent-faint:       var(--accent-faint);
+  --color-success:            var(--success);
+  --color-danger:             var(--danger);
 }
 
+/* ── Base reset ────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
 }
@@ -56,16 +92,16 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+  /* Subtle mesh gradient on body */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% -10%, var(--glow), transparent),
+    radial-gradient(ellipse 60% 40% at 85% 100%, rgba(124,58,237,0.07), transparent);
+  background-attachment: fixed;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-display), sans-serif;
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), system-ui, sans-serif;
 }
 
 a {
@@ -73,9 +109,182 @@ a {
   text-decoration: none;
 }
 
-button,
-input,
-select,
-textarea {
+button, input, select, textarea {
   font: inherit;
 }
+
+/* ── Micro-animations ──────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow); }
+  50%       { box-shadow: 0 0 24px 6px var(--glow); }
+}
+
+/* ── Utility classes ───────────────────────────────────────────── */
+
+/* Glass card */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Gradient accent text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent) 0%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Accent button */
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%);
+  color: var(--accent-foreground);
+  border: none;
+  border-radius: 9999px;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 2px 18px var(--glow);
+}
+.btn-accent:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 28px var(--glow);
+}
+.btn-accent:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Outline button */
+.btn-outline {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.btn-outline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--surface) 50%, var(--surface-muted) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Fade-in animation for cards */
+.animate-fadein {
+  animation: fadeIn 0.3s ease both;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Input */
+.input-field {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 0 1rem;
+  height: 3.25rem;
+  width: 100%;
+  font-size: 0.9rem;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-faint);
+}
+.input-field::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.15s ease both;
+}
+
+/* Progress bar accent */
+.progress-bar-accent {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--accent) 0%, #c084fc 100%);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px var(--glow);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }

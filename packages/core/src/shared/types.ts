@@ -30,6 +30,8 @@ export type MediaInfo = {
   height?: number;
   videoOptions: MediaOption[];
   audioOptions: MediaOption[];
+  /** Present when the URL resolves to a photo gallery (carousel). */
+  images?: string[];
 };
 
 export type JobStatus = "queued" | "downloading" | "done" | "error";

@@ -353,6 +353,33 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   }
 
   const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
+
+  // Generic image gallery detection:
+  // yt-dlp returns _type="playlist" with entries when the URL is a photo carousel.
+  // We extract the direct image URLs from those entries.
+  let images: string[] | undefined;
+  if (parsed._type === "playlist" && Array.isArray(parsed.entries)) {
+    const extracted = (parsed.entries as Record<string, unknown>[])
+      .flatMap((entry) => {
+        // Each entry may have a direct URL pointing to an image
+        if (entry.url && typeof entry.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(entry.url as string)) {
+          return [entry.url as string];
+        }
+        // Or formats array with image formats
+        if (Array.isArray(entry.formats)) {
+          const imgFmt = (entry.formats as Record<string, unknown>[]).find(
+            (f) => typeof f.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(f.url as string),
+          );
+          if (imgFmt && typeof imgFmt.url === "string") return [imgFmt.url];
+        }
+        // Fallback: use thumbnail
+        if (typeof entry.thumbnail === "string") return [entry.thumbnail as string];
+        return [];
+      })
+      .filter(Boolean);
+    if (extracted.length > 0) images = extracted;
+  }
+
   const videoOptions = pickVideoOptions(parsed);
   const audioOptions = pickAudioOptions(parsed);
 
@@ -376,6 +403,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     height: typeof parsed.height === "number" ? parsed.height : undefined,
     videoOptions,
     audioOptions,
+    images,
   };
 }
 

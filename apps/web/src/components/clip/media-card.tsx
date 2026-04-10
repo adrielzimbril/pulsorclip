@@ -67,17 +67,17 @@ export function MediaCard({
   const canDownload = card.status === "done" && !!card.jobId;
 
   return (
-    <article className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
+    <article className="animate-fadein rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
       <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-[24px] border border-line bg-background">
+        <div className="overflow-hidden rounded-[20px] border border-line bg-background">
           {card.status === "loading" ? (
-            <div className="h-56 animate-pulse bg-surface-muted" />
+            <div className="skeleton h-56" />
           ) : card.thumbnail && mode === "video" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover" src={card.thumbnail} />
           ) : (
-            <div className="flex h-56 items-center justify-center bg-surface-muted text-base font-semibold tracking-[0.18em] text-muted">
-              {mode === "video" ? "VIDEO" : "AUDIO"}
+            <div className="flex h-56 items-center justify-center bg-surface-muted text-sm font-semibold tracking-[0.18em] text-muted">
+              {mode === "video" ? "🎥 VIDEO" : "🎧 AUDIO"}
             </div>
           )}
         </div>
@@ -85,7 +85,7 @@ export function MediaCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
-              <h3 className="text-2xl font-semibold leading-tight tracking-[-0.03em]">
+              <h3 className="gradient-text text-2xl font-semibold leading-tight tracking-[-0.03em]">
                 {card.title || t(locale, "inspecting")}
               </h3>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
@@ -94,22 +94,24 @@ export function MediaCard({
                 <span>{t(locale, "formatLabel")}: {activeContainer.toUpperCase()}</span>
               </div>
             </div>
-            <div className="rounded-full border border-line bg-background px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+            <span className="badge">
               {labelForStatus(locale, card.status)}
-            </div>
+            </span>
           </div>
 
           {(card.status === "queued" || card.status === "downloading" || card.status === "done") && (
-            <div className="mt-5 rounded-[22px] border border-line bg-background p-4">
+            <div className="mt-5 rounded-[20px] border border-accent/20 bg-accent-faint p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
-                <span className="text-sm text-muted">
+                <span className="text-sm font-medium text-accent">
                   {card.status === "queued" && card.queuePosition
                     ? t(locale, "queuePositionValue").replace("{position}", String(card.queuePosition))
                     : `${card.progress}%`}
                 </span>
               </div>
-              <ProgressBar value={card.progress} />
+              <div className="h-1 rounded-full bg-line overflow-hidden">
+                <div className="progress-bar-accent" style={{ width: `${card.progress}%` }} />
+              </div>
               <p className="mt-3 text-sm text-muted">
                 {card.progressLabel || (card.status === "done" ? t(locale, "statusReadyMessage") : t(locale, "statusWaiting"))}
               </p>
@@ -119,12 +121,12 @@ export function MediaCard({
           {card.status !== "loading" && (
             <>
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-line bg-background px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+                <span className="badge">
                   {t(locale, "qualityLabel")}
                 </span>
                 <button
-                  className={`rounded-full border px-3 py-2 text-xs font-medium ${
-                    activeFormatId === null ? "border-foreground bg-foreground text-background" : "border-line text-muted"
+                  className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
+                    activeFormatId === null ? "border-accent bg-accent text-white" : "border-line text-muted hover:border-accent hover:text-accent"
                   }`}
                   onClick={() => onSelectFormat(null)}
                   type="button"
@@ -133,8 +135,8 @@ export function MediaCard({
                 </button>
                 {selectedOptions.slice(0, 8).map((option) => (
                   <button
-                    className={`rounded-full border px-3 py-2 text-xs font-medium ${
-                      activeFormatId === option.id ? "border-foreground bg-foreground text-background" : "border-line text-muted"
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
+                      activeFormatId === option.id ? "border-accent bg-accent text-white" : "border-line text-muted hover:border-accent hover:text-accent"
                     }`}
                     key={option.id}
                     onClick={() => onSelectFormat(option.id)}
@@ -180,21 +182,21 @@ export function MediaCard({
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
-              className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
+              className="btn-accent w-full sm:w-auto"
               disabled={!canPrepare}
               onClick={onPrepare}
               type="button"
             >
-              {card.status === "error" ? t(locale, "retry") : card.status === "done" ? t(locale, "statusDone") : t(locale, "prepareDownload")}
+              {card.status === "error" ? t(locale, "retry") : card.status === "done" ? t(locale, "statusDone") : `🚀 ${t(locale, "prepareDownload")}`}
             </button>
 
             <button
-              className="w-full rounded-full border border-line px-5 py-3 text-sm font-semibold text-foreground transition disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
+              className="btn-outline w-full sm:w-auto"
               disabled={!canDownload}
               onClick={onDownload}
               type="button"
             >
-              {t(locale, "download")}
+              ⬇️ {t(locale, "download")}
             </button>
           </div>
 
