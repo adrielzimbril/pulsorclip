@@ -4,7 +4,7 @@
 
 |                 Mode Clair                 |               Mode Sombre                |
 | :----------------------------------------: | :--------------------------------------: |
-| ![preview-light](preview/preview_light.png) | ![preview-dark](preview/preview_dark.png) |
+| ![preview-light](preview/preview-light.png) | ![preview-dark](preview/preview-dark.png) |
 
 PulsorClip est un workspace self-hosted de telechargement et d export media par **Adriel Zimbril**.
 

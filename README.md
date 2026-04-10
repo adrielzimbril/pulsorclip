@@ -4,7 +4,7 @@
 
 |                 Light Mode                 |                Dark Mode                 |
 | :----------------------------------------: | :--------------------------------------: |
-| ![preview-light](preview/preview_light.png) | ![preview-dark](preview/preview_dark.png) |
+| ![preview-light](preview/preview-light.png) | ![preview-dark](preview/preview-dark.png) |
 
 PulsorClip is a self-hosted media download and export workspace by **Adriel Zimbril**.
 
