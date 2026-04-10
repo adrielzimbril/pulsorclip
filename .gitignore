@@ -23,3 +23,7 @@ assets/*.mov
 dev-web.log
 
 .chrome-*
+
+redo/
+
+docs/REDO-AUDIT.md

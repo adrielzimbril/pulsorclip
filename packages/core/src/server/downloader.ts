@@ -125,6 +125,19 @@ function getAuthArgs() {
   return args;
 }
 
+function getExtractorArgs(url: string) {
+  const normalized = url.toLowerCase();
+
+  if (normalized.includes("tiktok.com/")) {
+    return [
+      "--extractor-args",
+      "tiktok:api_hostname=api16-normal-c-useast1a.tiktokv.com;app_info=7355728856979392262",
+    ];
+  }
+
+  return [];
+}
+
 function updateQueuePositions() {
   for (const job of jobs.values()) {
     if (job.status === "queued") {
@@ -325,7 +338,7 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
 export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
   const result = await runCommand(
     appConfig.ytDlpBin,
-    [...getAuthArgs(), "--dump-single-json", "--no-playlist", url],
+    [...getAuthArgs(), ...getExtractorArgs(url), "--dump-single-json", "--no-playlist", url],
     INFO_TIMEOUT_MS,
   );
 
@@ -363,6 +376,7 @@ async function executeDownload(jobId: string) {
 
   const sourceArgs = [
     ...getAuthArgs(),
+    ...getExtractorArgs(job.url),
     "--no-playlist",
     "--newline",
     "--progress",

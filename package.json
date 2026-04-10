@@ -2,7 +2,7 @@
   "name": "pulsorclip-monorepo",
   "version": "0.2.0",
   "private": true,
-  "description": "PulsorClip is a self-hosted media inspection and export workspace with a Next.js web app, a Telegram bot, and a shared yt-dlp plus ffmpeg core.",
+  "description": "PulsorClip is a self-hosted media download workspace with a Next.js web app, a Telegram bot, and a shared yt-dlp plus ffmpeg core.",
   "author": "Adriel Zimbril <hello@adrielzimbril.com> (https://www.adrielzimbril.com/)",
   "license": "MIT",
   "homepage": "https://github.com/adrielzimbril/pulsorclip",
