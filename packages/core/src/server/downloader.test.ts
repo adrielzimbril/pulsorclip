@@ -32,10 +32,10 @@ describe("Downloader Adapter Integration", () => {
       stderr: "",
     });
 
-    await fetchMediaInfo("https://www.tiktok.com/@user/video/123456");
+    await fetchMediaInfo("https://vm.tiktok.com/ZMACpSauo/");
 
     const callArgs = mockRunCommand.mock.calls[1][1] as string[];
-    expect(callArgs.at(-1)).toBe("https://vxtiktok.com/@user/video/123456");
+    expect(callArgs.at(-1)).toBe("https://vxtiktok.com/ZMACpSauo/");
   });
 
   it("should replace threads.net URLs with fxthreads.net", async () => {
@@ -46,9 +46,9 @@ describe("Downloader Adapter Integration", () => {
       stderr: "",
     });
 
-    await fetchMediaInfo("https://www.threads.net/@user/post/123456");
+    await fetchMediaInfo("https://www.threads.com/@user/post/123456");
 
     const callArgs = mockRunCommand.mock.calls[2][1] as string[];
-    expect(callArgs.at(-1)).toBe("https://www.fxthreads.net/@user/post/123456");
+    expect(callArgs.at(-1)).toBe("https://fxthreads.net/@user/post/123456");
   });
 });

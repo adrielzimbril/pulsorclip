@@ -326,9 +326,9 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
 
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   let url = rawUrl;
-  if (/twitter\.com|x\.com/.test(url)) url = url.replace(/twitter\.com|x\.com/, "vxtwitter.com");
-  if (/tiktok\.com/.test(url)) url = url.replace(/(www\.)?tiktok\.com|vt\.tiktok\.com/, "vxtiktok.com");
-  if (/threads\.net/.test(url)) url = url.replace(/threads\.net/, "fxthreads.net");
+  url = url.replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com");
+  url = url.replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
+  url = url.replace(/https:\/\/(www\.)?threads\.(net|com)/i, "https://fxthreads.net");
 
   const sourceProfile = getSourceProfile(url);
   logServer("info", "media.info.fetch.started", {
@@ -387,9 +387,9 @@ async function executeDownload(jobId: string) {
   }
 
   let jobUrl = job.url;
-  if (/twitter\.com|x\.com/.test(jobUrl)) jobUrl = jobUrl.replace(/twitter\.com|x\.com/, "vxtwitter.com");
-  if (/tiktok\.com/.test(jobUrl)) jobUrl = jobUrl.replace(/(www\.)?tiktok\.com|vt\.tiktok\.com/, "vxtiktok.com");
-  if (/threads\.net/.test(jobUrl)) jobUrl = jobUrl.replace(/threads\.net/, "fxthreads.net");
+  jobUrl = jobUrl.replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com");
+  jobUrl = jobUrl.replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
+  jobUrl = jobUrl.replace(/https:\/\/(www\.)?threads\.(net|com)/i, "https://fxthreads.net");
 
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
