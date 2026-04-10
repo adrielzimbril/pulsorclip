@@ -1,18 +1,40 @@
-﻿import { Telegraf } from "telegraf";
-import { appConfig } from "@pulsorclip/core/server";
+import { Telegraf } from "telegraf";
+import { appConfig, logServer } from "@pulsorclip/core/server";
 
-type MetadataMethod = "setMyCommands" | "setMyDescription" | "setMyShortDescription" | "setChatMenuButton";
+type BotCommand = {
+  command: string;
+  description: string;
+};
 
-async function safeTelegramCall(bot: Telegraf, method: MetadataMethod, payload: Record<string, unknown>) {
+type CommandScope =
+  | { type: "default" }
+  | { type: "all_private_chats" }
+  | { type: "chat"; chat_id: number };
+
+async function safeTelegramCall<T = unknown>(
+  bot: Telegraf,
+  method: string,
+  payload?: Record<string, unknown>,
+): Promise<T | null> {
   try {
-    await bot.telegram.callApi(method, payload as never);
+    const result = await bot.telegram.callApi(method as never, (payload || {}) as never);
+    logServer("info", "bot.metadata.call.ok", {
+      method,
+      payload,
+    });
+    return result as T;
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);
-    console.error(`[pulsorclip-bot] telegram metadata call failed for ${method}: ${details}`);
+    logServer("error", "bot.metadata.call.failed", {
+      method,
+      payload,
+      reason: details,
+    });
+    return null;
   }
 }
 
-const publicEnglishCommands = [
+const publicEnglishCommands: BotCommand[] = [
   { command: "start", description: "🚀 Start the guided PulsorClip flow" },
   { command: "language", description: "🌐 Choose the bot language" },
   { command: "help", description: "🧭 Show commands and examples" },
@@ -23,7 +45,7 @@ const publicEnglishCommands = [
   { command: "formats", description: "🧱 List supported download formats" },
 ];
 
-const publicFrenchCommands = [
+const publicFrenchCommands: BotCommand[] = [
   { command: "start", description: "🚀 Demarrer le flow guide PulsorClip" },
   { command: "language", description: "🌐 Choisir la langue du bot" },
   { command: "help", description: "🧭 Afficher les commandes et exemples" },
@@ -34,7 +56,7 @@ const publicFrenchCommands = [
   { command: "formats", description: "🧱 Lister les formats pris en charge" },
 ];
 
-const adminEnglishCommands = [
+const adminEnglishCommands: BotCommand[] = [
   ...publicEnglishCommands,
   { command: "status", description: "🟢 Check live bot and web counters" },
   { command: "server", description: "🖥️ Show full server diagnostics" },
@@ -44,7 +66,7 @@ const adminEnglishCommands = [
   { command: "daily", description: "🗓️ Send the daily summary now" },
 ];
 
-const adminFrenchCommands = [
+const adminFrenchCommands: BotCommand[] = [
   ...publicFrenchCommands,
   { command: "status", description: "🟢 Voir les compteurs live bot et web" },
   { command: "server", description: "🖥️ Voir le diagnostic serveur complet" },
@@ -54,34 +76,84 @@ const adminFrenchCommands = [
   { command: "daily", description: "🗓️ Envoyer le recap journalier maintenant" },
 ];
 
-export async function applyTelegramMetadata(bot: Telegraf) {
-  await safeTelegramCall(bot, "setMyCommands", { commands: publicEnglishCommands });
-  await safeTelegramCall(bot, "setMyCommands", { commands: publicFrenchCommands, language_code: "fr" });
+async function setCommands(
+  bot: Telegraf,
+  commands: BotCommand[],
+  scope: CommandScope,
+  languageCode?: string,
+) {
+  await safeTelegramCall(bot, "deleteMyCommands", {
+    scope,
+    ...(languageCode ? { language_code: languageCode } : {}),
+  });
+  await safeTelegramCall(bot, "setMyCommands", {
+    commands,
+    scope,
+    ...(languageCode ? { language_code: languageCode } : {}),
+  });
 
-  for (const adminId of appConfig.telegramAdminIds) {
-    await safeTelegramCall(bot, "setMyCommands", {
-      commands: adminEnglishCommands,
-      scope: {
-        type: "chat",
-        chat_id: adminId,
-      },
-    });
-    await safeTelegramCall(bot, "setMyCommands", {
-      commands: adminFrenchCommands,
-      language_code: "fr",
-      scope: {
-        type: "chat",
-        chat_id: adminId,
-      },
-    });
-  }
+  const current = await safeTelegramCall<BotCommand[]>(bot, "getMyCommands", {
+    scope,
+    ...(languageCode ? { language_code: languageCode } : {}),
+  });
 
+  logServer("info", "bot.metadata.commands.snapshot", {
+    scope,
+    languageCode: languageCode || "default",
+    count: current?.length || 0,
+    commands: current?.map((item) => item.command) || [],
+  });
+}
+
+async function syncDescriptions(bot: Telegraf) {
   await safeTelegramCall(bot, "setMyDescription", {
     description: "Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.",
+  });
+  await safeTelegramCall(bot, "setMyDescription", {
+    language_code: "fr",
+    description: "Envoie un lien media, choisis le format, puis recois le fichier prepare dans Telegram ou continue dans l app web si le fichier est trop lourd.",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
     short_description: "🎬 Download videos and audio in Telegram.",
   });
+  await safeTelegramCall(bot, "setMyShortDescription", {
+    language_code: "fr",
+    short_description: "🎬 Telecharge videos et audio dans Telegram.",
+  });
+
+  const description = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
+  const shortDescription = await safeTelegramCall<{ short_description: string }>(bot, "getMyShortDescription");
+
+  logServer("info", "bot.metadata.description.snapshot", {
+    description: description?.description || null,
+    shortDescription: shortDescription?.short_description || null,
+  });
+}
+
+export async function applyTelegramMetadata(bot: Telegraf) {
+  await setCommands(bot, publicEnglishCommands, { type: "default" });
+  await setCommands(bot, publicFrenchCommands, { type: "default" }, "fr");
+  await setCommands(bot, publicEnglishCommands, { type: "all_private_chats" });
+  await setCommands(bot, publicFrenchCommands, { type: "all_private_chats" }, "fr");
+
+  for (const adminId of appConfig.telegramAdminIds) {
+    await setCommands(bot, adminEnglishCommands, {
+      type: "chat",
+      chat_id: adminId,
+    });
+    await setCommands(
+      bot,
+      adminFrenchCommands,
+      {
+        type: "chat",
+        chat_id: adminId,
+      },
+      "fr",
+    );
+  }
+
+  await syncDescriptions(bot);
+
   await safeTelegramCall(bot, "setChatMenuButton", {
     menu_button: {
       type: "commands",
