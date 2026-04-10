@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
@@ -324,7 +324,12 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
     }));
 }
 
-export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
+export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
+  let url = rawUrl;
+  if (/twitter\.com|x\.com/.test(url)) url = url.replace(/twitter\.com|x\.com/, "vxtwitter.com");
+  if (/tiktok\.com/.test(url)) url = url.replace(/(www\.)?tiktok\.com|vt\.tiktok\.com/, "vxtiktok.com");
+  if (/threads\.net/.test(url)) url = url.replace(/threads\.net/, "fxthreads.net");
+
   const sourceProfile = getSourceProfile(url);
   logServer("info", "media.info.fetch.started", {
     platform: sourceProfile.platform,
@@ -381,9 +386,14 @@ async function executeDownload(jobId: string) {
     return;
   }
 
+  let jobUrl = job.url;
+  if (/twitter\.com|x\.com/.test(jobUrl)) jobUrl = jobUrl.replace(/twitter\.com|x\.com/, "vxtwitter.com");
+  if (/tiktok\.com/.test(jobUrl)) jobUrl = jobUrl.replace(/(www\.)?tiktok\.com|vt\.tiktok\.com/, "vxtiktok.com");
+  if (/threads\.net/.test(jobUrl)) jobUrl = jobUrl.replace(/threads\.net/, "fxthreads.net");
+
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
-  const sourceProfile = getSourceProfile(job.url);
+  const sourceProfile = getSourceProfile(jobUrl);
 
   job.status = "downloading";
   job.queuePosition = 0;
@@ -410,7 +420,7 @@ async function executeDownload(jobId: string) {
     getTempOutputTemplate(jobId),
   ];
 
-  if (job.mode === "audio") {
+    if (job.mode === "audio") {
     sourceArgs.push("-f", job.formatId || "bestaudio/best");
   } else {
     sourceArgs.push(
@@ -421,7 +431,7 @@ async function executeDownload(jobId: string) {
     );
   }
 
-  sourceArgs.push(job.url);
+  sourceArgs.push(jobUrl);
 
   try {
     const downloadResult = await runCommand(appConfig.ytDlpBin, sourceArgs, {

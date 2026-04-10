@@ -295,106 +295,73 @@ export function ClipWorkbench({
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
 
-      <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[32px] sm:p-6" id="workspace">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
-            <h2 className="mt-2 max-w-4xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{t(locale, "workspaceBody")}</h2>
-          </div>
+          <div className="mx-auto w-full max-w-3xl pt-24 text-center">
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-foreground">
+              {t(locale, "heroTitle") || "PulsorClip"}
+            </h1>
+            <p className="mt-4 text-lg text-muted">
+              {t(locale, "heroBody") || "Fast and reliable media downloads."}
+            </p>
 
-          <div className="grid gap-3 sm:flex sm:flex-wrap">
-            <div className="grid grid-cols-2 rounded-[18px] border border-line bg-background p-1 sm:inline-flex sm:rounded-full">
-              {(["normal", "bulk"] as const).map((currentView) => (
+            <div className="mt-12 flex flex-col items-center gap-4">
+              <div className="flex w-full max-w-2xl items-center rounded-2xl bg-surface px-2 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                {view === "normal" ? (
+                  <input
+                    className="h-14 w-full bg-transparent px-4 text-lg outline-none text-foreground placeholder:text-muted"
+                    onChange={(event) => setNormalInput(event.target.value)}
+                    placeholder="Paste a link here..."
+                    value={normalInput}
+                  />
+                ) : (
+                  <textarea
+                    className="min-h-32 w-full resize-none bg-transparent px-4 py-4 text-lg outline-none text-foreground placeholder:text-muted"
+                    onChange={(event) => setBulkInput(event.target.value)}
+                    placeholder="Paste multiple links..."
+                    value={bulkInput}
+                  />
+                )}
                 <button
-                  className={`rounded-[14px] px-4 py-2 text-sm font-semibold sm:rounded-full ${view === currentView ? "bg-foreground text-background" : "text-muted"}`}
-                  key={currentView}
-                  onClick={() => setView(currentView)}
+                  className="rounded-xl bg-foreground px-8 py-4 text-base font-bold text-background transition hover:opacity-90 disabled:opacity-50"
+                  disabled={isFetching}
+                  onClick={() => void inspectCurrentInput()}
                   type="button"
                 >
-                  {currentView === "normal" ? t(locale, "normalMode") : t(locale, "bulkMode")}
+                  {isFetching ? "..." : ">>>"}
                 </button>
-              ))}
-            </div>
+              </div>
 
-            <div className="grid grid-cols-2 rounded-[18px] border border-line bg-background p-1 sm:inline-flex sm:rounded-full">
-              {(["video", "audio"] as const).map((currentMode) => (
-                <button
-                  className={`rounded-[14px] px-4 py-2 text-sm font-semibold sm:rounded-full ${downloadMode === currentMode ? "bg-foreground text-background" : "text-muted"}`}
-                  key={currentMode}
-                  onClick={() => setDownloadMode(currentMode)}
-                  type="button"
-                >
-                  {currentMode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+              <div className="mt-2 flex items-center justify-center gap-3">
+                <div className="flex rounded-xl bg-surface px-1 py-1">
+                  {(["normal", "bulk"] as const).map((currentView) => (
+                    <button
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${view === currentView ? "bg-foreground text-background" : "text-muted hover:text-foreground"}`}
+                      key={currentView}
+                      onClick={() => setView(currentView)}
+                      type="button"
+                    >
+                      {currentView === "normal" ? "Single" : "Bulk"}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex rounded-xl bg-surface px-1 py-1">
+                  {(["video", "audio"] as const).map((currentMode) => (
+                    <button
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${downloadMode === currentMode ? "bg-foreground text-background" : "text-muted hover:text-foreground"}`}
+                      key={currentMode}
+                      onClick={() => setDownloadMode(currentMode)}
+                      type="button"
+                    >
+                      {currentMode === "video" ? "Video" : "Audio"}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-          <div className="rounded-[22px] border border-line bg-background p-4 sm:rounded-[28px] sm:p-5">
-            <div className="space-y-2">
-              <p className="text-base font-semibold">{view === "normal" ? t(locale, "normalTitle") : t(locale, "bulkTitle")}</p>
-              <p className="text-sm leading-7 text-muted">{view === "normal" ? t(locale, "normalBody") : t(locale, "bulkBody")}</p>
-            </div>
-
-            <div className="mt-5">
-              {view === "normal" ? (
-                <input
-                  className="h-14 w-full rounded-[18px] border border-line bg-surface px-4 text-sm outline-none transition focus:border-foreground"
-                  onChange={(event) => setNormalInput(event.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={normalInput}
-                />
-              ) : (
-                <textarea
-                  className="min-h-48 w-full resize-none rounded-[22px] border border-line bg-surface px-4 py-4 text-sm leading-7 outline-none transition focus:border-foreground"
-                  onChange={(event) => setBulkInput(event.target.value)}
-                  placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."}
-                  value={bulkInput}
-                />
+              {notice && (
+                <div className="mt-4 max-w-xl text-center text-sm font-medium text-orange-400">
+                  {notice}
+                </div>
               )}
-            </div>
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <button
-                className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                disabled={isFetching}
-                onClick={() => void inspectCurrentInput()}
-                type="button"
-              >
-                {isFetching ? t(locale, "inspecting") : view === "normal" ? t(locale, "inspect") : t(locale, "inspectBulk")}
-              </button>
-              <button
-                className="w-full rounded-full border border-line px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-                disabled={!canPrepareAll}
-                onClick={() => void prepareAll()}
-                type="button"
-              >
-                {t(locale, "downloadAll")}
-              </button>
-            </div>
-
-            {notice && (
-              <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4 text-sm leading-7 text-muted">
-                {notice}
-              </div>
-            )}
-
-            <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4">
-              <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
-              <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "patienceBody")}</p>
-            </div>
-
-            <div className="mt-5 hidden gap-3 sm:grid-cols-2 lg:grid">
-              <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
-                <p className="text-sm font-semibold">{t(locale, "normalStrategyTitle")}</p>
-                <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "normalStrategyBody")}</p>
-              </div>
-              <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
-                <p className="text-sm font-semibold">{t(locale, "bulkStrategyTitle")}</p>
-                <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "bulkStrategyBody")}</p>
-              </div>
             </div>
           </div>
 
@@ -430,91 +397,6 @@ export function ClipWorkbench({
               />
             ))}
           </div>
-        </div>
-      </section>
-
-      <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[28px] sm:p-5" id="overview">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="max-w-4xl">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
-            <h1 className="mt-3 max-w-4xl text-xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
-              {t(locale, "heroTitle")}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted sm:text-base">
-              {t(locale, "heroBody")}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-                onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                type="button"
-              >
-                {t(locale, "navWorkspace")}
-              </button>
-              <a
-                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-                href={externalLinks.githubRepo}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {t(locale, "forkLabel")}
-              </a>
-              <a
-                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-                href={externalLinks.telegramBot}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {t(locale, "telegramLabel")}
-              </a>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-line bg-background p-5">
-            <p className="text-sm font-semibold">{t(locale, "heroStatusTitle")}</p>
-            <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "heroStatusBody")}</p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link className="rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq#error-ytdlp-bot-check">
-                {t(locale, "heroStatusCta")}
-              </Link>
-              <button
-                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-                onClick={() => setShowPlatforms(true)}
-                type="button"
-              >
-                {t(locale, "supportedSitesCta")}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4" id="platforms">
-        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "supportSectionTitle")}</p>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">{t(locale, "supportSectionBody")}</p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6">
-          <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
-          <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
-          <button
-            className="mt-5 rounded-full border border-line px-4 py-3 text-sm font-semibold"
-            onClick={() => setShowPlatforms(true)}
-            type="button"
-          >
-            {t(locale, "supportedSitesCta")}
-          </button>
-        </div>
-
-        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6">
-          <p className="text-sm font-semibold">{t(locale, "faqCardTitle")}</p>
-          <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "faqCardBody")}</p>
-          <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">
-            {t(locale, "faqCardCta")}
-          </Link>
-        </div>
         </div>
       </section>
 
