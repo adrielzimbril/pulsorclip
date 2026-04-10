@@ -67,7 +67,7 @@ export function MediaCard({
   const canDownload = card.status === "done" && !!card.jobId;
 
   return (
-    <article className="rounded-[28px] border border-line bg-surface p-5 shadow-sm">
+    <article className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
       <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
         <div className="overflow-hidden rounded-[24px] border border-line bg-background">
           {card.status === "loading" ? (
@@ -178,9 +178,9 @@ export function MediaCard({
             </div>
           )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
-              className="rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-45"
+              className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
               disabled={!canPrepare}
               onClick={onPrepare}
               type="button"
@@ -189,7 +189,7 @@ export function MediaCard({
             </button>
 
             <button
-              className="rounded-full border border-line px-5 py-3 text-sm font-semibold text-foreground transition disabled:cursor-not-allowed disabled:opacity-45"
+              className="w-full rounded-full border border-line px-5 py-3 text-sm font-semibold text-foreground transition disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
               disabled={!canDownload}
               onClick={onDownload}
               type="button"

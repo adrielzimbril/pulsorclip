@@ -9,6 +9,7 @@ import { SupportedPlatformsModal } from "./clip/supported-platforms-modal";
 import type { ClipCard } from "./clip/types";
 import { SiteFooter } from "./site/site-footer";
 import { SiteHeader } from "./site/site-header";
+import { externalLinks } from "@/lib/external-links";
 
 type WorkspaceView = "normal" | "bulk";
 
@@ -290,11 +291,11 @@ export function ClipWorkbench({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1320px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8" id="top">
+    <main className="mx-auto flex min-h-screen w-full flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:max-w-[1320px] lg:px-8" id="top">
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
 
-      <section className="rounded-[32px] border border-line bg-surface p-6 shadow-sm" id="workspace">
+      <section className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6" id="workspace">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
@@ -385,7 +386,7 @@ export function ClipWorkbench({
               <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "patienceBody")}</p>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 hidden gap-3 sm:grid-cols-2 lg:grid">
               <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
                 <p className="text-sm font-semibold">{t(locale, "normalStrategyTitle")}</p>
                 <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "normalStrategyBody")}</p>
@@ -432,8 +433,8 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      <section className="rounded-[28px] border border-line bg-surface p-5 shadow-sm" id="overview">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5" id="overview">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="max-w-4xl">
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
             <h1 className="mt-3 max-w-4xl text-2xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
@@ -442,34 +443,60 @@ export function ClipWorkbench({
             <p className="mt-3 max-w-3xl text-sm leading-7 text-muted sm:text-base">
               {t(locale, "heroBody")}
             </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+                onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                type="button"
+              >
+                {t(locale, "navWorkspace")}
+              </button>
+              <a
+                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+                href={externalLinks.githubRepo}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {t(locale, "forkLabel")}
+              </a>
+              <a
+                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+                href={externalLinks.telegramBot}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {t(locale, "telegramLabel")}
+              </a>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-              onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              type="button"
-            >
-              {t(locale, "navWorkspace")}
-            </button>
-            <button
-              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-              onClick={() => setShowPlatforms(true)}
-              type="button"
-            >
-              {t(locale, "supportedSitesCta")}
-            </button>
+
+          <div className="rounded-[24px] border border-line bg-background p-5">
+            <p className="text-sm font-semibold">{t(locale, "heroStatusTitle")}</p>
+            <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "heroStatusBody")}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link className="rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq#error-ytdlp-bot-check">
+                {t(locale, "heroStatusCta")}
+              </Link>
+              <button
+                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+                onClick={() => setShowPlatforms(true)}
+                type="button"
+              >
+                {t(locale, "supportedSitesCta")}
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4" id="platforms">
-        <div className="rounded-[28px] border border-line bg-surface p-5 shadow-sm">
+        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "supportSectionTitle")}</p>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">{t(locale, "supportSectionBody")}</p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
+        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6">
           <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
           <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
           <button
@@ -481,7 +508,7 @@ export function ClipWorkbench({
           </button>
         </div>
 
-        <div className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
+        <div className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6">
           <p className="text-sm font-semibold">{t(locale, "faqCardTitle")}</p>
           <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "faqCardBody")}</p>
           <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">

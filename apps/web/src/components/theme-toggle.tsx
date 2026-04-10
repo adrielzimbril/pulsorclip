@@ -20,15 +20,15 @@ export function ThemeToggle({ locale }: { locale: AppLocale }) {
   }, [theme]);
 
   if (!mounted) {
-    return <div className="inline-flex h-[42px] rounded-full border border-line bg-surface px-3 py-2" />;
+    return <div className="inline-flex h-[42px] w-full rounded-full border border-line bg-surface px-3 py-2 sm:w-[120px]" />;
   }
 
   return (
-    <label className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-2 text-sm text-muted">
+    <label className="inline-flex w-full items-center gap-2 rounded-full border border-line bg-surface px-3 py-2 text-sm text-muted sm:w-auto">
       <span className="sr-only">{t(locale, "themeLabel")}</span>
       <select
         aria-label={t(locale, "themeLabel")}
-        className="bg-transparent outline-none"
+        className="w-full bg-transparent outline-none"
         onChange={(event) => setTheme(event.target.value)}
         value={theme || "system"}
       >
