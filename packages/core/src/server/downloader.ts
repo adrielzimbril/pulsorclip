@@ -523,7 +523,6 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     let resolvedUrl: string | undefined;
 
     // 1. Try to find video versions in the JSON bootstrap (High Quality)
-    // Threads embeds its data in application/json scripts
     const jsonVersionsMatch = 
       html.match(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i) ||
       html.match(/"video_url":\s*"([^"]+)"/i) ||
@@ -549,13 +548,35 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
       }
     }
 
-    // 3. Try to find images for carousel support
+    // 3. Try to find images and videos for carousel support
     const images: string[] = [];
+    const videoMatches: string[] = [];
+    
+    // image_versions2 candidates
     const imageMatches = html.matchAll(/"image_versions2":\s*\{\s*"candidates":\s*\[\s*\{\s*"url":\s*"([^"]+)"/gi);
     for (const match of imageMatches) {
       const imgUrl = match[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/").replace(/&amp;/g, "&");
-      if (!images.includes(imgUrl)) images.push(imgUrl);
+      if (!imgUrl.includes("/profiles/") && !images.includes(imgUrl)) {
+        images.push(imgUrl);
+      }
     }
+
+    // video_versions candidates (for carousels)
+    const carouselVideoMatches = html.matchAll(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/gi);
+    for (const match of carouselVideoMatches) {
+      const vidUrl = match[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/").replace(/&amp;/g, "&");
+      if (!videoMatches.includes(vidUrl)) {
+        videoMatches.push(vidUrl);
+      }
+    }
+
+    // Primary media logic
+    const primaryVideo = resolvedUrl || videoMatches[0];
+    
+    // Heuristic: If we found a video, and it's not clearly a large carousel, 
+    // filter out the images to avoid thumbnail-confusion in the bot
+    const finalImages = (primaryVideo && images.length <= 2) ? [] : images.slice(0, 10);
+    const finalVideo = primaryVideo;
 
     const thumbnailMatch =
       html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
@@ -564,14 +585,14 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
       html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
       html.match(/<title>([^<]+)<\/title>/i);
 
-    if (resolvedUrl || thumbnailMatch) {
+    if (finalVideo || thumbnailMatch || finalImages.length > 0) {
       const thumbUrl = thumbnailMatch
         ? thumbnailMatch[1].replace(/&amp;/g, "&")
-        : "";
+        : finalImages[0] || "";
       const rawTitle = titleMatch ? titleMatch[1].trim() : "Threads post";
       const title = decodeHtmlEntities(rawTitle);
 
-      const videoOptions: MediaOption[] = resolvedUrl
+      const videoOptions: MediaOption[] = finalVideo
         ? [
             {
               id: "threads-video",
@@ -591,8 +612,8 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
         extractorNote: "Scraped via high-quality metadata fallback",
         videoOptions,
         audioOptions: [],
-        images,
-        resolvedUrl,
+        images: finalImages,
+        resolvedUrl: finalVideo,
       };
     }
 
@@ -650,13 +671,17 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
       );
     }
 
-    const audioUrl = mediaData.music || mediaData.music_info?.play || "";
+    const audioUrlCandidate = mediaData.music || mediaData.music_info?.play || "";
+    const audioUrl = (typeof audioUrlCandidate === "string" && audioUrlCandidate.startsWith("http")) 
+      ? audioUrlCandidate 
+      : "";
 
+    const audioTitle = mediaData.music_info?.title || mediaData.music_info?.author || "TikTok Audio";
     const audioOptions: MediaOption[] = audioUrl
       ? [
           {
-            id: "tiktok-audio",
-            label: "TikTok Music",
+            id: `tiktok-audio-${mediaData.id || "music"}`,
+            label: audioTitle,
             ext: "mp3",
             qualityLabel: "Best",
           },

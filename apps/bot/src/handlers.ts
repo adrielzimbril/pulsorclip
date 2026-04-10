@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { statSync } from "node:fs";
+import { statSync, createReadStream } from "node:fs";
 import { extname } from "node:path";
 import { Telegraf } from "telegraf";
 import type { InlineKeyboardMarkup } from "telegraf/types";
@@ -137,23 +137,24 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   const extension = extname(file.filename).toLowerCase();
 
   if (extension === ".mp3" || extension === ".m4a") {
-    await bot.telegram.sendAudio(chatId, { source: file.filePath, filename: file.filename }, { caption: title });
+    await bot.telegram.sendAudio(chatId, { source: createReadStream(file.filePath), filename: file.filename }, { caption: title });
     return;
   }
 
   if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
-    await bot.telegram.sendPhoto(chatId, { source: file.filePath }, { caption: title });
+    await bot.telegram.sendPhoto(chatId, { source: createReadStream(file.filePath) }, { caption: title });
     return;
   }
 
   try {
     await bot.telegram.sendVideo(
       chatId,
-      { source: file.filePath, filename: file.filename },
+      { source: createReadStream(file.filePath), filename: file.filename },
       { caption: title, supports_streaming: true },
     );
-  } catch {
-    await bot.telegram.sendDocument(chatId, { source: file.filePath, filename: file.filename }, { caption: title });
+  } catch (err) {
+    console.error("Bot video delivery failed, falling back to document:", err);
+    await bot.telegram.sendDocument(chatId, { source: createReadStream(file.filePath), filename: file.filename }, { caption: title });
   }
 }
 
@@ -707,7 +708,15 @@ export function registerBotHandlers(bot: Telegraf) {
     const fallbackExt = mode === "video" ? "mp4" : "mp3";
     const targetExt = selectedExt === "default" ? fallbackExt : selectedExt;
 
-    await ctx.answerCbQuery(t(choice.locale, "botQueued").split(".")[0]);
+    // Use specific audio label if it's an audio download and we have a format match
+    const audioOption = mode === "audio" ? choice.info.audioOptions.find(o => o.id === selectedFormatId) : null;
+    const jobTitle = audioOption ? audioOption.label : choice.info.title;
+
+    // Answer immediately
+    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort"));
+
+    // Remove buttons and show state (Processing...)
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
 
     try {
       const job = createDownloadJob({
@@ -715,13 +724,13 @@ export function registerBotHandlers(bot: Telegraf) {
         mode,
         formatId: selectedFormatId === "best" ? null : selectedFormatId,
         targetExt,
-        title: choice.info.title,
+        title: jobTitle,
         source: "bot",
         resolvedUrl: choice.info.resolvedUrl,
       });
 
       pendingByChat.delete(chatId);
-      void trackJobInChat(bot, ctx, choice, job.id, choice.info.title || t(choice.locale, "botExportFallbackTitle"));
+      void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"));
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
     }
@@ -742,8 +751,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const images = choice.info.images;
     const locale = choice.locale;
 
-    await ctx.answerCbQuery(t(locale, "botSendingImages").split(".")[0]);
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, t(locale, "botSendingImages")));
+    await ctx.answerCbQuery(t(locale, "botProcessingShort"));
+    
+    // Remove buttons and show state
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, `⏳ ${t(locale, "botProcessing")}`), { inline_keyboard: [] });
 
     try {
       // Send images in groups of 10 (Telegram limit for media groups)

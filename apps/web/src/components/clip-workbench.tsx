@@ -214,7 +214,11 @@ export function ClipWorkbench({
           const payload = (await response.json()) as Partial<MediaInfo> & { error?: string };
 
           // Generic image gallery: if /api/info returns images[], open carousel modal
-          if (response.ok && payload.images && payload.images.length > 0) {
+          // BUT: for Threads, we prioritize the regular workbench if video is present
+          const isThreads = card.url.includes("threads.net") || card.url.includes("threads.com");
+          const hasVideo = payload.videoOptions && payload.videoOptions.length > 0;
+
+          if (response.ok && payload.images && payload.images.length > 0 && (!isThreads || !hasVideo)) {
             setCards([]);
             setIsFetching(false);
             setTiktokCarousel({
