@@ -57,7 +57,7 @@ function helpMessage(locale: AppLocale, admin = false) {
       "/formats",
       admin ? "/status, /health, /report, /daily" : null,
       "",
-      "Si tu envoies seulement une URL, le bot te guidera vers le mode, le conteneur, puis la qualite.",
+      "Si tu envoies seulement une URL, le bot te guidera vers le mode puis un seul panneau format + qualite.",
     ]
       .filter(Boolean)
       .join("\n");
@@ -77,7 +77,7 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/formats",
     admin ? "/status, /health, /report, /daily" : null,
     "",
-    "If you send only a URL, the bot will guide you through mode, container, and quality.",
+    "If you send only a URL, the bot will guide you to mode first, then one shared format + quality panel.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -128,6 +128,14 @@ function buildMediaSummary(choice: PendingChoice) {
 
 function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, copy: string) {
   return [buildMediaSummary(choice), "", copy].join("\n");
+}
+
+async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "upload_document" | "upload_video" | "upload_voice" = "typing") {
+  try {
+    await ctx.sendChatAction(action);
+  } catch {
+    // Ignore presence failures.
+  }
 }
 
 async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLocale, jobId: string, title: string) {
@@ -193,6 +201,7 @@ async function safeDeleteMessage(bot: Telegraf, chatId: number, messageId?: numb
 
 async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, replyMarkup: InlineKeyboardMarkup) {
   if (choice.info.thumbnail) {
+    await sendPresence(ctx, "upload_photo");
     const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
       caption: text,
       reply_markup: replyMarkup,
@@ -203,6 +212,7 @@ async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, 
     return;
   }
 
+  await sendPresence(ctx, "typing");
   const message = await ctx.reply(text, { reply_markup: replyMarkup });
   choice.messageId = message.message_id;
   choice.messageKind = "text";
@@ -244,25 +254,25 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
 
   if (job.status === "queued") {
     return [
-      t(locale, "botQueued"),
+      locale === "fr" ? "⏳ Telechargement en attente" : "⏳ Download queued",
       "",
       t(locale, "botQueueLine").replace("{position}", String(job.queuePosition || 1)),
       locale === "fr"
         ? "Le worker attend un slot libre avant de lancer la preparation."
-        : "The worker is waiting for a free slot before starting the export.",
+        : "The worker is waiting for a free slot before starting preparation.",
     ].join("\n");
   }
 
   if (job.status === "downloading") {
     return [
-      t(locale, "botProgressLine"),
+      locale === "fr" ? "⚙️ Preparation du fichier" : "⚙️ Preparing your file",
       `${progressBar(job.progress)} ${job.progress}%`,
       job.progressLabel || (locale === "fr" ? "Le moteur traite encore le fichier." : "The exporter is still processing the file."),
     ].join("\n");
   }
 
   if (job.status === "done") {
-    return t(locale, "botReadyLine");
+    return locale === "fr" ? "✅ Fichier pret. Envoi en cours." : "✅ File ready. Delivering now.";
   }
 
   return job.error || t(locale, "botDownloadFailed");
@@ -287,11 +297,13 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
     }
 
     if (job.status === "done") {
+      await sendPresence(ctx, title.toLowerCase().includes("mp3") ? "upload_voice" : "upload_video");
       await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
       break;
     }
 
     if (job.status === "error") {
+      await sendPresence(ctx, "typing");
       await ctx.reply(job.error || t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
       break;
     }
@@ -299,7 +311,8 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
 }
 
 async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null) {
-  const inspectingMessage = await ctx.reply(t(locale, "botInspecting"));
+  await sendPresence(ctx, "typing");
+  const loadingMessage = await ctx.reply(t(locale, "botInspecting"));
   const info = await fetchMediaInfo(url);
   const choice: PendingChoice = {
     id: randomUUID().slice(0, 8),
@@ -309,7 +322,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   };
 
   pendingByChat.set(ctx.chat.id, choice);
-  await safeDeleteMessage(bot, ctx.chat.id, inspectingMessage.message_id);
+  await safeDeleteMessage(bot, ctx.chat.id, loadingMessage.message_id);
 
   if (forcedMode) {
     await sendChoiceMessage(
@@ -326,6 +339,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
 
 async function replyWelcome(ctx: any, locale: AppLocale) {
   const intro = [statusMessage(locale), t(locale, "botWelcome"), "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
+  await sendPresence(ctx, "typing");
   await ctx.reply(intro, modeKeyboard(locale));
 }
 
@@ -335,6 +349,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const savedLocale = getUserPreferences(ctx.from?.id).locale;
 
     if (!savedLocale) {
+      await sendPresence(ctx, "typing");
       await ctx.reply(t("en", "botChooseLanguage"), languageKeyboard());
       return;
     }
@@ -346,11 +361,13 @@ export function registerBotHandlers(bot: Telegraf) {
   bot.help(async (ctx) => {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
     await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), modeKeyboard(locale));
   });
 
   bot.command("language", async (ctx) => {
     rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
     await ctx.reply(t("en", "botChooseLanguage"), languageKeyboard());
   });
 
@@ -369,12 +386,14 @@ export function registerBotHandlers(bot: Telegraf) {
       `Bot jobs completed: ${summary.downloadsCompleted.bot}`,
       `Web jobs completed: ${summary.downloadsCompleted.web}`,
     ].join("\n");
+    await sendPresence(ctx, "typing");
     await ctx.reply(text, webKeyboard(locale));
   });
 
   bot.command("formats", async (ctx) => {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
     await ctx.reply(t(locale, "botFormats"), webKeyboard(locale));
   });
 
@@ -395,6 +414,7 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
     await ctx.reply(getCurrentDailySummaryText());
   });
 
@@ -417,6 +437,7 @@ export function registerBotHandlers(bot: Telegraf) {
     setUserMode(ctx.from?.id, "video");
 
     if (!request.url) {
+      await sendPresence(ctx, "typing");
       await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
       return;
     }
@@ -436,6 +457,7 @@ export function registerBotHandlers(bot: Telegraf) {
     setUserMode(ctx.from?.id, "audio");
 
     if (!request.url) {
+      await sendPresence(ctx, "typing");
       await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
       return;
     }
@@ -452,6 +474,7 @@ export function registerBotHandlers(bot: Telegraf) {
     rememberUser(ctx.from?.id);
     modeByChat.set(ctx.chat.id, "video");
     setUserMode(ctx.from?.id, "video");
+    await sendPresence(ctx, "typing");
     await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
   });
 
@@ -460,6 +483,7 @@ export function registerBotHandlers(bot: Telegraf) {
     rememberUser(ctx.from?.id);
     modeByChat.set(ctx.chat.id, "audio");
     setUserMode(ctx.from?.id, "audio");
+    await sendPresence(ctx, "typing");
     await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
   });
 
@@ -490,6 +514,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const url = firstHttpUrl(text);
 
     if (!url) {
+      await sendPresence(ctx, "typing");
       await ctx.reply(t(locale, "botInvalidUrl"));
       return;
     }
@@ -506,7 +531,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = ctx.match[1] as AppLocale;
     rememberUser(ctx.from?.id);
     setUserLocale(ctx.from?.id, locale);
-    await ctx.answerCbQuery();
+    await ctx.answerCbQuery(locale === "fr" ? "Langue enregistree" : "Language saved");
     try {
       await ctx.editMessageText([t(locale, "botLanguageSaved"), "", t(locale, "botWelcome")].join("\n"), modeKeyboard(locale));
     } catch {
@@ -522,7 +547,7 @@ export function registerBotHandlers(bot: Telegraf) {
       await ctx.answerCbQuery();
       return;
     }
-    await ctx.answerCbQuery();
+    await ctx.answerCbQuery(locale === "fr" ? "Retour au mode" : "Back to mode");
     await editChoiceMessage(bot, chatId, choice, promptForMode(locale, choice.info.title), modeKeyboard(locale).reply_markup);
   });
 
@@ -549,12 +574,12 @@ export function registerBotHandlers(bot: Telegraf) {
     const choice = pendingByChat.get(chatId);
 
     if (!choice) {
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery(locale === "fr" ? "Mode enregistre" : "Mode saved");
       await ctx.reply(sendUrlPrompt(locale, mode), webKeyboard(locale));
       return;
     }
 
-    await ctx.answerCbQuery();
+    await ctx.answerCbQuery(locale === "fr" ? "Choisis format et qualite" : "Choose format and quality");
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botPreviewReady")), qualityKeyboard(choice, mode).reply_markup);
   });
 
@@ -582,7 +607,7 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     const mode = rawMode as DownloadMode;
-    await ctx.answerCbQuery();
+    await ctx.answerCbQuery(ext.toUpperCase());
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botPreviewReady")), qualityKeyboard(choice, mode, ext).reply_markup);
   });
 
@@ -613,7 +638,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const fallbackExt = mode === "video" ? "mp4" : "mp3";
     const targetExt = selectedExt === "default" ? fallbackExt : selectedExt;
 
-    await ctx.answerCbQuery();
+    await ctx.answerCbQuery(choice.locale === "fr" ? "Telechargement ajoute a la file" : "Download queued");
 
     try {
       const job = createDownloadJob({
@@ -632,4 +657,3 @@ export function registerBotHandlers(bot: Telegraf) {
     }
   });
 }
-

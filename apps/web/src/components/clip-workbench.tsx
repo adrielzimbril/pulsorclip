@@ -295,18 +295,18 @@ export function ClipWorkbench({
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
 
-      <section className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[32px] sm:p-6" id="workspace">
+      <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[32px] sm:p-6" id="workspace">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
-            <h2 className="mt-2 max-w-4xl text-3xl font-semibold tracking-[-0.03em]">{t(locale, "workspaceBody")}</h2>
+            <h2 className="mt-2 max-w-4xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{t(locale, "workspaceBody")}</h2>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <div className="inline-flex rounded-full border border-line bg-background p-1">
+          <div className="grid gap-3 sm:flex sm:flex-wrap">
+            <div className="grid grid-cols-2 rounded-[18px] border border-line bg-background p-1 sm:inline-flex sm:rounded-full">
               {(["normal", "bulk"] as const).map((currentView) => (
                 <button
-                  className={`rounded-full px-4 py-2 text-sm font-semibold ${view === currentView ? "bg-foreground text-background" : "text-muted"}`}
+                  className={`rounded-[14px] px-4 py-2 text-sm font-semibold sm:rounded-full ${view === currentView ? "bg-foreground text-background" : "text-muted"}`}
                   key={currentView}
                   onClick={() => setView(currentView)}
                   type="button"
@@ -316,10 +316,10 @@ export function ClipWorkbench({
               ))}
             </div>
 
-            <div className="inline-flex rounded-full border border-line bg-background p-1">
+            <div className="grid grid-cols-2 rounded-[18px] border border-line bg-background p-1 sm:inline-flex sm:rounded-full">
               {(["video", "audio"] as const).map((currentMode) => (
                 <button
-                  className={`rounded-full px-4 py-2 text-sm font-semibold ${downloadMode === currentMode ? "bg-foreground text-background" : "text-muted"}`}
+                  className={`rounded-[14px] px-4 py-2 text-sm font-semibold sm:rounded-full ${downloadMode === currentMode ? "bg-foreground text-background" : "text-muted"}`}
                   key={currentMode}
                   onClick={() => setDownloadMode(currentMode)}
                   type="button"
@@ -332,7 +332,7 @@ export function ClipWorkbench({
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-          <div className="rounded-[28px] border border-line bg-background p-5">
+          <div className="rounded-[22px] border border-line bg-background p-4 sm:rounded-[28px] sm:p-5">
             <div className="space-y-2">
               <p className="text-base font-semibold">{view === "normal" ? t(locale, "normalTitle") : t(locale, "bulkTitle")}</p>
               <p className="text-sm leading-7 text-muted">{view === "normal" ? t(locale, "normalBody") : t(locale, "bulkBody")}</p>
@@ -356,9 +356,9 @@ export function ClipWorkbench({
               )}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
-                className="rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 disabled={isFetching}
                 onClick={() => void inspectCurrentInput()}
                 type="button"
@@ -366,7 +366,7 @@ export function ClipWorkbench({
                 {isFetching ? t(locale, "inspecting") : view === "normal" ? t(locale, "inspect") : t(locale, "inspectBulk")}
               </button>
               <button
-                className="rounded-full border border-line px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
+                className="w-full rounded-full border border-line px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 disabled={!canPrepareAll}
                 onClick={() => void prepareAll()}
                 type="button"
@@ -433,11 +433,11 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      <section className="rounded-[24px] border border-line bg-surface p-4 shadow-sm sm:rounded-[28px] sm:p-5" id="overview">
+      <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[28px] sm:p-5" id="overview">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="max-w-4xl">
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
-            <h1 className="mt-3 max-w-4xl text-2xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
+            <h1 className="mt-3 max-w-4xl text-xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
               {t(locale, "heroTitle")}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-muted sm:text-base">
