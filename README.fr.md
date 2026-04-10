@@ -145,6 +145,12 @@ Documentation du depot:
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md)
 
+Fichiers de projet:
+
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+
 ## CI
 
 La validation GitHub Actions est incluse:

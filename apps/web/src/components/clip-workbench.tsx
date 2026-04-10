@@ -175,6 +175,7 @@ export function ClipWorkbench({
           formatId,
           targetExt,
           title: card.title,
+          source: "web",
         }),
       });
 
@@ -202,6 +203,7 @@ export function ClipWorkbench({
           status?: "queued" | "downloading" | "done" | "error";
           progress?: number;
           progressLabel?: string | null;
+          queuePosition?: number;
           error?: string | null;
           filename?: string | null;
         };
@@ -213,6 +215,7 @@ export function ClipWorkbench({
             ...current,
             status: "error",
             error: statusPayload.error || "Lost track of the job",
+            queuePosition: statusPayload.queuePosition ?? current.queuePosition,
           }));
           return;
         }
@@ -226,6 +229,7 @@ export function ClipWorkbench({
             filename: statusPayload.filename || current.filename,
             progress: statusPayload.progress ?? 100,
             progressLabel: statusPayload.progressLabel || t(locale, "statusReadyMessage"),
+            queuePosition: 0,
           }));
           return;
         }
@@ -239,6 +243,7 @@ export function ClipWorkbench({
             error: statusPayload.error || "Download job failed",
             progress: statusPayload.progress ?? current.progress,
             progressLabel: statusPayload.progressLabel || t(locale, "statusErrorMessage"),
+            queuePosition: statusPayload.queuePosition ?? current.queuePosition,
           }));
           return;
         }
@@ -248,6 +253,7 @@ export function ClipWorkbench({
           status: statusPayload.status === "queued" ? "queued" : "downloading",
           progress: statusPayload.progress ?? current.progress,
           progressLabel: statusPayload.progressLabel || current.progressLabel,
+          queuePosition: statusPayload.queuePosition ?? current.queuePosition,
         }));
       }, 1200);
 
@@ -273,36 +279,6 @@ export function ClipWorkbench({
     <main className="mx-auto flex min-h-screen w-full max-w-[1320px] flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8" id="top">
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
-
-      <section className="rounded-[28px] border border-line bg-surface p-5 shadow-sm" id="overview">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-4xl">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
-            <h1 className="mt-3 max-w-4xl text-2xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
-              {t(locale, "heroTitle")}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted sm:text-base">
-              {t(locale, "heroBody")}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-              onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              type="button"
-            >
-              {t(locale, "navWorkspace")}
-            </button>
-            <button
-              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-              onClick={() => setShowPlatforms(true)}
-              type="button"
-            >
-              {t(locale, "supportedSitesCta")}
-            </button>
-          </div>
-        </div>
-      </section>
 
       <section className="rounded-[32px] border border-line bg-surface p-6 shadow-sm" id="workspace">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -427,6 +403,36 @@ export function ClipWorkbench({
                 }
               />
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-line bg-surface p-5 shadow-sm" id="overview">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-4xl">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
+            <h1 className="mt-3 max-w-4xl text-2xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
+              {t(locale, "heroTitle")}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted sm:text-base">
+              {t(locale, "heroBody")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+              onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              type="button"
+            >
+              {t(locale, "navWorkspace")}
+            </button>
+            <button
+              className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+              onClick={() => setShowPlatforms(true)}
+              type="button"
+            >
+              {t(locale, "supportedSitesCta")}
+            </button>
           </div>
         </div>
       </section>

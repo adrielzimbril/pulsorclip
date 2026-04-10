@@ -3,6 +3,7 @@ import { appConfig } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { registerBotHandlers } from "./handlers";
 import { applyTelegramMetadata } from "./metadata";
+import { startBotMonitoring } from "./monitoring";
 import { notifyAdmins } from "./notifications";
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -31,6 +32,7 @@ async function bootstrap() {
       : t("en", "botStartupAdmin");
 
     await notifyAdmins(bot, `${adminMessage}\n${appConfig.baseUrl}`);
+    startBotMonitoring(bot);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 

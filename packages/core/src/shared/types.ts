@@ -7,6 +7,7 @@ export type ThemeMode = (typeof THEMES)[number];
 export type DownloadMode = "video" | "audio";
 export type VideoContainer = "mp4" | "webm" | "mkv";
 export type AudioContainer = "mp3" | "m4a";
+export type JobSource = "web" | "bot";
 
 export type MediaOption = {
   id: string;
@@ -23,6 +24,8 @@ export type MediaInfo = {
   thumbnail: string;
   duration: number | null;
   uploader: string;
+  width?: number;
+  height?: number;
   videoOptions: MediaOption[];
   audioOptions: MediaOption[];
 };
@@ -42,6 +45,8 @@ export type DownloadJob = {
   error?: string;
   filePath?: string;
   filename?: string;
+  queuePosition?: number;
+  source: JobSource;
   createdAt: number;
   updatedAt: number;
 };
@@ -52,4 +57,5 @@ export type DownloadRequestPayload = {
   formatId?: string | null;
   targetExt?: string | null;
   title?: string;
+  source?: JobSource;
 };

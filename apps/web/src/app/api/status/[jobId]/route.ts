@@ -19,6 +19,7 @@ export async function GET(
     status: job.status,
     progress: job.progress,
     progressLabel: job.progressLabel || null,
+    queuePosition: job.queuePosition || 0,
     error: job.error || null,
     filename: job.filename || null,
   });

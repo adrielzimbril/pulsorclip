@@ -6,6 +6,8 @@ const englishCommands = [
   { command: "status", description: "🟢 Check bot health and maintenance" },
   { command: "video", description: "🎬 Prepare a video export" },
   { command: "audio", description: "🎧 Prepare an audio export" },
+  { command: "mp4", description: "📦 Save video mode, then send a URL" },
+  { command: "mp3", description: "🎵 Save audio mode, then send a URL" },
   { command: "formats", description: "🧱 List supported export formats" },
 ];
 
@@ -15,6 +17,8 @@ const frenchCommands = [
   { command: "status", description: "🟢 Verifier l etat et la maintenance" },
   { command: "video", description: "🎬 Preparer un export video" },
   { command: "audio", description: "🎧 Preparer un export audio" },
+  { command: "mp4", description: "📦 Memoriser le mode video puis envoyer une URL" },
+  { command: "mp3", description: "🎵 Memoriser le mode audio puis envoyer une URL" },
   { command: "formats", description: "🧱 Lister les formats pris en charge" },
 ];
 

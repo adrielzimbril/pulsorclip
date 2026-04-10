@@ -1,19 +1,27 @@
-import { randomUUID } from "node:crypto";
-import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { basename, extname, join } from "node:path";
+﻿import { randomUUID } from "node:crypto";
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { extname, join } from "node:path";
+import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
 import { runCommand } from "./process";
 import type { DownloadJob, DownloadRequestPayload, MediaInfo, MediaOption } from "../shared/types";
 
 declare global {
   var __pulsorclipJobs: Map<string, DownloadJob> | undefined;
+  var __pulsorclipQueue: string[] | undefined;
+  var __pulsorclipActiveJobId: string | null | undefined;
 }
 
 const jobs = global.__pulsorclipJobs ?? new Map<string, DownloadJob>();
+const queue = global.__pulsorclipQueue ?? [];
+
 global.__pulsorclipJobs = jobs;
+global.__pulsorclipQueue = queue;
+global.__pulsorclipActiveJobId ??= null;
 
 const INFO_TIMEOUT_MS = 60_000;
-const DOWNLOAD_TIMEOUT_MS = 8 * 60_000;
+const DOWNLOAD_TIMEOUT_MS = 12 * 60_000;
+const TRANSCODE_TIMEOUT_MS = 25 * 60_000;
 
 function sanitizeFilename(input: string) {
   return input.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 96);
@@ -61,34 +69,26 @@ function parseProgressLine(job: DownloadJob, line: string) {
   const percentMatch = normalized.match(/\[download\]\s+(\d+(?:\.\d+)?)%/i);
 
   if (percentMatch) {
-    updateJobProgress(job, Number(percentMatch[1]), normalized.replace(/\[download\]\s*/i, ""));
+    const percent = Number(percentMatch[1]);
+    const scaled = Math.min(88, Math.max(3, percent * 0.88));
+    updateJobProgress(job, scaled, normalized.replace(/\[download\]\s*/i, ""));
     return;
   }
 
   if (normalized.includes("[download] Destination:")) {
-    updateJobProgress(job, 4, "Preparing destination");
+    updateJobProgress(job, 4, "Preparing source file");
     return;
   }
 
   if (normalized.includes("[Merger]")) {
-    updateJobProgress(job, 97, "Finalizing merged output");
+    updateJobProgress(job, 90, "Merging source streams");
     return;
   }
 
   if (normalized.includes("[ExtractAudio]")) {
-    updateJobProgress(job, 97, "Extracting audio");
+    updateJobProgress(job, 90, "Extracting source audio");
     return;
   }
-}
-
-function getOutputTemplate(jobId: string) {
-  return join(appConfig.downloadsDir, `${jobId}.%(ext)s`);
-}
-
-function getJobFiles(jobId: string) {
-  return readdirSync(appConfig.downloadsDir)
-    .filter((entry) => entry.startsWith(`${jobId}.`))
-    .map((entry) => join(appConfig.downloadsDir, entry));
 }
 
 function ensureCookieFileFromBase64() {
@@ -125,6 +125,96 @@ function getAuthArgs() {
   return args;
 }
 
+function updateQueuePositions() {
+  for (const job of jobs.values()) {
+    if (job.status === "queued") {
+      const index = queue.indexOf(job.id);
+      job.queuePosition = index >= 0 ? index + 1 : 1;
+    } else {
+      job.queuePosition = 0;
+    }
+  }
+}
+
+function getJobTempDir(jobId: string) {
+  return join(appConfig.downloadsDir, `.tmp-${jobId}`);
+}
+
+function getTempOutputTemplate(jobId: string) {
+  return join(getJobTempDir(jobId), "source.%(ext)s");
+}
+
+function getFinalOutputPath(jobId: string, ext: string) {
+  return join(appConfig.downloadsDir, `${jobId}.${ext}`);
+}
+
+function findPrimaryMediaFile(directory: string) {
+  return readdirSync(directory)
+    .map((entry) => join(directory, entry))
+    .filter((filePath) => !filePath.endsWith(".part") && statSync(filePath).isFile())
+    .sort((left, right) => statSync(right).size - statSync(left).size)[0] || null;
+}
+
+async function convertAudio(job: DownloadJob, sourcePath: string, outputPath: string) {
+  updateJobProgress(job, 92, `Encoding ${job.targetExt.toUpperCase()} audio`);
+
+  const codecArgs =
+    job.targetExt === "mp3"
+      ? ["-vn", "-c:a", "libmp3lame", "-b:a", "192k"]
+      : ["-vn", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"];
+
+  const result = await runCommand(
+    appConfig.ffmpegBin,
+    [
+      "-y",
+      "-i",
+      sourcePath,
+      "-map_metadata",
+      "0",
+      "-metadata",
+      `title=${job.title || "PulsorClip export"}`,
+      ...codecArgs,
+      outputPath,
+    ],
+    TRANSCODE_TIMEOUT_MS,
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(simplifyError(result.stderr));
+  }
+}
+
+async function convertVideo(job: DownloadJob, sourcePath: string, outputPath: string) {
+  updateJobProgress(job, 92, `Finalizing ${job.targetExt.toUpperCase()} video`);
+
+  const codecArgs =
+    job.targetExt === "mp4"
+      ? ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+      : job.targetExt === "webm"
+        ? ["-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0", "-c:a", "libopus", "-b:a", "160k"]
+        : ["-c", "copy"];
+
+  const result = await runCommand(
+    appConfig.ffmpegBin,
+    [
+      "-y",
+      "-i",
+      sourcePath,
+      "-map_metadata",
+      "0",
+      "-metadata",
+      `title=${job.title || "PulsorClip export"}`,
+      ...codecArgs,
+      outputPath,
+    ],
+    TRANSCODE_TIMEOUT_MS,
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(simplifyError(result.stderr));
+  }
+}
+
 function pickVideoOptions(rawInfo: Record<string, unknown>) {
   const entries = new Map<string, MediaOption & { score: number }>();
   const formats = Array.isArray(rawInfo.formats) ? rawInfo.formats : [];
@@ -137,20 +227,22 @@ function pickVideoOptions(rawInfo: Record<string, unknown>) {
     const current = item as Record<string, unknown>;
     const id = typeof current.format_id === "string" ? current.format_id : null;
     const height = Number(current.height || 0);
-    const ext = typeof current.ext === "string" ? current.ext : "mp4";
     const fps = Number(current.fps || 0) || undefined;
     const tbr = Number(current.tbr || 0);
     const vcodec = current.vcodec;
+    const acodec = current.acodec;
+    const ext = typeof current.ext === "string" ? current.ext.toLowerCase() : "";
 
-    if (!id || !height || vcodec === "none") {
+    if (!id || !height || vcodec === "none" || ext === "gif" || ext === "jpg" || ext === "png") {
       continue;
     }
 
-    const key = `${height}-${ext}`;
-    const label = `${height}p${fps ? ` / ${fps}fps` : ""} / ${ext.toUpperCase()}`;
+    const key = `${height}-${fps || 0}`;
+    const label = `${height}p${fps ? ` / ${fps}fps` : ""}`;
+    const score = tbr + (acodec && acodec !== "none" ? 5_000 : 0);
     const existing = entries.get(key);
 
-    if (!existing || tbr > existing.score) {
+    if (!existing || score > existing.score) {
       entries.set(key, {
         id,
         label,
@@ -158,13 +250,13 @@ function pickVideoOptions(rawInfo: Record<string, unknown>) {
         height,
         fps,
         qualityLabel: `${height}p`,
-        score: tbr,
+        score,
       });
     }
   }
 
   return [...entries.values()]
-    .sort((left, right) => (right.height || 0) - (left.height || 0) || right.score - left.score)
+    .sort((left, right) => (right.height || 0) - (left.height || 0) || (right.fps || 0) - (left.fps || 0) || right.score - left.score)
     .map((entry) => ({
       id: entry.id,
       label: entry.label,
@@ -194,13 +286,13 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
       continue;
     }
 
-    const key = `${abr}-${ext}`;
+    const key = `${abr}`;
     const existing = entries.get(key);
 
     if (!existing || abr > existing.score) {
       entries.set(key, {
         id,
-        label: `${abr}kbps / ${ext.toUpperCase()}`,
+        label: `${abr}kbps`,
         ext,
         abr,
         qualityLabel: `${abr}kbps`,
@@ -238,6 +330,8 @@ export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
     thumbnail: typeof parsed.thumbnail === "string" ? parsed.thumbnail : "",
     duration: typeof parsed.duration === "number" ? parsed.duration : null,
     uploader: typeof parsed.uploader === "string" ? parsed.uploader : "",
+    width: typeof parsed.width === "number" ? parsed.width : undefined,
+    height: typeof parsed.height === "number" ? parsed.height : undefined,
     videoOptions: pickVideoOptions(parsed),
     audioOptions: pickAudioOptions(parsed),
   };
@@ -250,10 +344,14 @@ async function executeDownload(jobId: string) {
     return;
   }
 
+  const tempDir = getJobTempDir(jobId);
+  mkdirSync(tempDir, { recursive: true });
+
   job.status = "downloading";
+  job.queuePosition = 0;
   updateJobProgress(job, 2, "Queued on server");
 
-  const args = [
+  const sourceArgs = [
     ...getAuthArgs(),
     "--no-playlist",
     "--newline",
@@ -261,72 +359,99 @@ async function executeDownload(jobId: string) {
     "--ffmpeg-location",
     appConfig.ffmpegBin,
     "-o",
-    getOutputTemplate(jobId),
+    getTempOutputTemplate(jobId),
   ];
 
   if (job.mode === "audio") {
-    args.push("-f", job.formatId || "bestaudio/best", "-x", "--audio-format", job.targetExt);
+    sourceArgs.push("-f", job.formatId || "bestaudio/best");
   } else {
-    args.push(
+    sourceArgs.push(
       "-f",
       job.formatId ? `${job.formatId}+bestaudio/best` : "bestvideo+bestaudio/best",
       "--merge-output-format",
-      job.targetExt,
+      "mkv",
     );
   }
 
-  args.push(job.url);
+  sourceArgs.push(job.url);
 
   try {
-    const result = await runCommand(appConfig.ytDlpBin, args, {
+    const downloadResult = await runCommand(appConfig.ytDlpBin, sourceArgs, {
       timeoutMs: DOWNLOAD_TIMEOUT_MS,
       onStdoutLine: (line) => parseProgressLine(job, line),
       onStderrLine: (line) => parseProgressLine(job, line),
     });
 
-    if (result.exitCode !== 0) {
+    if (downloadResult.exitCode !== 0) {
       job.status = "error";
-      job.error = simplifyError(result.stderr);
+      job.error = simplifyError(downloadResult.stderr);
       job.updatedAt = Date.now();
       return;
     }
 
-    const files = getJobFiles(jobId);
+    const sourceFile = findPrimaryMediaFile(tempDir);
 
-    if (!files.length) {
+    if (!sourceFile) {
       job.status = "error";
-      job.error = "Download finished without a local file";
+      job.error = "Download finished without a local source file";
       job.updatedAt = Date.now();
       return;
     }
 
-    const preferredExtension = `.${job.targetExt}`;
-    const primaryFile = files.find((file) => file.endsWith(preferredExtension)) || files[0];
+    const outputPath = getFinalOutputPath(jobId, job.targetExt);
 
-    for (const file of files) {
-      if (file === primaryFile) {
-        continue;
-      }
-
-      try {
-        unlinkSync(file);
-      } catch {
-        // Best-effort cleanup.
-      }
+    if (job.mode === "audio") {
+      await convertAudio(job, sourceFile, outputPath);
+    } else {
+      await convertVideo(job, sourceFile, outputPath);
     }
 
-    const safeTitle = sanitizeFilename(job.title) || sanitizeFilename(basename(primaryFile, extname(primaryFile)));
+    const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
 
     job.status = "done";
     job.progress = 100;
     job.progressLabel = "Ready for download";
-    job.filePath = primaryFile;
-    job.filename = `${safeTitle || job.id}${extname(primaryFile)}`;
+    job.filePath = outputPath;
+    job.filename = `${safeTitle}.${job.targetExt}`;
     job.updatedAt = Date.now();
+    trackDownloadCompleted(job.source);
   } catch (error) {
     job.status = "error";
     job.error = error instanceof Error ? error.message : "Unknown process failure";
     job.updatedAt = Date.now();
+  } finally {
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Best-effort cleanup.
+    }
+  }
+}
+
+async function processQueue() {
+  if (global.__pulsorclipActiveJobId) {
+    return;
+  }
+
+  const nextJobId = queue.shift();
+
+  if (!nextJobId) {
+    updateQueuePositions();
+    return;
+  }
+
+  global.__pulsorclipActiveJobId = nextJobId;
+  updateQueuePositions();
+
+  try {
+    await executeDownload(nextJobId);
+  } finally {
+    global.__pulsorclipActiveJobId = null;
+    updateQueuePositions();
+
+    if (queue.length > 0) {
+      void processQueue();
+    }
   }
 }
 
@@ -342,21 +467,36 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     formatId: input.formatId || null,
     targetExt: input.targetExt || defaultExt,
     title: input.title || "",
+    source: input.source || "web",
     status: "queued",
     progress: 0,
     progressLabel: "Queued",
+    queuePosition: queue.length + 1,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 
   jobs.set(jobId, job);
-  void executeDownload(jobId);
+  queue.push(jobId);
+  trackDownloadCreated(job.source);
+  updateQueuePositions();
+  void processQueue();
 
   return job;
 }
 
 export function getDownloadJob(jobId: string) {
   return jobs.get(jobId) || null;
+}
+
+export function getQueuePosition(jobId: string) {
+  const job = jobs.get(jobId);
+
+  if (!job || job.status !== "queued") {
+    return 0;
+  }
+
+  return job.queuePosition || 0;
 }
 
 export function requireCompletedJob(jobId: string) {

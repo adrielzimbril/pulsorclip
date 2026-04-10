@@ -145,6 +145,12 @@ Repository docs:
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md)
 
+Community files:
+
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+
 ## CI
 
 GitHub Actions validation is included:
