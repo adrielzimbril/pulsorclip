@@ -353,11 +353,94 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
     }));
 }
 
+async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
+  logServer("info", "media.info.scrape.threads.started", { url: urlForLogs(url) });
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+      },
+      redirect: "follow",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Threads fetch failed: ${response.status} ${response.statusText}`);
+    }
+
+    const html = await response.text();
+
+    // 1. Try to find video in meta tags
+    const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
+                       html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i);
+    const thumbnailMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+                           html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
+    const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                       html.match(/<title>([^<]+)<\/title>/i);
+
+    if (videoMatch || thumbnailMatch) {
+      const videoUrl = videoMatch ? videoMatch[1].replace(/&amp;/g, "&") : null;
+      const thumbUrl = thumbnailMatch ? thumbnailMatch[1].replace(/&amp;/g, "&") : "";
+      const title = titleMatch ? titleMatch[1].trim() : "Threads post";
+
+      const videoOptions: MediaOption[] = videoUrl ? [{
+        id: "threads-video",
+        label: "Direct Video",
+        ext: "mp4",
+        qualityLabel: "Original",
+      }] : [];
+
+      return {
+        title,
+        thumbnail: thumbUrl,
+        duration: null,
+        uploader: "Threads",
+        platform: "threads",
+        extractorNote: "Scraped via metadata fallback",
+        videoOptions,
+        audioOptions: [],
+      };
+    }
+
+    // 2. Try to find JSON-LD
+    const scriptMatch = html.match(/<script\s+type="application\/ld\+json">([\s\S]+?)<\/script>/i);
+    if (scriptMatch) {
+      try {
+        const data = JSON.parse(scriptMatch[1]);
+        if (data && data.video) {
+          return {
+            title: data.name || data.headline || "Threads post",
+            thumbnail: data.thumbnailUrl || "",
+            duration: null,
+            uploader: "Threads",
+            platform: "threads",
+            videoOptions: [{ id: "threads-jsonld", label: "HD Video", ext: "mp4", qualityLabel: "HD" }],
+            audioOptions: [],
+          };
+        }
+      } catch { /* ignore */ }
+    }
+
+    throw new Error("Could not find media in Threads page metadata");
+  } catch (err) {
+    logServer("error", "media.info.scrape.threads.failed", { url: urlForLogs(url), error: String(err) });
+    throw err;
+  }
+}
+
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
-  let url = rawUrl;
-  url = url.replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com");
-  url = url.replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
-  url = url.replace(/https:\/\/(www\.)?threads\.(net|com)/i, "https://fxthreads.net");
+  const url = rawUrl
+    .replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com")
+    .replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
 
   const sourceProfile = getSourceProfile(url);
   logServer("info", "media.info.fetch.started", {
@@ -365,77 +448,66 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     url: urlForLogs(url),
     extractorArgs: sourceProfile.extractorArgs,
   });
-  const result = await runCommand(
-    appConfig.ytDlpBin,
-    [...getAuthArgs(), ...sourceProfile.extractorArgs, "--dump-single-json", "--no-playlist", url],
-    INFO_TIMEOUT_MS,
-  );
 
-  if (result.exitCode !== 0) {
-    logServer("error", "media.info.fetch.failed", {
+  try {
+    const result = await runCommand(
+      appConfig.ytDlpBin,
+      [...getAuthArgs(), ...sourceProfile.extractorArgs, "--dump-single-json", "--no-playlist", url],
+      INFO_TIMEOUT_MS,
+    );
+
+    if (result.exitCode !== 0) {
+      if (sourceProfile.platform === "threads") {
+        return await scrapeThreadsInfo(url);
+      }
+      throw new Error(simplifyError(result.stderr));
+    }
+
+    const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
+
+    let images: string[] | undefined;
+    if (parsed._type === "playlist" && Array.isArray(parsed.entries)) {
+      const extracted = (parsed.entries as Record<string, unknown>[])
+        .flatMap((entry) => {
+          if (entry.url && typeof entry.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(entry.url as string)) {
+            return [entry.url as string];
+          }
+          if (Array.isArray(entry.formats)) {
+            const imgFmt = (entry.formats as Record<string, unknown>[]).find(
+              (f) => typeof f.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(f.url as string),
+            );
+            if (imgFmt && typeof imgFmt.url === "string") return [imgFmt.url];
+          }
+          if (typeof entry.thumbnail === "string") return [entry.thumbnail as string];
+          return [];
+        })
+        .filter(Boolean);
+      if (extracted.length > 0) images = extracted;
+    }
+
+    const videoOptions = pickVideoOptions(parsed);
+    const audioOptions = pickAudioOptions(parsed);
+
+    return {
+      title: typeof parsed.title === "string" ? parsed.title : "",
+      thumbnail: typeof parsed.thumbnail === "string" ? parsed.thumbnail : "",
+      duration: typeof parsed.duration === "number" ? parsed.duration : null,
+      uploader: typeof parsed.uploader === "string" ? parsed.uploader : "",
       platform: sourceProfile.platform,
-      url: urlForLogs(url),
-      exitCode: result.exitCode,
-      stderrTail: stderrTail(result.stderr),
-    });
-    throw new Error(simplifyError(result.stderr));
+      extractorNote: sourceProfile.note,
+      width: typeof parsed.width === "number" ? parsed.width : undefined,
+      height: typeof parsed.height === "number" ? parsed.height : undefined,
+      videoOptions,
+      audioOptions,
+      images,
+    };
+  } catch (err) {
+    if (url.includes("threads.net") || url.includes("threads.com")) {
+      return await scrapeThreadsInfo(url);
+    }
+    throw err;
   }
-
-  const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
-
-  // Generic image gallery detection:
-  // yt-dlp returns _type="playlist" with entries when the URL is a photo carousel.
-  // We extract the direct image URLs from those entries.
-  let images: string[] | undefined;
-  if (parsed._type === "playlist" && Array.isArray(parsed.entries)) {
-    const extracted = (parsed.entries as Record<string, unknown>[])
-      .flatMap((entry) => {
-        // Each entry may have a direct URL pointing to an image
-        if (entry.url && typeof entry.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(entry.url as string)) {
-          return [entry.url as string];
-        }
-        // Or formats array with image formats
-        if (Array.isArray(entry.formats)) {
-          const imgFmt = (entry.formats as Record<string, unknown>[]).find(
-            (f) => typeof f.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(f.url as string),
-          );
-          if (imgFmt && typeof imgFmt.url === "string") return [imgFmt.url];
-        }
-        // Fallback: use thumbnail
-        if (typeof entry.thumbnail === "string") return [entry.thumbnail as string];
-        return [];
-      })
-      .filter(Boolean);
-    if (extracted.length > 0) images = extracted;
-  }
-
-  const videoOptions = pickVideoOptions(parsed);
-  const audioOptions = pickAudioOptions(parsed);
-
-  logServer("info", "media.info.fetch.completed", {
-    platform: sourceProfile.platform,
-    url: urlForLogs(url),
-    title: typeof parsed.title === "string" ? parsed.title : "",
-    hasThumbnail: typeof parsed.thumbnail === "string" && Boolean(parsed.thumbnail),
-    videoOptions: videoOptions.length,
-    audioOptions: audioOptions.length,
-  });
-
-  return {
-    title: typeof parsed.title === "string" ? parsed.title : "",
-    thumbnail: typeof parsed.thumbnail === "string" ? parsed.thumbnail : "",
-    duration: typeof parsed.duration === "number" ? parsed.duration : null,
-    uploader: typeof parsed.uploader === "string" ? parsed.uploader : "",
-    platform: sourceProfile.platform,
-    extractorNote: sourceProfile.note,
-    width: typeof parsed.width === "number" ? parsed.width : undefined,
-    height: typeof parsed.height === "number" ? parsed.height : undefined,
-    videoOptions,
-    audioOptions,
-    images,
-  };
 }
-
 async function executeDownload(jobId: string) {
   const job = jobs.get(jobId);
 
@@ -446,7 +518,6 @@ async function executeDownload(jobId: string) {
   let jobUrl = job.url;
   jobUrl = jobUrl.replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com");
   jobUrl = jobUrl.replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
-  jobUrl = jobUrl.replace(/https:\/\/(www\.)?threads\.(net|com)/i, "https://fxthreads.net");
 
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });

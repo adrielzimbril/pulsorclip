@@ -32,13 +32,13 @@ function labelForStatus(locale: AppLocale, status: CardStatus) {
   return t(locale, "statusError");
 }
 
-function explainError(error: string | null | undefined) {
+function explainError(locale: AppLocale, error: string | null | undefined) {
   if (!error) {
-    return "Request failed";
+    return t(locale, "errorGeneric");
   }
 
   if (error.includes("authenticated cookies")) {
-    return "YouTube requires cookies for this media. Configure YTDLP_COOKIES_FROM_BROWSER, YTDLP_COOKIES_FILE, or YTDLP_COOKIES_BASE64.";
+    return t(locale, "errorYoutubeCookies");
   }
 
   return error;
@@ -174,7 +174,7 @@ export function MediaCard({
 
           {(card.status === "info-error" || card.status === "error") && (
             <div className="mt-4 rounded-[20px] border border-red-200 bg-red-50 px-4 py-3 text-sm leading-7 text-danger dark:border-red-950/50 dark:bg-red-950/30">
-              <p>{explainError(card.error)}</p>
+              <p>{explainError(locale, card.error)}</p>
               <Link className="mt-2 inline-flex text-sm font-semibold underline underline-offset-4" href="/faq#error-ytdlp-bot-check">
                 Open FAQ for fixes
               </Link>

@@ -172,6 +172,8 @@ export const messages = {
     botHelpShortcutsLine: "Shortcuts:",
     botHelpGuidance: "Send a direct media URL at any time to start a guided download.",
     botExportFallbackTitle: "PulsorClip export",
+    errorYoutubeCookies: "YouTube requires cookies for this media. Configure YTDLP_COOKIES_FROM_BROWSER, YTDLP_COOKIES_FILE, or YTDLP_COOKIES_BASE64.",
+    errorGeneric: "Request failed",
   },
   fr: {
     appName: "PulsorClip",
@@ -346,6 +348,8 @@ export const messages = {
     botHelpShortcutsLine: "Raccourcis :",
     botHelpGuidance: "Envoie une URL media directe a tout moment pour lancer un telechargement guide.",
     botExportFallbackTitle: "Export PulsorClip",
+    errorYoutubeCookies: "YouTube demande des cookies pour ce media. Configure YTDLP_COOKIES_FROM_BROWSER, YTDLP_COOKIES_FILE ou YTDLP_COOKIES_BASE64.",
+    errorGeneric: "La requete a echoue",
   },
 } satisfies Record<AppLocale, Record<string, string>>;
 

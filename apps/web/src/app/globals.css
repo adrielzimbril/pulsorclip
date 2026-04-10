@@ -166,5 +166,5 @@ button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
 
-/* Header subtle shadow — the ONLY shadow in the app */
-.header-shadow { box-shadow: 0 1px 0 var(--line); }
+/* Header subtle border — the ONLY decoration allowed */
+.header-shadow { border-bottom: 1.5px solid var(--line); }

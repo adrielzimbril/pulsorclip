@@ -653,11 +653,11 @@ export function ClipWorkbench({
           className="modal-backdrop"
           onClick={(e) => { if (e.target === e.currentTarget) setTiktokCarousel(null); }}
         >
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-y-auto rounded-[28px] border border-line bg-surface p-6">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4">
+          <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[28px] border border-line bg-surface">
+            {/* Header — Sticky */}
+            <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-line bg-surface p-6 pb-4">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">
                   {t(locale, "imageGallery")}
                 </p>
                 <h2 className="mt-1 truncate text-base font-bold">
@@ -671,86 +671,95 @@ export function ClipWorkbench({
                 type="button"
                 aria-label={t(locale, "closeModal")}
                 onClick={() => setTiktokCarousel(null)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-muted transition hover:border-accent hover:text-accent"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-muted transition hover:border-foreground hover:text-foreground"
               >
-                x
+                ✕
               </button>
             </div>
 
-            {/* Image grid — each image shows a per-image download button on hover */}
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2">
-              {tiktokCarousel.images.map((imgUrl, index) => {
-                const isSelected = selectedImages.has(imgUrl);
-                return (
-                  <div key={imgUrl} className="group relative">
-                    <button
-                      type="button"
-                      aria-label={`Image ${index + 1}${isSelected ? " (selected)" : ""}`}
-                      onClick={() => {
-                        setSelectedImages((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(imgUrl)) next.delete(imgUrl);
-                          else next.add(imgUrl);
-                          return next;
-                        });
-                      }}
-                      className="relative w-full overflow-hidden rounded-xl outline-none"
-                      style={{
-                        border: isSelected ? "2px solid var(--accent)" : "2px solid transparent",
-                        aspectRatio: "9/16",
-                        background: "var(--surface-muted)",
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={imgUrl}
-                        alt={`Image ${index + 1}`}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      {isSelected && (
-                        <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[0.65rem] font-bold text-white">
-                          v
-                        </span>
-                      )}
-                    </button>
-                    {/* Per-image download button */}
-                    <button
-                      type="button"
-                      onClick={() => downloadSingleImage(imgUrl, index)}
-                      className="absolute bottom-1.5 left-0 right-0 mx-auto hidden w-[calc(100%-12px)] rounded-lg border border-line bg-surface px-2 py-1 text-center text-[0.65rem] font-semibold text-foreground transition group-hover:flex group-hover:items-center group-hover:justify-center"
-                    >
-                      {t(locale, "downloadImage")}
-                    </button>
-                  </div>
-                );
-              })}
+            {/* Image grid */}
+            <div className="flex-1 overflow-y-auto p-6 pt-4">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
+                {tiktokCarousel.images.map((imgUrl, index) => {
+                  const isSelected = selectedImages.has(imgUrl);
+                  return (
+                    <div key={imgUrl} className="group relative">
+                      <button
+                        type="button"
+                        aria-label={`Image ${index + 1}${isSelected ? " (selected)" : ""}`}
+                        onClick={() => {
+                          setSelectedImages((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(imgUrl)) next.delete(imgUrl);
+                            else next.add(imgUrl);
+                            return next;
+                          });
+                        }}
+                        className="relative w-full overflow-hidden rounded-xl bg-surface-muted transition"
+                        style={{
+                          border: isSelected ? "3px solid var(--foreground)" : "3px solid transparent",
+                          aspectRatio: "9/16",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imgUrl}
+                          alt={`Image ${index + 1}`}
+                          className={`h-full w-full object-cover transition-opacity ${isSelected ? "opacity-70" : "opacity-100"}`}
+                          loading="lazy"
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">
+                              ✓
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadSingleImage(imgUrl, index)}
+                        className="absolute bottom-2 left-2 right-2 rounded-lg border border-line bg-surface/90 px-2 py-1.5 text-center text-[0.68rem] font-bold text-foreground backdrop-blur-sm transition opacity-0 group-hover:opacity-100"
+                      >
+                        {t(locale, "downloadImage")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                disabled={selectedImages.size === 0 || isZipping}
-                onClick={() => void downloadCarouselZip()}
-                className="btn-accent"
-              >
-                {isZipping ? t(locale, "downloadZipGenerating") : `${t(locale, "downloadAsZip")} (${selectedImages.size})`}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedImages(new Set(tiktokCarousel.images))}
-                className="btn-outline text-sm"
-              >
-                {t(locale, "selectAll")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedImages(new Set())}
-                className="btn-outline text-sm"
-              >
-                {t(locale, "deselectAll")}
-              </button>
+            {/* Actions — Sticky Footer */}
+            <div className="sticky bottom-0 z-20 flex flex-col gap-3 border-t border-line bg-surface p-6 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImages(new Set(tiktokCarousel.images))}
+                    className="btn-outline px-4 py-2 text-xs"
+                  >
+                    {t(locale, "selectAll")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImages(new Set())}
+                    className="btn-outline px-4 py-2 text-xs"
+                  >
+                    {t(locale, "deselectAll")}
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                   <button
+                    type="button"
+                    disabled={selectedImages.size === 0 || isZipping}
+                    onClick={() => void downloadCarouselZip()}
+                    className="btn-primary"
+                  >
+                    {isZipping ? t(locale, "downloadZipGenerating") : `${t(locale, "downloadAsZip")} (${selectedImages.size})`}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
