@@ -1,12 +1,24 @@
 import { randomUUID } from "node:crypto";
-import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
 import { getSourceProfile } from "./source-adapters";
-import type { DownloadJob, DownloadRequestPayload, MediaInfo, MediaOption } from "../shared/types";
+import type {
+  DownloadJob,
+  DownloadRequestPayload,
+  MediaInfo,
+  MediaOption,
+} from "../shared/types";
 
 declare global {
   var __pulsorclipJobs: Map<string, DownloadJob> | undefined;
@@ -26,17 +38,23 @@ const DOWNLOAD_TIMEOUT_MS = 12 * 60_000;
 const TRANSCODE_TIMEOUT_MS = 25 * 60_000;
 
 function sanitizeFilename(input: string) {
-  return input.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 96);
+  return input
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 96);
 }
 
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
     .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, " ");
 }
@@ -64,39 +82,63 @@ function simplifyError(raw: string) {
   }
 
   // YouTube video unavailable
-  if (allText.includes("Video unavailable") || allText.includes("This video is unavailable")) {
+  if (
+    allText.includes("Video unavailable") ||
+    allText.includes("This video is unavailable")
+  ) {
     return "Video unavailable — it may be private, region-locked, or deleted.";
   }
 
   // Private / restricted
-  if (allText.includes("Private") || allText.includes("This is a private video")) {
+  if (
+    allText.includes("Private") ||
+    allText.includes("This is a private video")
+  ) {
     return "Private or restricted media — cannot be accessed without authentication.";
   }
 
   // Unsupported URL
-  if (allText.includes("Unsupported URL") || allText.includes("is not a supported")) {
+  if (
+    allText.includes("Unsupported URL") ||
+    allText.includes("is not a supported")
+  ) {
     return "Unsupported URL — this platform or link type is not supported.";
   }
 
   // Instagram / Threads login
-  if (allText.includes("login required") || allText.includes("Please log in") || allText.includes("checkpoint")) {
+  if (
+    allText.includes("login required") ||
+    allText.includes("Please log in") ||
+    allText.includes("checkpoint")
+  ) {
     return "This platform requires authentication. Cookies are needed for private or restricted content.";
   }
 
   // Rate limiting / HTTP 429
-  if (allText.includes("HTTP Error 429") || allText.includes("Too Many Requests")) {
+  if (
+    allText.includes("HTTP Error 429") ||
+    allText.includes("Too Many Requests")
+  ) {
     return "Rate limited by the platform. Try again in a few minutes.";
   }
 
   // Network / timeout
-  if (allText.includes("Connection reset") || allText.includes("timed out") || allText.includes("Network is unreachable")) {
+  if (
+    allText.includes("Connection reset") ||
+    allText.includes("timed out") ||
+    allText.includes("Network is unreachable")
+  ) {
     return "Network error — the server could not reach the media host. Try again.";
   }
 
   return lastLine;
 }
 
-function updateJobProgress(job: DownloadJob, progress: number, progressLabel: string) {
+function updateJobProgress(
+  job: DownloadJob,
+  progress: number,
+  progressLabel: string,
+) {
   job.progress = Math.max(0, Math.min(100, Math.round(progress)));
   job.progressLabel = progressLabel;
   job.updatedAt = Date.now();
@@ -143,7 +185,10 @@ function ensureCookieFileFromBase64() {
   const cookieFile = join(cookieDir, "yt-cookies.txt");
 
   mkdirSync(cookieDir, { recursive: true });
-  writeFileSync(cookieFile, Buffer.from(appConfig.ytDlpCookiesBase64, "base64"));
+  writeFileSync(
+    cookieFile,
+    Buffer.from(appConfig.ytDlpCookiesBase64, "base64"),
+  );
 
   return cookieFile;
 }
@@ -196,13 +241,23 @@ function isImageExt(ext: string) {
 }
 
 function findPrimaryMediaFile(directory: string) {
-  return readdirSync(directory)
-    .map((entry) => join(directory, entry))
-    .filter((filePath) => !filePath.endsWith(".part") && statSync(filePath).isFile())
-    .sort((left, right) => statSync(right).size - statSync(left).size)[0] || null;
+  return (
+    readdirSync(directory)
+      .map((entry) => join(directory, entry))
+      .filter(
+        (filePath) =>
+          !filePath.endsWith(".part") && statSync(filePath).isFile(),
+      )
+      .sort((left, right) => statSync(right).size - statSync(left).size)[0] ||
+    null
+  );
 }
 
-async function convertAudio(job: DownloadJob, sourcePath: string, outputPath: string) {
+async function convertAudio(
+  job: DownloadJob,
+  sourcePath: string,
+  outputPath: string,
+) {
   updateJobProgress(job, 92, `Encoding ${job.targetExt.toUpperCase()} audio`);
 
   const codecArgs =
@@ -233,14 +288,42 @@ async function convertAudio(job: DownloadJob, sourcePath: string, outputPath: st
   }
 }
 
-async function convertVideo(job: DownloadJob, sourcePath: string, outputPath: string) {
+async function convertVideo(
+  job: DownloadJob,
+  sourcePath: string,
+  outputPath: string,
+) {
   updateJobProgress(job, 92, `Finalizing ${job.targetExt.toUpperCase()} video`);
 
   const codecArgs =
     job.targetExt === "mp4"
-      ? ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+      ? [
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-crf",
+          "22",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "192k",
+          "-movflags",
+          "+faststart",
+        ]
       : job.targetExt === "webm"
-        ? ["-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0", "-c:a", "libopus", "-b:a", "160k"]
+        ? [
+            "-c:v",
+            "libvpx-vp9",
+            "-crf",
+            "32",
+            "-b:v",
+            "0",
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "160k",
+          ]
         : ["-c", "copy"];
 
   const result = await runCommand(
@@ -284,9 +367,17 @@ function pickVideoOptions(rawInfo: Record<string, unknown>) {
     const tbr = Number(current.tbr || 0);
     const vcodec = current.vcodec;
     const acodec = current.acodec;
-    const ext = typeof current.ext === "string" ? current.ext.toLowerCase() : "";
+    const ext =
+      typeof current.ext === "string" ? current.ext.toLowerCase() : "";
 
-    if (!id || !height || vcodec === "none" || ext === "gif" || ext === "jpg" || ext === "png") {
+    if (
+      !id ||
+      !height ||
+      vcodec === "none" ||
+      ext === "gif" ||
+      ext === "jpg" ||
+      ext === "png"
+    ) {
       continue;
     }
 
@@ -309,7 +400,12 @@ function pickVideoOptions(rawInfo: Record<string, unknown>) {
   }
 
   return [...entries.values()]
-    .sort((left, right) => (right.height || 0) - (left.height || 0) || (right.fps || 0) - (left.fps || 0) || right.score - left.score)
+    .sort(
+      (left, right) =>
+        (right.height || 0) - (left.height || 0) ||
+        (right.fps || 0) - (left.fps || 0) ||
+        right.score - left.score,
+    )
     .map((entry) => ({
       id: entry.id,
       label: entry.label,
@@ -368,16 +464,20 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
 async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
   // Use .net for internal fetching consistently
   const fetchUrl = url.replace("threads.com", "threads.net");
-  logServer("info", "media.info.scrape.threads.started", { url: urlForLogs(fetchUrl) });
+  logServer("info", "media.info.scrape.threads.started", {
+    url: urlForLogs(fetchUrl),
+  });
 
   try {
     const response = await fetch(fetchUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
+        Pragma: "no-cache",
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
@@ -388,7 +488,9 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     });
 
     if (!response.ok) {
-      throw new Error(`Threads fetch failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Threads fetch failed: ${response.status} ${response.statusText}`,
+      );
     }
 
     const html = await response.text();
@@ -396,37 +498,52 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 
     // 1. Try to find video versions in the JSON bootstrap (High Quality)
     // Threads embeds its data in application/json scripts
-    const jsonVersionsMatch = html.match(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i);
+    const jsonVersionsMatch = html.match(
+      /"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i,
+    );
     if (jsonVersionsMatch) {
-      resolvedUrl = jsonVersionsMatch[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/");
+      resolvedUrl = jsonVersionsMatch[1]
+        .replace(/\\u0025/g, "%")
+        .replace(/\\\//g, "/");
     }
 
     // 2. Fallback to OpenGraph meta tags if JSON fails
     if (!resolvedUrl) {
-      const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
-                         html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i) ||
-                         html.match(/<video[^>]+src="([^"]+)"/i); // New fallback for direct video tags
+      const videoMatch =
+        html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
+        html.match(
+          /<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i,
+        ) ||
+        html.match(/<video[^>]+src="([^"]+)"/i); // New fallback for direct video tags
       if (videoMatch) {
-         resolvedUrl = videoMatch[1].replace(/&amp;/g, "&");
+        resolvedUrl = videoMatch[1].replace(/&amp;/g, "&");
       }
     }
 
-    const thumbnailMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
-                           html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
-    const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-                       html.match(/<title>([^<]+)<\/title>/i);
+    const thumbnailMatch =
+      html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+      html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
+    const titleMatch =
+      html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+      html.match(/<title>([^<]+)<\/title>/i);
 
     if (resolvedUrl || thumbnailMatch) {
-      const thumbUrl = thumbnailMatch ? thumbnailMatch[1].replace(/&amp;/g, "&") : "";
+      const thumbUrl = thumbnailMatch
+        ? thumbnailMatch[1].replace(/&amp;/g, "&")
+        : "";
       const rawTitle = titleMatch ? titleMatch[1].trim() : "Threads post";
       const title = decodeHtmlEntities(rawTitle);
 
-      const videoOptions: MediaOption[] = resolvedUrl ? [{
-        id: "threads-video",
-        label: "HD Video (Scraped)",
-        ext: "mp4",
-        qualityLabel: "HD",
-      }] : [];
+      const videoOptions: MediaOption[] = resolvedUrl
+        ? [
+            {
+              id: "threads-video",
+              label: "HD Video",
+              ext: "mp4",
+              qualityLabel: "HD",
+            },
+          ]
+        : [];
 
       return {
         title,
@@ -443,13 +560,18 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 
     throw new Error("Could not find media in Threads page metadata");
   } catch (err) {
-    logServer("error", "media.info.scrape.threads.failed", { url: urlForLogs(fetchUrl), error: String(err) });
+    logServer("error", "media.info.scrape.threads.failed", {
+      url: urlForLogs(fetchUrl),
+      error: String(err),
+    });
     throw err;
   }
 }
 
 export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
-  logServer("info", "media.info.scrape.tiktok.started", { url: urlForLogs(url) });
+  logServer("info", "media.info.scrape.tiktok.started", {
+    url: urlForLogs(url),
+  });
 
   try {
     const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&count=12&cursor=0&web=1&hd=1`;
@@ -461,12 +583,16 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
     });
 
     if (!response.ok) {
-      throw new Error(`tikwm API error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `tikwm API error: ${response.status} ${response.statusText}`,
+      );
     }
 
     const data = (await response.json()) as any;
     if (data.code !== 0 || !data.data) {
-      throw new Error(data.msg || "Could not extract TikTok carousel via tikwm");
+      throw new Error(
+        data.msg || "Could not extract TikTok carousel via tikwm",
+      );
     }
 
     const mediaData = data.data;
@@ -481,17 +607,23 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
     }
 
     if (images.length === 0) {
-      throw new Error("No images found in this TikTok post. It may be a video.");
+      throw new Error(
+        "No images found in this TikTok post. It may be a video.",
+      );
     }
 
     const audioUrl = mediaData.music || mediaData.music_info?.play || "";
 
-    const audioOptions: MediaOption[] = audioUrl ? [{
-      id: "tiktok-audio",
-      label: "TikTok Music",
-      ext: "mp3",
-      qualityLabel: "Best",
-    }] : [];
+    const audioOptions: MediaOption[] = audioUrl
+      ? [
+          {
+            id: "tiktok-audio",
+            label: "TikTok Music",
+            ext: "mp3",
+            qualityLabel: "Best",
+          },
+        ]
+      : [];
 
     return {
       title: decodeHtmlEntities(mediaData.title || "TikTok carousel"),
@@ -506,15 +638,24 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
       resolvedUrl: audioUrl,
     };
   } catch (err) {
-    logServer("error", "media.info.scrape.tiktok.failed", { url: urlForLogs(url), error: String(err) });
+    logServer("error", "media.info.scrape.tiktok.failed", {
+      url: urlForLogs(url),
+      error: String(err),
+    });
     throw err;
   }
 }
 
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   const url = rawUrl
-    .replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com")
-    .replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
+    .replace(
+      /https:\/\/(www\.)?(twitter\.com|x\.com)/i,
+      "https://vxtwitter.com",
+    )
+    .replace(
+      /https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i,
+      "https://vxtiktok.com",
+    );
 
   const sourceProfile = getSourceProfile(url);
   logServer("info", "media.info.fetch.started", {
@@ -526,7 +667,13 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   try {
     const result = await runCommand(
       appConfig.ytDlpBin,
-      [...getAuthArgs(), ...sourceProfile.extractorArgs, "--dump-single-json", "--no-playlist", url],
+      [
+        ...getAuthArgs(),
+        ...sourceProfile.extractorArgs,
+        "--dump-single-json",
+        "--no-playlist",
+        url,
+      ],
       INFO_TIMEOUT_MS,
     );
 
@@ -546,16 +693,23 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     if (parsed._type === "playlist" && Array.isArray(parsed.entries)) {
       const extracted = (parsed.entries as Record<string, unknown>[])
         .flatMap((entry) => {
-          if (entry.url && typeof entry.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(entry.url as string)) {
+          if (
+            entry.url &&
+            typeof entry.url === "string" &&
+            /\.(jpg|jpeg|png|webp)/i.test(entry.url as string)
+          ) {
             return [entry.url as string];
           }
           if (Array.isArray(entry.formats)) {
             const imgFmt = (entry.formats as Record<string, unknown>[]).find(
-              (f) => typeof f.url === "string" && /\.(jpg|jpeg|png|webp)/i.test(f.url as string),
+              (f) =>
+                typeof f.url === "string" &&
+                /\.(jpg|jpeg|png|webp)/i.test(f.url as string),
             );
             if (imgFmt && typeof imgFmt.url === "string") return [imgFmt.url];
           }
-          if (typeof entry.thumbnail === "string") return [entry.thumbnail as string];
+          if (typeof entry.thumbnail === "string")
+            return [entry.thumbnail as string];
           return [];
         })
         .filter(Boolean);
@@ -566,10 +720,14 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     const audioOptions = pickAudioOptions(parsed);
 
     return {
-      title: decodeHtmlEntities(typeof parsed.title === "string" ? parsed.title : ""),
+      title: decodeHtmlEntities(
+        typeof parsed.title === "string" ? parsed.title : "",
+      ),
       thumbnail: typeof parsed.thumbnail === "string" ? parsed.thumbnail : "",
       duration: typeof parsed.duration === "number" ? parsed.duration : null,
-      uploader: decodeHtmlEntities(typeof parsed.uploader === "string" ? parsed.uploader : ""),
+      uploader: decodeHtmlEntities(
+        typeof parsed.uploader === "string" ? parsed.uploader : "",
+      ),
       platform: sourceProfile.platform,
       extractorNote: sourceProfile.note,
       width: typeof parsed.width === "number" ? parsed.width : undefined,
@@ -593,8 +751,14 @@ async function executeDownload(jobId: string) {
   }
 
   let jobUrl = job.resolvedUrl || job.url;
-  jobUrl = jobUrl.replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com");
-  jobUrl = jobUrl.replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
+  jobUrl = jobUrl.replace(
+    /https:\/\/(www\.)?(twitter\.com|x\.com)/i,
+    "https://vxtwitter.com",
+  );
+  jobUrl = jobUrl.replace(
+    /https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i,
+    "https://vxtiktok.com",
+  );
 
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
@@ -630,12 +794,14 @@ async function executeDownload(jobId: string) {
     getTempOutputTemplate(jobId),
   ];
 
-    if (job.mode === "audio") {
+  if (job.mode === "audio") {
     sourceArgs.push("-f", job.formatId || "bestaudio/best");
   } else {
     sourceArgs.push(
       "-f",
-      job.formatId ? `${job.formatId}+bestaudio/${job.formatId}/bestvideo+bestaudio/best` : "bestvideo+bestaudio/best",
+      job.formatId
+        ? `${job.formatId}+bestaudio/${job.formatId}/bestvideo+bestaudio/best`
+        : "bestvideo+bestaudio/best",
       "--merge-output-format",
       "mkv",
     );
@@ -717,7 +883,8 @@ async function executeDownload(jobId: string) {
     });
   } catch (error) {
     job.status = "error";
-    job.error = error instanceof Error ? error.message : "Unknown process failure";
+    job.error =
+      error instanceof Error ? error.message : "Unknown process failure";
     job.updatedAt = Date.now();
     logServer("error", "media.download.failed", {
       jobId: job.id,
@@ -815,8 +982,10 @@ export function getQueueSnapshot() {
     activeJobId,
     activeJob,
     totalJobs: jobs.size,
-    errorJobs: [...jobs.values()].filter((job) => job.status === "error").length,
-    completedJobs: [...jobs.values()].filter((job) => job.status === "done").length,
+    errorJobs: [...jobs.values()].filter((job) => job.status === "error")
+      .length,
+    completedJobs: [...jobs.values()].filter((job) => job.status === "done")
+      .length,
   };
 }
 
@@ -864,6 +1033,3 @@ export async function waitForJob(jobId: string, timeoutMs: number) {
 
   throw new Error("Timed out waiting for job");
 }
-
-
-

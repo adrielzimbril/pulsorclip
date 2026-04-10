@@ -169,8 +169,11 @@ export const messages = {
     networkError: "Network error, please try again.",
     // Bot carousel
     botImageCarousel: "Image gallery detected",
-    botImageGalleryHint: "This post contains images. Open in the web app to select and download them.",
-    botOpenWebGallery: "Open gallery in web app",
+    botImageGalleryHint: "This post contains images. Open the web app for batch controls, or select an option below:",
+    botOpenWebGallery: "🌐 Open Gallery (Web)",
+    botSendImages: "🖼️ Send all images here",
+    botSendingImages: "📤 Sending gallery images...",
+    botImagesSent: "✅ All images from the gallery have been sent.",
     // Bot help & misc
     botHelpIntro: "PulsorClip Telegram",
     botHelpShortcutsLine: "Shortcuts:",
@@ -351,8 +354,11 @@ export const messages = {
     networkError: "Erreur reseau, veuillez reessayer.",
     // Bot carousel
     botImageCarousel: "Galerie d images detectee",
-    botImageGalleryHint: "Ce post contient des images. Ouvre l app web pour les selectionner et les telecharger.",
-    botOpenWebGallery: "Ouvrir la galerie dans l app",
+    botImageGalleryHint: "Ce post contient des images. Ouvre l'app web pour tout contrôler, ou choisis une option :",
+    botOpenWebGallery: "🌐 Ouvrir la galerie (Web)",
+    botSendImages: "🖼️ Envoyer toutes les images ici",
+    botSendingImages: "📤 Envoi des images en cours...",
+    botImagesSent: "✅ Toutes les images de la galerie ont été envoyées.",
     // Bot help & misc
     botHelpIntro: "PulsorClip Telegram",
     botHelpShortcutsLine: "Raccourcis :",

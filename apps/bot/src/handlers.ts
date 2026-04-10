@@ -312,7 +312,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   pendingByChat.set(ctx.chat.id, choice);
   await safeDeleteMessage(bot, ctx.chat.id, loadingMessage.message_id);
 
-  // Image gallery detected — redirect user to web app for carousel selection
+  // Image gallery detected — offer direct images or web app
   if (info.images && info.images.length > 0) {
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
     const text = [t(locale, "botImageCarousel"), countLine, trimTitle(info.title || ""), "", t(locale, "botImageGalleryHint")]
@@ -320,10 +320,20 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       .join("\n");
     
     // Add audio download option if music is present in the carousel
-    const inline_keyboard: any[][] = [[{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]];
+    const inline_keyboard: any[][] = [];
+    
+    // 1. Audio (Music) option if present
     if (info.resolvedUrl) {
-      inline_keyboard.unshift([{ text: `🎧 ${t(locale, "botAudioLabel")}`, callback_data: `dl:${choice.id}:audio:best:mp3` }]);
+      inline_keyboard.push([{ text: `🎧 ${t(locale, "botAudioLabel")}`, callback_data: `dl:${choice.id}:audio:best:mp3` }]);
     }
+
+    // 2. Send Images option
+    if (info.images && info.images.length > 0) {
+      inline_keyboard.push([{ text: t(locale, "botSendImages"), callback_data: `imgs:${choice.id}` }]);
+    }
+
+    // 3. Web Gallery option (always last/bottom)
+    inline_keyboard.push([{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]);
 
     const keyboard = {
       reply_markup: {
@@ -705,6 +715,48 @@ export function registerBotHandlers(bot: Telegraf) {
       void trackJobInChat(bot, ctx, choice, job.id, choice.info.title || t(choice.locale, "botExportFallbackTitle"));
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+    }
+  });
+
+  bot.action(/imgs:([a-z0-9]+)/, async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+
+    const [, pendingId] = ctx.match;
+    const choice = pendingByChat.get(chatId);
+
+    if (!choice || choice.id !== pendingId || !choice.info.images) {
+      await ctx.answerCbQuery("Expired.");
+      return;
+    }
+
+    const images = choice.info.images;
+    const locale = choice.locale;
+
+    await ctx.answerCbQuery(t(locale, "botSendingImages").split(".")[0]);
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, t(locale, "botSendingImages")));
+
+    try {
+      // Send images in groups of 10 (Telegram limit for media groups)
+      for (let i = 0; i < images.length; i += 10) {
+        const chunk = images.slice(i, i + 10);
+        await ctx.replyWithMediaGroup(
+          chunk.map((url, idx) => ({
+            type: "photo",
+            media: url,
+            caption: idx === 0 ? choice.info.title : undefined,
+          }))
+        );
+        // Small delay to avoid flood
+        if (i + 10 < images.length) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      
+      await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, t(locale, "botImagesSent")));
+    } catch (error) {
+      console.error("Bot image delivery failed:", error);
+      await ctx.reply(t(locale, "botDownloadFailed"), webKeyboard(locale));
     }
   });
 }
