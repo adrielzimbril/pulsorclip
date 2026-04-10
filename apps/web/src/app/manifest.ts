@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "PulsorClip",
     short_name: "PulsorClip",
-    description: "Self-hosted media download and export workspace by Adriel Zimbril.",
+    description:
+      "Self-hosted media download and export workspace by Adriel Zimbril.",
     start_url: "/",
     display: "standalone",
     background_color: "#f4f5f6",
@@ -13,11 +14,6 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: "/icon.png",
         sizes: "512x512",
-        type: "image/png",
-      },
-      {
-        src: "/apple-icon.png",
-        sizes: "180x180",
         type: "image/png",
       },
     ],
