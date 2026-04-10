@@ -1,4 +1,4 @@
-﻿import { Markup } from "telegraf";
+import { Markup } from "telegraf";
 import { appConfig } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale, DownloadMode } from "@pulsorclip/core/shared";
@@ -12,7 +12,7 @@ export function modeKeyboard(locale: AppLocale) {
   return Markup.inlineKeyboard([
     [
       Markup.button.callback(t(locale, "botVideoLabel"), "mode:video"),
-      Markup.button.callback(t(locale, "botAudioLabel"), "mode:audio"),
+      Markup.button.callback(`🎧 ${t(locale, "botAudioLabel")}`, "mode:audio"),
     ],
     [Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)],
   ]);
@@ -27,19 +27,28 @@ export function languageKeyboard() {
   ]);
 }
 
-export function qualityKeyboard(choice: PendingChoice, mode: DownloadMode, selectedExt?: string) {
+export function extensionKeyboard(choice: PendingChoice, mode: DownloadMode) {
   const locale = choice.locale;
-  const options = mode === "video" ? choice.info.videoOptions.slice(0, 6) : choice.info.audioOptions.slice(0, 6);
-  const extRow = mode === "video" ? ["mp4", "webm", "mkv"] : ["mp3", "m4a"];
-  const activeExt = selectedExt || (mode === "video" ? "mp4" : "mp3");
-
+  const exts = mode === "video" ? ["mp4", "webm", "mkv"] : ["mp3", "m4a"];
+  
   return Markup.inlineKeyboard([
-    extRow.map((ext) =>
-      Markup.button.callback(`${ext === activeExt ? "● " : ""}${ext.toUpperCase()}`, `ext:${choice.id}:${mode}:${ext}`),
-    ),
-    [Markup.button.callback(`${t(locale, "botBest")} · ${activeExt.toUpperCase()}`, `dl:${choice.id}:${mode}:best:${activeExt}`)],
-    ...options.map((option) => [Markup.button.callback(`${option.label} · ${activeExt.toUpperCase()}`, `dl:${choice.id}:${mode}:${option.id}:${activeExt}`)]),
+    exts.map(ext => Markup.button.callback(ext.toUpperCase(), `ext:${choice.id}:${mode}:${ext}`)),
     [Markup.button.callback(t(locale, "botBack"), "back:mode")],
     [Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)],
   ]);
 }
+
+export function qualityKeyboard(choice: PendingChoice, mode: DownloadMode, activeExt: string) {
+  const locale = choice.locale;
+  const options = mode === "video" ? choice.info.videoOptions.slice(0, 8) : choice.info.audioOptions.slice(0, 8);
+
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(`🔥 ${t(locale, "botBest")} (${activeExt.toUpperCase()})`, `dl:${choice.id}:${mode}:best:${activeExt}`)],
+    ...options.map((option) => [
+      Markup.button.callback(`${option.label} (${activeExt.toUpperCase()})`, `dl:${choice.id}:${mode}:${option.id}:${activeExt}`)
+    ]),
+    [Markup.button.callback(t(locale, "botBack"), `back:ext:${choice.id}:${mode}`)],
+    [Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)],
+  ]);
+}
+

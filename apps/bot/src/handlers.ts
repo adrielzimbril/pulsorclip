@@ -14,7 +14,7 @@ import {
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
-import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard } from "./keyboards";
+import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard } from "./keyboards";
 import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
 import { modeByChat, pendingByChat } from "./state";
@@ -339,11 +339,12 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   }
 
   if (forcedMode) {
+    const activeExt = forcedExt || (forcedMode === "video" ? "mp4" : "mp3");
     await sendChoiceMessage(
       ctx,
       choice,
       buildSelectionMessage(choice, locale, t(locale, "botPreviewReady")),
-      qualityKeyboard(choice, forcedMode, forcedExt || undefined).reply_markup,
+      qualityKeyboard(choice, forcedMode, activeExt).reply_markup,
     );
     return;
   }
@@ -587,6 +588,19 @@ export function registerBotHandlers(bot: Telegraf) {
     await editChoiceMessage(bot, chatId, choice, promptForMode(locale, choice.info.title), modeKeyboard(locale).reply_markup);
   });
 
+  bot.action(/back:ext:([a-z0-9]+):(video|audio)/, async (ctx) => {
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    const chatId = ctx.chat?.id;
+    const choice = chatId ? pendingByChat.get(chatId) : null;
+    if (!chatId || !choice) {
+      await ctx.answerCbQuery();
+      return;
+    }
+    const mode = ctx.match[2] as DownloadMode;
+    await ctx.answerCbQuery(locale === "fr" ? "Retour au format" : "Back to format");
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseFormat")), extensionKeyboard(choice, mode).reply_markup);
+  });
+
   bot.action(/mode:(video|audio)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
       const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
@@ -615,8 +629,8 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    await ctx.answerCbQuery(locale === "fr" ? "Choisis format et qualite" : "Choose format and quality");
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botPreviewReady")), qualityKeyboard(choice, mode).reply_markup);
+    await ctx.answerCbQuery(locale === "fr" ? "Choisis le format" : "Choose format");
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseFormat")), extensionKeyboard(choice, mode).reply_markup);
   });
 
   bot.action(/ext:([a-z0-9]+):(video|audio):(mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
@@ -644,7 +658,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     const mode = rawMode as DownloadMode;
     await ctx.answerCbQuery(ext.toUpperCase());
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botPreviewReady")), qualityKeyboard(choice, mode, ext).reply_markup);
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseQuality")), qualityKeyboard(choice, mode, ext).reply_markup);
   });
 
   bot.action(/dl:([a-z0-9]+):(video|audio):(best|[0-9A-Za-z_-]+):(default|mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
