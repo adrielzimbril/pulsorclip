@@ -46,7 +46,7 @@ function helpMessage(locale: AppLocale, admin = false) {
     return [
       "PulsorClip Telegram",
       "",
-      "Envoie une URL media directe pour lancer l inspection.",
+      "Envoie une URL media directe pour lancer le telechargement.",
       "",
       "Raccourcis:",
       "/language",
@@ -66,7 +66,7 @@ function helpMessage(locale: AppLocale, admin = false) {
   return [
     "PulsorClip Telegram",
     "",
-    "Send one direct media URL to start inspection.",
+    "Send one direct media URL to start the download flow.",
     "",
     "Shortcuts:",
     "/language",
@@ -298,7 +298,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
   }
 }
 
-async function inspectAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null) {
+async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null) {
   const inspectingMessage = await ctx.reply(t(locale, "botInspecting"));
   const info = await fetchMediaInfo(url);
   const choice: PendingChoice = {
@@ -422,7 +422,7 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     try {
-      await inspectAndPrompt(bot, ctx, request.url, locale, "video", request.format);
+      await loadAndPrompt(bot, ctx, request.url, locale, "video", request.format);
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
     }
@@ -441,7 +441,7 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     try {
-      await inspectAndPrompt(bot, ctx, request.url, locale, "audio", request.format);
+      await loadAndPrompt(bot, ctx, request.url, locale, "audio", request.format);
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
     }
@@ -496,7 +496,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     try {
       const preferredMode = modeByChat.get(ctx.chat.id) || getUserPreferences(ctx.from?.id).mode;
-      await inspectAndPrompt(bot, ctx, url, locale, preferredMode);
+      await loadAndPrompt(bot, ctx, url, locale, preferredMode);
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
     }
@@ -632,3 +632,4 @@ export function registerBotHandlers(bot: Telegraf) {
     }
   });
 }
+

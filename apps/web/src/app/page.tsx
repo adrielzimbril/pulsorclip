@@ -1,4 +1,4 @@
-import { ClipWorkbench } from "@/components/clip-workbench";
+﻿import { ClipWorkbench } from "@/components/clip-workbench";
 import { getRequestLocale } from "@/lib/request-locale";
 import { getSiteUrl } from "@/lib/site-url";
 
@@ -29,7 +29,7 @@ export default async function RootPage({
       priceCurrency: "USD",
     },
     description:
-      "PulsorClip is a self-hosted media inspection and export workspace with manual downloads, Telegram delivery, yt-dlp, ffmpeg, and authenticated cookie support.",
+      "PulsorClip is a self-hosted media download and export workspace with manual downloads, Telegram delivery, yt-dlp, ffmpeg, and authenticated cookie support.",
   };
 
   return (

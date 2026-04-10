@@ -1,9 +1,9 @@
-{
+﻿{
   "name": "@pulsorclip/bot",
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "PulsorClip Telegram bot with guided media inspection, format selection, and admin startup notifications.",
+  "description": "PulsorClip Telegram bot with guided media downloads, format selection, and admin startup notifications.",
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",

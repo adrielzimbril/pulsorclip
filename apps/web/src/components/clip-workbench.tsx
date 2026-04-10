@@ -126,7 +126,7 @@ export function ClipWorkbench({
             updateCard(card.id, (current) => ({
               ...current,
               status: "info-error",
-              error: payload.error || "Unable to inspect this URL",
+              error: payload.error || "Unable to load this URL",
             }));
             return;
           }

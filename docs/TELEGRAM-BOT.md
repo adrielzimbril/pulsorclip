@@ -1,14 +1,14 @@
-# PulsorClip Telegram Bot
+﻿# PulsorClip Telegram Bot
 
 This document centralizes the Telegram bot copy, BotFather metadata, onboarding text, and UX rules used by PulsorClip.
 
 ## Purpose
 
-The bot is not a generic downloader.
+The bot is not a generic analyzer.
 
-It is a guided export assistant that:
+It is a guided downloader that:
 
-1. inspects a media URL
+1. loads a media URL
 2. asks the user for mode, container, and quality
 3. prepares the file on the server
 4. delivers the result in Telegram when possible
@@ -18,11 +18,11 @@ It is a guided export assistant that:
 
 ### Best Short Description
 
-`🎬 Inspect links and get guided exports in Telegram.`
+`🎬 Download videos and audio in Telegram.`
 
 ### Alternative Short Description
 
-`🎧 Inspect media URLs and receive guided exports.`
+`📥 Download media with format and quality control.`
 
 ### Best Welcome Message
 
@@ -31,9 +31,9 @@ It is a guided export assistant that:
 ```text
 🚀 PulsorClip is ready.
 
-Send one media URL.
-I will guide you through:
-- mode
+Send one media link.
+Choose:
+- video or audio
 - container
 - quality
 
@@ -45,11 +45,11 @@ Then I prepare the file and deliver it here when possible.
 ```text
 🚀 PulsorClip est pret.
 
-Envoie une URL media.
-Je te guide ensuite sur :
-- le mode
-- le conteneur
-- la qualite
+Envoie un lien media.
+Choisis :
+- video ou audio
+- conteneur
+- qualite
 
 Puis je prepare le fichier et je le livre ici quand c est possible.
 ```
@@ -66,11 +66,11 @@ Puis je prepare le fichier et je le livre ici quand c est possible.
 
 ### Short Description
 
-`🎬 Inspect links and get guided exports in Telegram.`
+`🎬 Download videos and audio in Telegram.`
 
 ### Long Description
 
-`Send a supported URL, choose video or audio, pick the final container and quality, then receive the prepared file in Telegram or continue in the web app if the file is too large.`
+`Send a supported media link, choose video or audio, pick the final container and quality, then receive the prepared file in Telegram or continue in the web app if the file is too large.`
 
 ## Welcome Message
 
@@ -79,9 +79,9 @@ Puis je prepare le fichier et je le livre ici quand c est possible.
 ```text
 🚀 PulsorClip is ready.
 
-Send one media URL.
-I will guide you through:
-- mode
+Send one media link.
+Choose:
+- video or audio
 - container
 - quality
 
@@ -93,11 +93,11 @@ Then I prepare the file and deliver it here when possible.
 ```text
 🚀 PulsorClip est pret.
 
-Envoie une URL media.
-Je te guide ensuite sur :
-- le mode
-- le conteneur
-- la qualite
+Envoie un lien media.
+Choisis :
+- video ou audio
+- conteneur
+- qualite
 
 Puis je prepare le fichier et je le livre ici quand c est possible.
 ```
@@ -110,21 +110,21 @@ The bot should ask for language before the main flow when the user has no saved 
 
 #### English
 
-`Choose your Telegram language before starting the export flow.`
+`🌐 Choose your Telegram language.`
 
 #### French
 
-`Choisis la langue Telegram avant de commencer le flow d export.`
+`🌐 Choisis ta langue Telegram.`
 
 ### Save Confirmation
 
 #### English
 
-`Language saved. PulsorClip will keep using this language in this chat.`
+`✅ Language saved. PulsorClip will keep using it in this chat.`
 
 #### French
 
-`Langue enregistree. PulsorClip utilisera maintenant cette langue dans cette conversation.`
+`✅ Langue enregistree. PulsorClip l utilisera maintenant dans cette conversation.`
 
 ## Public Commands
 
@@ -133,22 +133,22 @@ The bot should ask for language before the main flow when the user has no saved 
 - `/start` - start the guided flow
 - `/language` - choose the bot language
 - `/help` - show commands and examples
-- `/video <url> --format=mp4` - inspect a URL for video export
-- `/audio <url> --format=mp3` - inspect a URL for audio export
+- `/video <url> --format=mp4` - download a video from a URL
+- `/audio <url> --format=mp3` - download audio from a URL
 - `/mp4` - save video mode, then send a URL
 - `/mp3` - save audio mode, then send a URL
-- `/formats` - list supported export containers
+- `/formats` - list supported download formats
 
 ### French
 
 - `/start` - demarrer le flow guide
 - `/language` - choisir la langue du bot
 - `/help` - afficher les commandes et exemples
-- `/video <url> --format=mp4` - inspecter une URL pour la video
-- `/audio <url> --format=mp3` - inspecter une URL pour l audio
+- `/video <url> --format=mp4` - telecharger une video depuis une URL
+- `/audio <url> --format=mp3` - telecharger un audio depuis une URL
 - `/mp4` - memoriser le mode video puis envoyer une URL
 - `/mp3` - memoriser le mode audio puis envoyer une URL
-- `/formats` - lister les conteneurs pris en charge
+- `/formats` - lister les formats pris en charge
 
 ## Admin-Only Commands
 
@@ -163,10 +163,10 @@ They should never appear in public help copy or public command scopes.
 
 ## UX Rules
 
-### Inspection
+### Loading
 
-- Start with one temporary `Inspecting...` message.
-- Delete or replace it after metadata is available.
+- Start with one temporary `Loading...` message.
+- Delete or replace it after media details are available.
 - Use a single media message when possible:
   - preview image
   - caption with title, source, duration

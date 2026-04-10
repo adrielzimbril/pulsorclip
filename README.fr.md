@@ -4,7 +4,7 @@
 | :----------------------------------------: | :--------------------------------------: |
 | ![preview-light](assets/preview-light.png) | ![preview-dark](assets/preview-dark.png) |
 
-PulsorClip est un workspace self-hosted d inspection et d export media par **Adriel Zimbril**.
+PulsorClip est un workspace self-hosted de telechargement et d export media par **Adriel Zimbril**.
 
 Prive par conception. Pratique par defaut.
 
@@ -15,9 +15,9 @@ Prive par conception. Pratique par defaut.
 
 ## Ce Que C Est
 
-PulsorClip propose un flux controle pour les operations media:
+PulsorClip propose un flux controle pour les telechargements media:
 
-1. inspecter d abord une URL media
+1. charger d abord une URL media
 2. choisir le mode, le conteneur et la qualite
 3. preparer le fichier sur ton propre runtime
 4. telecharger seulement quand le fichier final est vraiment pret
@@ -27,14 +27,14 @@ Le projet est pense pour le self-hosting, pas pour un SaaS public de download.
 ## Pourquoi Le Projet Existe
 
 - garder un telechargement final explicite
-- inspecter les metadonnees avant traitement
+- charger les details media avant traitement
 - supporter le web et Telegram depuis la meme base de code
 - rester assez simple pour tourner dans un seul service Docker
 
 ## Points Forts
 
 - ⚙️ application web Next.js 16 App Router
-- 🤖 bot Telegram avec flow guide
+- 🤖 bot Telegram avec flow guide de telechargement
 - 🌍 i18n via cookies avec `en` et `fr`
 - 🌗 themes clair, sombre et systeme
 - 📦 exports video: `mp4`, `webm`, `mkv`

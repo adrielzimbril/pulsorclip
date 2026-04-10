@@ -16,22 +16,22 @@ const publicEnglishCommands = [
   { command: "start", description: "🚀 Start the guided PulsorClip flow" },
   { command: "language", description: "🌐 Choose the bot language" },
   { command: "help", description: "🧭 Show commands and examples" },
-  { command: "video", description: "🎬 Inspect a URL for video export" },
-  { command: "audio", description: "🎧 Inspect a URL for audio export" },
+  { command: "video", description: "🎬 Download video from a URL" },
+  { command: "audio", description: "🎧 Download audio from a URL" },
   { command: "mp4", description: "📦 Save video mode, then send a URL" },
   { command: "mp3", description: "🎵 Save audio mode, then send a URL" },
-  { command: "formats", description: "🧱 List supported export containers" },
+  { command: "formats", description: "🧱 List supported download formats" },
 ];
 
 const publicFrenchCommands = [
   { command: "start", description: "🚀 Demarrer le flow guide PulsorClip" },
   { command: "language", description: "🌐 Choisir la langue du bot" },
   { command: "help", description: "🧭 Afficher les commandes et exemples" },
-  { command: "video", description: "🎬 Inspecter une URL pour la video" },
-  { command: "audio", description: "🎧 Inspecter une URL pour l audio" },
+  { command: "video", description: "🎬 Telecharger une video depuis une URL" },
+  { command: "audio", description: "🎧 Telecharger un audio depuis une URL" },
   { command: "mp4", description: "📦 Memoriser le mode video puis envoyer une URL" },
   { command: "mp3", description: "🎵 Memoriser le mode audio puis envoyer une URL" },
-  { command: "formats", description: "🧱 Lister les conteneurs pris en charge" },
+  { command: "formats", description: "🧱 Lister les formats pris en charge" },
 ];
 
 const adminEnglishCommands = [
@@ -73,10 +73,10 @@ export async function applyTelegramMetadata(bot: Telegraf) {
   }
 
   await safeTelegramCall(bot, "setMyDescription", {
-    description: "Send a URL, choose the format, and receive the prepared file in Telegram or continue in the web app.",
+    description: "Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "🎬 Inspect links and get guided exports in Telegram.",
+    short_description: "🎬 Download videos and audio in Telegram.",
   });
   await safeTelegramCall(bot, "setChatMenuButton", {
     menu_button: {
