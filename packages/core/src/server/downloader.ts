@@ -4,6 +4,7 @@ import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
 import { runCommand } from "./process";
+import { getSourceProfile } from "./source-adapters";
 import type { DownloadJob, DownloadRequestPayload, MediaInfo, MediaOption } from "../shared/types";
 
 declare global {
@@ -123,19 +124,6 @@ function getAuthArgs() {
   }
 
   return args;
-}
-
-function getExtractorArgs(url: string) {
-  const normalized = url.toLowerCase();
-
-  if (normalized.includes("tiktok.com/")) {
-    return [
-      "--extractor-args",
-      "tiktok:api_hostname=api16-normal-c-useast1a.tiktokv.com;app_info=7355728856979392262",
-    ];
-  }
-
-  return [];
 }
 
 function updateQueuePositions() {
@@ -336,9 +324,10 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
 }
 
 export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
+  const sourceProfile = getSourceProfile(url);
   const result = await runCommand(
     appConfig.ytDlpBin,
-    [...getAuthArgs(), ...getExtractorArgs(url), "--dump-single-json", "--no-playlist", url],
+    [...getAuthArgs(), ...sourceProfile.extractorArgs, "--dump-single-json", "--no-playlist", url],
     INFO_TIMEOUT_MS,
   );
 
@@ -353,6 +342,8 @@ export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
     thumbnail: typeof parsed.thumbnail === "string" ? parsed.thumbnail : "",
     duration: typeof parsed.duration === "number" ? parsed.duration : null,
     uploader: typeof parsed.uploader === "string" ? parsed.uploader : "",
+    platform: sourceProfile.platform,
+    extractorNote: sourceProfile.note,
     width: typeof parsed.width === "number" ? parsed.width : undefined,
     height: typeof parsed.height === "number" ? parsed.height : undefined,
     videoOptions: pickVideoOptions(parsed),
@@ -376,7 +367,7 @@ async function executeDownload(jobId: string) {
 
   const sourceArgs = [
     ...getAuthArgs(),
-    ...getExtractorArgs(job.url),
+    ...getSourceProfile(job.url).extractorArgs,
     "--no-playlist",
     "--newline",
     "--progress",
@@ -518,6 +509,21 @@ export function createDownloadJob(input: DownloadRequestPayload) {
 
 export function getDownloadJob(jobId: string) {
   return jobs.get(jobId) || null;
+}
+
+export function getQueueSnapshot() {
+  const activeJobId = global.__pulsorclipActiveJobId || null;
+  const activeJob = activeJobId ? jobs.get(activeJobId) || null : null;
+
+  return {
+    queuedJobIds: [...queue],
+    queuedCount: queue.length,
+    activeJobId,
+    activeJob,
+    totalJobs: jobs.size,
+    errorJobs: [...jobs.values()].filter((job) => job.status === "error").length,
+    completedJobs: [...jobs.values()].filter((job) => job.status === "done").length,
+  };
 }
 
 export function getQueuePosition(jobId: string) {

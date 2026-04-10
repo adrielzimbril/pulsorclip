@@ -15,7 +15,7 @@ import {
 import { t } from "@pulsorclip/core/i18n";
 import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
 import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard } from "./keyboards";
-import { sendHealthSnapshot, getCurrentDailySummaryText, sendDailySnapshot } from "./monitoring";
+import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
 import { modeByChat, pendingByChat } from "./state";
 import type { PendingChoice } from "./types";
@@ -55,7 +55,7 @@ function helpMessage(locale: AppLocale, admin = false) {
       "/mp4",
       "/mp3",
       "/formats",
-      admin ? "/status, /health, /report, /daily" : null,
+      admin ? "/status, /server, /queue, /health, /report, /daily" : null,
       "",
       "Si tu envoies seulement une URL, le bot te guidera vers le mode puis un seul panneau format + qualite.",
     ]
@@ -75,7 +75,7 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/mp4",
     "/mp3",
     "/formats",
-    admin ? "/status, /health, /report, /daily" : null,
+    admin ? "/status, /server, /queue, /health, /report, /daily" : null,
     "",
     "If you send only a URL, the bot will guide you to mode first, then one shared format + quality panel.",
   ]
@@ -122,7 +122,7 @@ function trimTitle(value: string) {
 }
 
 function buildMediaSummary(choice: PendingChoice) {
-  const parts = [choice.info.uploader, formatDuration(choice.info.duration)].filter(Boolean);
+  const parts = [choice.info.platform?.toUpperCase(), choice.info.uploader, formatDuration(choice.info.duration)].filter(Boolean);
   return [trimTitle(choice.info.title || "Media"), parts.join(" • ")].filter(Boolean).join("\n");
 }
 
@@ -393,6 +393,28 @@ export function registerBotHandlers(bot: Telegraf) {
     ].join("\n");
     await sendPresence(ctx, "typing");
     await ctx.reply(text, webKeyboard(locale));
+  });
+
+  bot.command("server", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      return;
+    }
+
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
+    await ctx.reply(await getServerHealthText(), webKeyboard(locale));
+  });
+
+  bot.command("queue", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      return;
+    }
+
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
+    await ctx.reply(await getQueueSnapshotText(), webKeyboard(locale));
   });
 
   bot.command("formats", async (ctx) => {

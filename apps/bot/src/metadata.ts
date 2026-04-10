@@ -37,6 +37,8 @@ const publicFrenchCommands = [
 const adminEnglishCommands = [
   ...publicEnglishCommands,
   { command: "status", description: "🟢 Check live bot and web counters" },
+  { command: "server", description: "🖥️ Show full server diagnostics" },
+  { command: "queue", description: "📦 Show active and queued jobs" },
   { command: "health", description: "🩺 Send a health snapshot to admins" },
   { command: "report", description: "📊 Show the current daily report" },
   { command: "daily", description: "🗓️ Send the daily summary now" },
@@ -45,6 +47,8 @@ const adminEnglishCommands = [
 const adminFrenchCommands = [
   ...publicFrenchCommands,
   { command: "status", description: "🟢 Voir les compteurs live bot et web" },
+  { command: "server", description: "🖥️ Voir le diagnostic serveur complet" },
+  { command: "queue", description: "📦 Voir les jobs actifs et en file" },
   { command: "health", description: "🩺 Envoyer un point sante aux admins" },
   { command: "report", description: "📊 Voir le rapport journalier courant" },
   { command: "daily", description: "🗓️ Envoyer le recap journalier maintenant" },

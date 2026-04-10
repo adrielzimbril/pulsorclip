@@ -24,6 +24,8 @@ export type MediaInfo = {
   thumbnail: string;
   duration: number | null;
   uploader: string;
+  platform?: string;
+  extractorNote?: string;
   width?: number;
   height?: number;
   videoOptions: MediaOption[];
