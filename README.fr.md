@@ -162,15 +162,25 @@ Fichiers de projet:
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [SECURITY.md](SECURITY.md)
 
-## CI
+## Plateformes
 
-La validation GitHub Actions est incluse:
+| Plateforme | Statut | Méthode d'Extraction |
+| :--- | :--- | :--- |
+| **Threads** | ✅ Stable | Custom JSON Scraper (jusqu'à 1280p) |
+| **TikTok** | ✅ Stable | Tikwm API + Carousel Fallback |
+| **Instagram** | ✅ Stable | `yt-dlp` + direct CDN fallback |
+| **Facebook** | ✅ Stable | `yt-dlp` |
+| **X / Twitter** | ✅ Stable | `yt-dlp` |
+| **YouTube** | ⚠️ Restreint | Stable localement. Erreurs **"Sign in to confirm"** fréquentes sur VPS/Datacenter. Utiliser des cookies authentifiés. |
 
-- lint
-- tests unitaires
-- build
+## Disclaimer Légal et Éducatif
 
-Voir [.github/workflows/ci.yml](.github/workflows/ci.yml).
+**PulsorClip est un projet éducatif et de recherche.**
+
+Il est conçu pour explorer les concepts d'extraction média et les architectures d'auto-hébergement. Le ou les auteurs n'encouragent ni ne cautionnent le téléchargement, la distribution ou le stockage non autorisé de documents protégés par le droit d'auteur.
+
+- **Responsabilité de l'utilisateur :** Les utilisateurs sont seuls responsables de leurs actes et doivent s'assurer de la conformité avec les conditions d'utilisation des plateformes cibles et les lois locales sur le droit d'auteur (DMCA, etc.).
+- **Avis :** Ce logiciel est fourni "en l'état", sans garantie d'aucune sorte. Les auteurs ne sont pas responsables des conséquences juridiques ou de la responsabilité découlant de l'utilisation ou de la mauvaise utilisation de ce logiciel.
 
 ## Legal
 

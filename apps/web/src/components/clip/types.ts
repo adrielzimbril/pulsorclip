@@ -22,5 +22,5 @@ export type ClipCard = {
   progress: number;
   progressLabel?: string | null;
   queuePosition?: number;
-  resolvedUrl?: string;
+  resolvedUrl?: string | null;
 };

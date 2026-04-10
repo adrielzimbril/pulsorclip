@@ -37,6 +37,7 @@ export function ClipWorkbench({
   const [tiktokCarousel, setTiktokCarousel] = useState<{ images: string[]; title: string; postId: string; audioUrl?: string } | null>(null);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
 
@@ -152,10 +153,23 @@ export function ClipWorkbench({
     const a = document.createElement("a");
     a.href = `/api/proxy-image?url=${encodeURIComponent(url)}`;
     a.download = `image-${String(index + 1).padStart(3, "0")}${ext}`;
+    a.target = "_blank";
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+
+  function downloadAllDirectly() {
+    if (!tiktokCarousel || selectedImages.size === 0) return;
+    const imagesToDownload = tiktokCarousel.images.filter(img => selectedImages.has(img));
+    
+    imagesToDownload.forEach((url, i) => {
+      setTimeout(() => {
+        downloadSingleImage(url, i);
+      }, i * 300); // Stagger to avoid browser blocks
+    });
+    setNotice(`${imagesToDownload.length} ${t(locale, "zipReady")}`);
   }
 
   async function inspectUrls(urls: string[]) {
@@ -203,7 +217,12 @@ export function ClipWorkbench({
           if (response.ok && payload.images && payload.images.length > 0) {
             setCards([]);
             setIsFetching(false);
-            openImageCarousel(payload.images, payload.title || "Image gallery");
+            setTiktokCarousel({
+              images: payload.images,
+              title: payload.title || "Image gallery",
+              postId: payload.postId || "",
+              audioUrl: payload.resolvedUrl ?? undefined,
+            });
             return;
           }
 
@@ -721,7 +740,7 @@ export function ClipWorkbench({
                       <button
                         type="button"
                         onClick={() => downloadSingleImage(imgUrl, index)}
-                        className="absolute bottom-2 left-2 right-2 rounded-lg border border-line bg-surface/90 px-2 py-1.5 text-center text-[0.68rem] font-bold text-foreground backdrop-blur-sm transition opacity-0 group-hover:opacity-100"
+                        className="absolute bottom-2 left-2 right-2 rounded-lg border border-line bg-background/90 px-2 py-1.5 text-center text-[0.68rem] font-bold text-foreground backdrop-blur-sm transition opacity-0 group-hover:opacity-100"
                       >
                         {t(locale, "downloadImage")}
                       </button>
@@ -751,7 +770,7 @@ export function ClipWorkbench({
                   </button>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="relative flex gap-2">
                   {tiktokCarousel.audioUrl && (
                     <a
                       href={tiktokCarousel.audioUrl}
@@ -763,14 +782,61 @@ export function ClipWorkbench({
                       {t(locale, "botAudioLabel")}
                     </a>
                   )}
-                   <button
-                    type="button"
-                    disabled={selectedImages.size === 0 || isZipping}
-                    onClick={() => void downloadCarouselZip()}
-                    className="btn-primary"
-                  >
-                    {isZipping ? t(locale, "downloadZipGenerating") : `${t(locale, "downloadAsZip")} (${selectedImages.size})`}
-                  </button>
+                  
+                  <div className="flex">
+                    <button
+                      type="button"
+                      disabled={selectedImages.size === 0 || isZipping}
+                      onClick={() => downloadAllDirectly()}
+                      className="btn-primary flex items-center gap-0 rounded-r-none border-r-0 pr-3"
+                    >
+                      {t(locale, "downloadAllDirect")} ({selectedImages.size})
+                    </button>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        disabled={selectedImages.size === 0 || isZipping}
+                        onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+                        className="btn-primary h-full rounded-l-none border-l-[1px] border-l-white/20 px-2 flex items-center justify-center transition hover:bg-primary-hover"
+                        aria-label="Download options"
+                      >
+                        <svg className={`h-4 w-4 transition-transform ${showDownloadDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      {showDownloadDropdown && (
+                        <div className="absolute bottom-full right-0 mb-2 w-48 overflow-hidden rounded-xl border border-line bg-surface shadow-xl shadow-black/10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowDownloadDropdown(false);
+                              void downloadCarouselZip();
+                            }}
+                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold hover:bg-surface-muted transition"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                            {t(locale, "downloadAsZipOption")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowDownloadDropdown(false);
+                              downloadAllDirectly();
+                            }}
+                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold hover:bg-surface-muted transition"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" />
+                            </svg>
+                            {t(locale, "downloadAllDirect")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
