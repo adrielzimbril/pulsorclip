@@ -32,6 +32,8 @@ export type MediaInfo = {
   audioOptions: MediaOption[];
   /** Present when the URL resolves to a photo gallery (carousel). */
   images?: string[];
+  /** A direct media URL found during scraping/analysis, bypassing platform-specific extractors if needed. */
+  resolvedUrl?: string;
 };
 
 export type JobStatus = "queued" | "downloading" | "done" | "error";
@@ -53,6 +55,8 @@ export type DownloadJob = {
   source: JobSource;
   createdAt: number;
   updatedAt: number;
+  /** A direct media URL found during original analysis, used to bypass standard extractors. */
+  resolvedUrl?: string;
 };
 
 export type DownloadRequestPayload = {
@@ -62,4 +66,5 @@ export type DownloadRequestPayload = {
   targetExt?: string | null;
   title?: string;
   source?: JobSource;
+  resolvedUrl?: string;
 };

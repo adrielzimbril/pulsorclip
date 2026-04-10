@@ -29,6 +29,18 @@ function sanitizeFilename(input: string) {
   return input.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 96);
 }
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
 function simplifyError(raw: string) {
   const lines = raw.trim().split(/\r?\n/).filter(Boolean);
   // Search all lines (not just last) for known error patterns, then fallback to last line
@@ -354,10 +366,12 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
 }
 
 async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
-  logServer("info", "media.info.scrape.threads.started", { url: urlForLogs(url) });
+  // Use .net for internal fetching consistently
+  const fetchUrl = url.replace("threads.com", "threads.net");
+  logServer("info", "media.info.scrape.threads.started", { url: urlForLogs(fetchUrl) });
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fetchUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -378,25 +392,39 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     }
 
     const html = await response.text();
+    let resolvedUrl: string | undefined;
 
-    // 1. Try to find video in meta tags
-    const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
-                       html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i);
+    // 1. Try to find video versions in the JSON bootstrap (High Quality)
+    // Threads embeds its data in application/json scripts
+    const jsonVersionsMatch = html.match(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i);
+    if (jsonVersionsMatch) {
+      resolvedUrl = jsonVersionsMatch[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/");
+    }
+
+    // 2. Fallback to OpenGraph meta tags if JSON fails
+    if (!resolvedUrl) {
+      const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
+                         html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i);
+      if (videoMatch) {
+         resolvedUrl = videoMatch[1].replace(/&amp;/g, "&");
+      }
+    }
+
     const thumbnailMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
                            html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
     const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
                        html.match(/<title>([^<]+)<\/title>/i);
 
-    if (videoMatch || thumbnailMatch) {
-      const videoUrl = videoMatch ? videoMatch[1].replace(/&amp;/g, "&") : null;
+    if (resolvedUrl || thumbnailMatch) {
       const thumbUrl = thumbnailMatch ? thumbnailMatch[1].replace(/&amp;/g, "&") : "";
-      const title = titleMatch ? titleMatch[1].trim() : "Threads post";
+      const rawTitle = titleMatch ? titleMatch[1].trim() : "Threads post";
+      const title = decodeHtmlEntities(rawTitle);
 
-      const videoOptions: MediaOption[] = videoUrl ? [{
+      const videoOptions: MediaOption[] = resolvedUrl ? [{
         id: "threads-video",
-        label: "Direct Video",
+        label: "HD Video (Scraped)",
         ext: "mp4",
-        qualityLabel: "Original",
+        qualityLabel: "HD",
       }] : [];
 
       return {
@@ -405,34 +433,16 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
         duration: null,
         uploader: "Threads",
         platform: "threads",
-        extractorNote: "Scraped via metadata fallback",
+        extractorNote: "Scraped via high-quality metadata fallback",
         videoOptions,
         audioOptions: [],
+        resolvedUrl,
       };
-    }
-
-    // 2. Try to find JSON-LD
-    const scriptMatch = html.match(/<script\s+type="application\/ld\+json">([\s\S]+?)<\/script>/i);
-    if (scriptMatch) {
-      try {
-        const data = JSON.parse(scriptMatch[1]);
-        if (data && data.video) {
-          return {
-            title: data.name || data.headline || "Threads post",
-            thumbnail: data.thumbnailUrl || "",
-            duration: null,
-            uploader: "Threads",
-            platform: "threads",
-            videoOptions: [{ id: "threads-jsonld", label: "HD Video", ext: "mp4", qualityLabel: "HD" }],
-            audioOptions: [],
-          };
-        }
-      } catch { /* ignore */ }
     }
 
     throw new Error("Could not find media in Threads page metadata");
   } catch (err) {
-    logServer("error", "media.info.scrape.threads.failed", { url: urlForLogs(url), error: String(err) });
+    logServer("error", "media.info.scrape.threads.failed", { url: urlForLogs(fetchUrl), error: String(err) });
     throw err;
   }
 }
@@ -489,10 +499,10 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     const audioOptions = pickAudioOptions(parsed);
 
     return {
-      title: typeof parsed.title === "string" ? parsed.title : "",
+      title: decodeHtmlEntities(typeof parsed.title === "string" ? parsed.title : ""),
       thumbnail: typeof parsed.thumbnail === "string" ? parsed.thumbnail : "",
       duration: typeof parsed.duration === "number" ? parsed.duration : null,
-      uploader: typeof parsed.uploader === "string" ? parsed.uploader : "",
+      uploader: decodeHtmlEntities(typeof parsed.uploader === "string" ? parsed.uploader : ""),
       platform: sourceProfile.platform,
       extractorNote: sourceProfile.note,
       width: typeof parsed.width === "number" ? parsed.width : undefined,
@@ -515,7 +525,7 @@ async function executeDownload(jobId: string) {
     return;
   }
 
-  let jobUrl = job.url;
+  let jobUrl = job.resolvedUrl || job.url;
   jobUrl = jobUrl.replace(/https:\/\/(www\.)?(twitter\.com|x\.com)/i, "https://vxtwitter.com");
   jobUrl = jobUrl.replace(/https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i, "https://vxtiktok.com");
 
@@ -703,6 +713,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     queuePosition: queue.length + 1,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    resolvedUrl: input.resolvedUrl,
   };
 
   jobs.set(jobId, job);

@@ -127,7 +127,7 @@ export function MediaCard({
                 </span>
                 <button
                   className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
-                    activeFormatId === null ? "border-accent bg-accent text-white" : "border-line text-muted hover:border-accent hover:text-accent"
+                    activeFormatId === null ? "border-accent bg-accent text-background" : "border-line text-muted hover:border-foreground hover:text-foreground"
                   }`}
                   onClick={() => onSelectFormat(null)}
                   type="button"
@@ -137,7 +137,7 @@ export function MediaCard({
                 {selectedOptions.slice(0, 8).map((option) => (
                   <button
                     className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
-                      activeFormatId === option.id ? "border-accent bg-accent text-white" : "border-line text-muted hover:border-accent hover:text-accent"
+                      activeFormatId === option.id ? "border-accent bg-accent text-background" : "border-line text-muted hover:border-foreground hover:text-foreground"
                     }`}
                     key={option.id}
                     onClick={() => onSelectFormat(option.id)}

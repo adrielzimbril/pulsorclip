@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import { extname } from "node:path";
 import { Telegraf } from "telegraf";
@@ -677,6 +677,7 @@ export function registerBotHandlers(bot: Telegraf) {
         targetExt,
         title: choice.info.title,
         source: "bot",
+        resolvedUrl: choice.info.resolvedUrl,
       });
 
       pendingByChat.delete(chatId);

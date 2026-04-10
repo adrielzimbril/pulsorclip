@@ -239,6 +239,7 @@ export function ClipWorkbench({
             audioExt: "mp3",
             progress: 0,
             progressLabel: t(locale, "inspectReady"),
+            resolvedUrl: payload.resolvedUrl,
           }));
         } catch (error) {
           updateCard(card.id, (current) => ({
@@ -284,6 +285,7 @@ export function ClipWorkbench({
           targetExt,
           title: card.title,
           source: "web",
+          resolvedUrl: card.resolvedUrl,
         }),
       });
 

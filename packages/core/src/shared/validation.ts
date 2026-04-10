@@ -11,4 +11,5 @@ export const downloadRequestSchema = z.object({
   targetExt: z.enum(["mp4", "webm", "mkv", "mp3", "m4a"]).optional().nullable(),
   title: z.string().trim().max(300).optional().default(""),
   source: z.enum(["web", "bot"]).optional().default("web"),
+  resolvedUrl: z.string().url().trim().optional().nullable(),
 });
