@@ -1,8 +1,10 @@
-﻿# PulsorClip
+# PulsorClip
+
+> 🌟 **Démo Visuelle :** Découvrez les [Images de Preview PulsorClip](preview/preview.md) pour un aperçu de l'interface.
 
 |                 Mode Clair                 |               Mode Sombre                |
 | :----------------------------------------: | :--------------------------------------: |
-| ![preview-light](assets/preview-light.png) | ![preview-dark](assets/preview-dark.png) |
+| ![preview-light](preview/preview_light.png) | ![preview-dark](preview/preview_dark.png) |
 
 PulsorClip est un workspace self-hosted de telechargement et d export media par **Adriel Zimbril**.
 

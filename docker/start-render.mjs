@@ -14,16 +14,20 @@ function run(name, command, args, env = process.env) {
     if (shuttingDown) {
       return;
     }
-
-    shuttingDown = true;
-
-    for (const current of children) {
-      if (current !== child && !current.killed) {
-        current.kill("SIGTERM");
+    
+    console.error(`[pulsorclip] ${name} exited with code ${code}.`);
+    
+    // Only shutdown everything if the web process crashes.
+    // If the bot crashes, we just log it and let web continue.
+    if (name === "web") {
+      shuttingDown = true;
+      for (const current of children) {
+        if (current !== child && !current.killed) {
+          current.kill("SIGTERM");
+        }
       }
+      process.exit(code ?? 1);
     }
-
-    process.exit(code ?? 1);
   });
 
   children.push(child);

@@ -26,7 +26,7 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
     test: (url) => url.includes("tiktok.com/") || url.includes("vt.tiktok.com/"),
     extractorArgs: [
       "--extractor-args",
-      "tiktok:api_hostname=api16-normal-c-useast1a.tiktokv.com;app_info=7355728856979392262",
+      "tiktok:api_hostname=api16-normal-useast5.us.tiktokv.com;app_info=7355728856979392262",
     ],
     note: "TikTok uses a tuned extractor profile to improve video and photo-post handling.",
   },
@@ -45,10 +45,18 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
   {
     platform: "x",
     test: (url) => url.includes("x.com/") || url.includes("twitter.com/"),
+    extractorArgs: [
+      "--extractor-args",
+      "twitter:api=syndication",
+    ],
   },
   {
     platform: "youtube",
     test: (url) => url.includes("youtube.com/") || url.includes("youtu.be/") || url.includes("music.youtube.com/"),
+    extractorArgs: [
+      "--extractor-args",
+      "youtube:player_client=ios,android,web",
+    ],
   },
 ];
 
