@@ -55,8 +55,16 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
     test: (url) => url.includes("youtube.com/") || url.includes("youtu.be/") || url.includes("music.youtube.com/"),
     extractorArgs: [
       "--extractor-args",
-      "youtube:player_client=ios",
+      // Use mweb+ios+tv_embedded as a fallback chain — avoids bot-detection on VPS
+      // mweb is the most resilient on headless servers without cookies
+      "youtube:player_client=mweb,ios,tv_embedded",
+      "--age-limit",
+      "100",
+      "--extractor-retries",
+      "3",
+      "--force-ipv4",
     ],
+    note: "YouTube: mweb+ios+tv_embedded player chain with IPv4 enforcement for VPS stability. Add cookies via YTDLP_COOKIES_BASE64 for full access.",
   },
 ];
 

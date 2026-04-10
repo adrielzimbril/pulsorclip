@@ -15,7 +15,7 @@ Prive par conception. Pratique par defaut.
 - GitHub: `https://github.com/adrielzimbril`
 - Depot: `https://github.com/adrielzimbril/pulsorclip`
 
-## Ce Que C Est
+## Ce Que C'Est
 
 PulsorClip propose un flux controle pour les telechargements media:
 

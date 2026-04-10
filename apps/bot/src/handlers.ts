@@ -42,33 +42,7 @@ function formatDuration(value: number | null) {
 }
 
 function helpMessage(locale: AppLocale, admin = false) {
-  if (locale === "fr") {
-    return [
-      "PulsorClip Telegram",
-      "",
-      "Envoie une URL media directe pour lancer le telechargement.",
-      "",
-      "Raccourcis:",
-      "/language",
-      "/video <url> --format=mp4",
-      "/audio <url> --format=mp3",
-      "/mp4",
-      "/mp3",
-      "/formats",
-      admin ? "/status, /server, /queue, /health, /report, /daily" : null,
-      "",
-      "Si tu envoies seulement une URL, le bot te guidera vers le mode puis un seul panneau format + qualite.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  return [
-    "PulsorClip Telegram",
-    "",
-    "Send one direct media URL to start the download flow.",
-    "",
-    "Shortcuts:",
+  const shortcuts = [
     "/language",
     "/video <url> --format=mp4",
     "/audio <url> --format=mp3",
@@ -76,8 +50,17 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/mp3",
     "/formats",
     admin ? "/status, /server, /queue, /health, /report, /daily" : null,
+  ].filter(Boolean);
+
+  return [
+    t(locale, "botHelpIntro"),
     "",
-    "If you send only a URL, the bot will guide you to mode first, then one shared format + quality panel.",
+    t(locale, "botWelcome").split("\n")[0],
+    "",
+    t(locale, "botHelpShortcutsLine"),
+    ...shortcuts,
+    "",
+    t(locale, "botHelpGuidance"),
   ]
     .filter(Boolean)
     .join("\n");
@@ -577,7 +560,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = ctx.match[1] as AppLocale;
     rememberUser(ctx.from?.id);
     setUserLocale(ctx.from?.id, locale);
-    await ctx.answerCbQuery(locale === "fr" ? "Langue enregistree" : "Language saved");
+    await ctx.answerCbQuery(t(locale, "botLanguageSaved").split(".")[0]);
     try {
       await ctx.editMessageText([t(locale, "botLanguageSaved"), "", t(locale, "botWelcome")].join("\n"), modeKeyboard(locale));
     } catch {
@@ -684,7 +667,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const fallbackExt = mode === "video" ? "mp4" : "mp3";
     const targetExt = selectedExt === "default" ? fallbackExt : selectedExt;
 
-    await ctx.answerCbQuery(choice.locale === "fr" ? "Telechargement ajoute a la file" : "Download queued");
+    await ctx.answerCbQuery(t(choice.locale, "botQueued").split(".")[0]);
 
     try {
       const job = createDownloadJob({
@@ -697,7 +680,7 @@ export function registerBotHandlers(bot: Telegraf) {
       });
 
       pendingByChat.delete(chatId);
-      void trackJobInChat(bot, ctx, choice, job.id, choice.info.title || "PulsorClip export");
+      void trackJobInChat(bot, ctx, choice, job.id, choice.info.title || t(choice.locale, "botExportFallbackTitle"));
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
     }

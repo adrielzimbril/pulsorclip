@@ -30,29 +30,58 @@ function sanitizeFilename(input: string) {
 }
 
 function simplifyError(raw: string) {
-  const error = raw.trim().split(/\r?\n/).filter(Boolean).at(-1) || raw.trim();
+  const lines = raw.trim().split(/\r?\n/).filter(Boolean);
+  // Search all lines (not just last) for known error patterns, then fallback to last line
+  const allText = lines.join(" ");
+  const lastLine = lines.at(-1) || raw.trim();
 
-  if (!error) {
+  if (!lastLine) {
     return "Unknown download error";
   }
 
-  if (error.includes("Sign in to confirm you're not a bot")) {
-    return "YouTube now requires authenticated cookies for this request. Configure YTDLP_COOKIES_FROM_BROWSER, YTDLP_COOKIES_FILE, or YTDLP_COOKIES_BASE64.";
+  // YouTube bot detection / sign-in required
+  if (
+    allText.includes("Sign in to confirm") ||
+    allText.includes("not a bot") ||
+    allText.includes("Precondition check failed") ||
+    allText.includes("This video is age-restricted") ||
+    allText.includes("confirm your age") ||
+    allText.includes("LOGIN_REQUIRED")
+  ) {
+    return "YouTube requires authenticated cookies for this request on this server. Configure YTDLP_COOKIES_BASE64 in your environment variables.";
   }
 
-  if (error.includes("Unsupported URL")) {
-    return "Unsupported URL";
+  // YouTube video unavailable
+  if (allText.includes("Video unavailable") || allText.includes("This video is unavailable")) {
+    return "Video unavailable — it may be private, region-locked, or deleted.";
   }
 
-  if (error.includes("Private")) {
-    return "Private or restricted media";
+  // Private / restricted
+  if (allText.includes("Private") || allText.includes("This is a private video")) {
+    return "Private or restricted media — cannot be accessed without authentication.";
   }
 
-  if (error.includes("Video unavailable")) {
-    return "Video unavailable";
+  // Unsupported URL
+  if (allText.includes("Unsupported URL") || allText.includes("is not a supported")) {
+    return "Unsupported URL — this platform or link type is not supported.";
   }
 
-  return error;
+  // Instagram / Threads login
+  if (allText.includes("login required") || allText.includes("Please log in") || allText.includes("checkpoint")) {
+    return "This platform requires authentication. Cookies are needed for private or restricted content.";
+  }
+
+  // Rate limiting / HTTP 429
+  if (allText.includes("HTTP Error 429") || allText.includes("Too Many Requests")) {
+    return "Rate limited by the platform. Try again in a few minutes.";
+  }
+
+  // Network / timeout
+  if (allText.includes("Connection reset") || allText.includes("timed out") || allText.includes("Network is unreachable")) {
+    return "Network error — the server could not reach the media host. Try again.";
+  }
+
+  return lastLine;
 }
 
 function updateJobProgress(job: DownloadJob, progress: number, progressLabel: string) {

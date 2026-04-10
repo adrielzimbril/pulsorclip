@@ -167,6 +167,11 @@ export const messages = {
     botImageCarousel: "Image gallery detected",
     botImageGalleryHint: "This post contains images. Open in the web app to select and download them.",
     botOpenWebGallery: "Open gallery in web app",
+    // Bot help & misc
+    botHelpIntro: "PulsorClip Telegram",
+    botHelpShortcutsLine: "Shortcuts:",
+    botHelpGuidance: "Send a direct media URL at any time to start a guided download.",
+    botExportFallbackTitle: "PulsorClip export",
   },
   fr: {
     appName: "PulsorClip",
@@ -336,6 +341,11 @@ export const messages = {
     botImageCarousel: "Galerie d images detectee",
     botImageGalleryHint: "Ce post contient des images. Ouvre l app web pour les selectionner et les telecharger.",
     botOpenWebGallery: "Ouvrir la galerie dans l app",
+    // Bot help & misc
+    botHelpIntro: "PulsorClip Telegram",
+    botHelpShortcutsLine: "Raccourcis :",
+    botHelpGuidance: "Envoie une URL media directe a tout moment pour lancer un telechargement guide.",
+    botExportFallbackTitle: "Export PulsorClip",
   },
 } satisfies Record<AppLocale, Record<string, string>>;
 
