@@ -791,17 +791,6 @@ async function executeDownload(jobId: string) {
   let jobUrl = job.resolvedUrl || job.url;
   const isDirect = !!job.resolvedUrl;
 
-  if (!isDirect) {
-    jobUrl = jobUrl.replace(
-      /https:\/\/(www\.)?(twitter\.com|x\.com)/i,
-      "https://vxtwitter.com",
-    );
-    jobUrl = jobUrl.replace(
-      /https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i,
-      "https://vxtiktok.com",
-    );
-  }
-
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
   const sourceProfile = getSourceProfile(jobUrl);

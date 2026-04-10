@@ -32,7 +32,7 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
   },
   {
     platform: "threads",
-    test: (url) => url.includes("threads.net/") || url.includes("fxthreads.net/"),
+    test: (url) => url.includes("threads.net/"),
   },
   {
     platform: "instagram",
