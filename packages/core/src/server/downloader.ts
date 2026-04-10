@@ -684,16 +684,27 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
   }
 }
 
+async function expandUrl(url: string): Promise<string> {
+  if (!url.includes("vt.tiktok.com") && !url.includes("vm.tiktok.com") && !url.includes("youtu.be") && !url.includes("t.co")) {
+    return url;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+    return response.url || url;
+  } catch {
+    return url;
+  }
+}
+
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
-  const url = rawUrl
-    .replace(
-      /https:\/\/(www\.)?(twitter\.com|x\.com)/i,
-      "https://vxtwitter.com",
-    )
-    .replace(
-      /https:\/\/(www\.|vm\.|vt\.)?tiktok\.com/i,
-      "https://vxtiktok.com",
-    );
+  const url = await expandUrl(rawUrl);
 
   const sourceProfile = getSourceProfile(url);
   logServer("info", "media.info.fetch.started", {
