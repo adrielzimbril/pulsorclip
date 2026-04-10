@@ -9,7 +9,13 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { externalLinks } from "@/lib/external-links";
 
-export function SiteHeader({ locale, onLocaleChange }: { locale: AppLocale; onLocaleChange?: (locale: AppLocale) => void }) {
+export function SiteHeader({
+  locale,
+  onLocaleChange,
+}: {
+  locale: AppLocale;
+  onLocaleChange?: (locale: AppLocale) => void;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   function handleLocaleChange(nextLocale: AppLocale) {
@@ -25,9 +31,19 @@ export function SiteHeader({ locale, onLocaleChange }: { locale: AppLocale; onLo
   return (
     <header className="sticky top-2 z-40 rounded-[20px] border border-line bg-surface/95 px-3 py-3 shadow-sm backdrop-blur sm:top-3 sm:rounded-[24px] sm:px-5 sm:py-4">
       <div className="flex items-center justify-between gap-4">
-        <Link className="flex items-center gap-3" href="/" onClick={() => setMenuOpen(false)}>
+        <Link
+          className="flex items-center gap-3"
+          href="/"
+          onClick={() => setMenuOpen(false)}
+        >
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-line bg-background">
-            <Image alt="PulsorClip logo" height={36} priority src="/brand/pulsorclip-mark.svg" width={36} />
+            <Image
+              alt="PulsorClip logo"
+              height={36}
+              priority
+              src="/icon.png"
+              width={36}
+            />
           </div>
           <p className="text-base font-semibold">{t(locale, "appName")}</p>
         </Link>
@@ -43,21 +59,43 @@ export function SiteHeader({ locale, onLocaleChange }: { locale: AppLocale; onLo
         </button>
       </div>
 
-      <div className={`${menuOpen ? "mt-4 flex" : "hidden"} flex-col gap-4 lg:mt-4 lg:flex lg:flex-row lg:items-center lg:justify-between`}>
+      <div
+        className={`${menuOpen ? "mt-4 flex" : "hidden"} flex-col gap-4 lg:mt-4 lg:flex lg:flex-row lg:items-center lg:justify-between`}
+      >
         <nav className="flex flex-col gap-2 rounded-[20px] border border-line bg-background p-2 text-sm lg:flex-row lg:flex-wrap lg:items-center lg:gap-2 lg:rounded-full lg:p-1">
-          <Link className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground" href="/" onClick={() => setMenuOpen(false)}>
+          <Link
+            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
+            href="/"
+            onClick={() => setMenuOpen(false)}
+          >
             {t(locale, "navOverview")}
           </Link>
-          <Link className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground" href="/#workspace" onClick={() => setMenuOpen(false)}>
+          <Link
+            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
+            href="/#workspace"
+            onClick={() => setMenuOpen(false)}
+          >
             {t(locale, "navWorkspace")}
           </Link>
-          <Link className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground" href="/faq" onClick={() => setMenuOpen(false)}>
+          <Link
+            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
+            href="/faq"
+            onClick={() => setMenuOpen(false)}
+          >
             {t(locale, "navFaq")}
           </Link>
-          <Link className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground" href="/docs" onClick={() => setMenuOpen(false)}>
+          <Link
+            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
+            href="/docs"
+            onClick={() => setMenuOpen(false)}
+          >
             {t(locale, "navDocs")}
           </Link>
-          <Link className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground" href="/deployment" onClick={() => setMenuOpen(false)}>
+          <Link
+            className="rounded-full px-4 py-2 text-muted transition hover:bg-surface hover:text-foreground"
+            href="/deployment"
+            onClick={() => setMenuOpen(false)}
+          >
             {t(locale, "navDeployment")}
           </Link>
           <a

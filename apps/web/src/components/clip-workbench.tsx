@@ -298,8 +298,8 @@ export function ClipWorkbench({
       <section className="rounded-[20px] border border-line bg-surface p-3 shadow-sm sm:rounded-[32px] sm:p-6" id="workspace">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">✨ {t(locale, "workspaceTitle")}</p>
-            <h2 className="mt-2 max-w-4xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{t(locale, "workspaceBody")} 🚀</h2>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
+            <h2 className="mt-2 max-w-4xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{t(locale, "workspaceBody")}</h2>
           </div>
 
           <div className="grid gap-3 sm:flex sm:flex-wrap">
@@ -338,56 +338,40 @@ export function ClipWorkbench({
               <p className="text-sm leading-7 text-muted">{view === "normal" ? t(locale, "normalBody") : t(locale, "bulkBody")}</p>
             </div>
 
-            <div className="mt-5 relative">
+            <div className="mt-5">
               {view === "normal" ? (
-                <>
-                  <input
-                    className="h-14 w-full rounded-[18px] border border-line bg-surface px-4 pr-24 text-sm outline-none transition focus:border-foreground"
-                    onChange={(event) => setNormalInput(event.target.value)}
-                    placeholder="🔗 https://www.youtube.com/watch?v=..."
-                    value={normalInput}
-                  />
-                  <button
-                    onClick={() => navigator.clipboard.readText().then(text => setNormalInput(text)).catch(() => {})}
-                    className="absolute right-2 top-2 px-3 py-2 text-xs font-semibold bg-background rounded-full border border-line hover:border-foreground transition"
-                  >
-                    📋 Paste
-                  </button>
-                </>
+                <input
+                  className="h-14 w-full rounded-[18px] border border-line bg-surface px-4 text-sm outline-none transition focus:border-foreground"
+                  onChange={(event) => setNormalInput(event.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={normalInput}
+                />
               ) : (
-                <>
-                  <textarea
-                    className="min-h-48 w-full resize-none rounded-[22px] border border-line bg-surface px-4 py-4 pr-24 text-sm leading-7 outline-none transition focus:border-foreground"
-                    onChange={(event) => setBulkInput(event.target.value)}
-                    placeholder={"🔗 https://www.youtube.com/watch?v=...\n🔗 https://www.tiktok.com/@..."}
-                    value={bulkInput}
-                  />
-                  <button
-                    onClick={() => navigator.clipboard.readText().then(text => setBulkInput(text)).catch(() => {})}
-                    className="absolute right-3 top-3 px-3 py-2 text-xs font-semibold bg-background rounded-full border border-line hover:border-foreground transition"
-                  >
-                    📋 Paste
-                  </button>
-                </>
+                <textarea
+                  className="min-h-48 w-full resize-none rounded-[22px] border border-line bg-surface px-4 py-4 text-sm leading-7 outline-none transition focus:border-foreground"
+                  onChange={(event) => setBulkInput(event.target.value)}
+                  placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."}
+                  value={bulkInput}
+                />
               )}
             </div>
 
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
-                className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto hover:opacity-90"
+                className="w-full rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 disabled={isFetching}
                 onClick={() => void inspectCurrentInput()}
                 type="button"
               >
-                {isFetching ? "⏳ " + t(locale, "inspecting") : "⚡ " + (view === "normal" ? t(locale, "inspect") : t(locale, "inspectBulk"))}
+                {isFetching ? t(locale, "inspecting") : view === "normal" ? t(locale, "inspect") : t(locale, "inspectBulk")}
               </button>
               <button
-                className="w-full rounded-full border border-line px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto hover:bg-surface"
+                className="w-full rounded-full border border-line px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 disabled={!canPrepareAll}
                 onClick={() => void prepareAll()}
                 type="button"
               >
-                📥 {t(locale, "downloadAll")}
+                {t(locale, "downloadAll")}
               </button>
             </div>
 
