@@ -113,9 +113,10 @@ export const messages = {
     supportSectionTitle: "Operator references",
     supportSectionBody: "Troubleshooting, platform coverage, and deployment notes stay outside the main workspace so the core action remains close to the top.",
     backToTop: "Back to top",
-    botChooseLanguage: "Choose your Telegram language before starting the export flow.",
-    botLanguageSaved: "Language saved. PulsorClip will keep using this language in this chat.",
-    botWelcome: "PulsorClip is online. Send one media URL to inspect it, then choose mode, quality, and container.",
+    botChooseLanguage: "🌐 Choose your Telegram language.",
+    botLanguageSaved: "✅ Language saved. PulsorClip will keep using it in this chat.",
+    botWelcome:
+      "🚀 PulsorClip is ready.\n\nSend one media URL.\nI will guide you through mode, container, and quality.\n\nThen I prepare the file and deliver it here when possible.",
     botHelp: "Commands: /start, /help, /video, /audio, /mp4, /mp3, /formats. Send a direct media URL at any time to inspect it.",
     botChooseMode: "Choose the export mode for this URL.",
     botChooseQuality: "Pick the final container and quality preset.",
@@ -260,9 +261,10 @@ export const messages = {
     supportSectionTitle: "References operateur",
     supportSectionBody: "Le troubleshooting, la couverture des plateformes et le deploiement restent hors de la zone principale pour garder l action utile au plus haut.",
     backToTop: "Retour en haut",
-    botChooseLanguage: "Choisis la langue Telegram avant de commencer le flow d export.",
-    botLanguageSaved: "Langue enregistree. PulsorClip utilisera maintenant cette langue dans cette conversation.",
-    botWelcome: "PulsorClip est en ligne. Envoie une URL media pour l inspecter, puis choisis le mode, la qualite et le conteneur.",
+    botChooseLanguage: "🌐 Choisis ta langue Telegram.",
+    botLanguageSaved: "✅ Langue enregistree. PulsorClip l utilisera maintenant dans cette conversation.",
+    botWelcome:
+      "🚀 PulsorClip est pret.\n\nEnvoie une URL media.\nJe te guide ensuite sur le mode, le conteneur et la qualite.\n\nPuis je prepare le fichier et je le livre ici quand c est possible.",
     botHelp:
       "Commandes: /start, /help, /video, /audio, /mp4, /mp3, /formats. Envoie une URL media directe a tout moment pour lancer l inspection.",
     botChooseMode: "Choisis le mode d export pour cette URL.",

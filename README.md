@@ -147,6 +147,7 @@ Repository docs:
 
 - [README.fr.md](README.fr.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/TELEGRAM-BOT.md](docs/TELEGRAM-BOT.md)
 - [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md)
 
 Community files:

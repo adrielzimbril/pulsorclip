@@ -147,6 +147,7 @@ Documentation du depot:
 
 - [README.md](README.md)
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/TELEGRAM-BOT.md](docs/TELEGRAM-BOT.md)
 - [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md)
 
 Fichiers de projet:

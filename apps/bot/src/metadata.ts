@@ -73,10 +73,10 @@ export async function applyTelegramMetadata(bot: Telegraf) {
   }
 
   await safeTelegramCall(bot, "setMyDescription", {
-    description: "Guided media inspection and export bot for PulsorClip.",
+    description: "Send a URL, choose the format, and receive the prepared file in Telegram or continue in the web app.",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "Inspect URLs, choose format and receive exports in Telegram.",
+    short_description: "🎬 Inspect links and get guided exports in Telegram.",
   });
   await safeTelegramCall(bot, "setChatMenuButton", {
     menu_button: {
