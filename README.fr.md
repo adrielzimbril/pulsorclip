@@ -91,6 +91,8 @@ Notes:
 
 - `npm start` lance le runtime combine via `start:all`
 - pour travailler seulement sur le web en local, utilise `TELEGRAM_BOT_ENABLED=false`
+- les notifications admin au demarrage ne fonctionnent que si chaque compte admin a deja ouvert une conversation privee avec le bot
+- utilise `PULSORCLIP_DEBUG_LOGS=true` pour diagnostiquer les echecs extracteur sur YouTube, Threads, Facebook, X, TikTok ou Instagram
 
 ## Fichiers D Environnement
 
@@ -104,6 +106,8 @@ Notes:
 Variables importantes:
 
 - `NEXT_PUBLIC_APP_URL`
+- `PULSORCLIP_DEBUG_LOGS`
+- `PULSORCLIP_LOG_FULL_URLS`
 - `TELEGRAM_BOT_ENABLED`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`

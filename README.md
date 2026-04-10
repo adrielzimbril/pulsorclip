@@ -91,6 +91,8 @@ Notes:
 
 - `npm start` launches the combined runtime via `start:all`
 - for web-only local work, set `TELEGRAM_BOT_ENABLED=false`
+- startup admin notifications only work if each admin account has already opened a private chat with the bot
+- use `PULSORCLIP_DEBUG_LOGS=true` when diagnosing extractor failures on YouTube, Threads, Facebook, X, TikTok, or Instagram
 
 ## Environment Files
 
@@ -104,6 +106,8 @@ Notes:
 Important variables:
 
 - `NEXT_PUBLIC_APP_URL`
+- `PULSORCLIP_DEBUG_LOGS`
+- `PULSORCLIP_LOG_FULL_URLS`
 - `TELEGRAM_BOT_ENABLED`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`

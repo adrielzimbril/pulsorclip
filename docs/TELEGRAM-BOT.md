@@ -155,6 +155,8 @@ The bot should ask for language before the main flow when the user has no saved 
 These commands should only be visible to configured admins.
 
 - `/status`
+- `/server`
+- `/queue`
 - `/health`
 - `/report`
 - `/daily`
@@ -203,6 +205,11 @@ Recommended wording:
 ## Notes
 
 - Admin startup notifications only work if the admin account has already started a private chat with the bot.
+- At startup, the bot now logs:
+  - the actual Telegram bot username returned by `getMe()`
+  - the configured admin IDs
+  - which admin IDs are reachable through `getChat()`
+  - which admin IDs fail and why
 - Public command scopes and admin command scopes should be maintained separately.
 - Telegram inline mode must be enabled in BotFather with `/setinline`. The code alone cannot activate inline mode on Telegram.
 - If commands do not appear immediately, restart the bot process and reopen the chat menu in Telegram so `setMyCommands` can refresh the client.
@@ -210,3 +217,6 @@ Recommended wording:
   - locale
   - preferred mode
   - future delivery preferences
+- For extractor diagnostics, enable:
+  - `PULSORCLIP_DEBUG_LOGS=true`
+  - `PULSORCLIP_LOG_FULL_URLS=true` only if you explicitly want full URLs in logs

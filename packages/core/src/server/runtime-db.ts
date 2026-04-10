@@ -1,120 +1,64 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { appConfig } from "./config";
 import type { AppLocale, DownloadMode } from "../shared/types";
 
 type CounterKind = "created" | "completed";
+
 type BotUserPreferences = {
   locale?: AppLocale;
   mode?: DownloadMode;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+};
+
+type DailySummaryRow = {
+  botUsers: number[];
+  downloadsCreated: { web: number; bot: number };
+  downloadsCompleted: { web: number; bot: number };
+};
+
+type RuntimeStore = {
+  botUsers: Record<string, BotUserPreferences>;
+  daily: Record<string, DailySummaryRow>;
 };
 
 const runtimeDir = join(appConfig.downloadsDir, ".runtime");
-const runtimeDbPath = join(runtimeDir, "pulsorclip-runtime.sqlite");
+const runtimeDbPath = join(runtimeDir, "pulsorclip-runtime.json");
 
-mkdirSync(dirname(runtimeDbPath), { recursive: true });
+function ensureStoreDir() {
+  mkdirSync(dirname(runtimeDbPath), { recursive: true });
+}
 
-const database = new DatabaseSync(runtimeDbPath);
+function createEmptyStore(): RuntimeStore {
+  return {
+    botUsers: {},
+    daily: {},
+  };
+}
 
-database.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA synchronous = NORMAL;
+function readStore(): RuntimeStore {
+  ensureStoreDir();
 
-  CREATE TABLE IF NOT EXISTS bot_users (
-    user_id INTEGER PRIMARY KEY,
-    locale TEXT,
-    mode TEXT,
-    first_seen_at TEXT NOT NULL,
-    last_seen_at TEXT NOT NULL
-  );
+  if (!existsSync(runtimeDbPath)) {
+    return createEmptyStore();
+  }
 
-  CREATE TABLE IF NOT EXISTS bot_daily_users (
-    bucket_date TEXT NOT NULL,
-    user_id INTEGER NOT NULL,
-    PRIMARY KEY (bucket_date, user_id)
-  );
+  try {
+    const parsed = JSON.parse(readFileSync(runtimeDbPath, "utf8")) as RuntimeStore;
+    return {
+      botUsers: parsed.botUsers || {},
+      daily: parsed.daily || {},
+    };
+  } catch {
+    return createEmptyStore();
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS daily_counters (
-    bucket_date TEXT NOT NULL,
-    source TEXT NOT NULL,
-    created_count INTEGER NOT NULL DEFAULT 0,
-    completed_count INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (bucket_date, source)
-  );
-`);
-
-const upsertUserStatement = database.prepare(`
-  INSERT INTO bot_users (user_id, locale, mode, first_seen_at, last_seen_at)
-  VALUES (?, NULL, NULL, ?, ?)
-  ON CONFLICT(user_id) DO UPDATE SET last_seen_at = excluded.last_seen_at
-`);
-
-const upsertDailyUserStatement = database.prepare(`
-  INSERT OR IGNORE INTO bot_daily_users (bucket_date, user_id)
-  VALUES (?, ?)
-`);
-
-const getUserStatement = database.prepare(`
-  SELECT locale, mode
-  FROM bot_users
-  WHERE user_id = ?
-`);
-
-const setLocaleStatement = database.prepare(`
-  INSERT INTO bot_users (user_id, locale, mode, first_seen_at, last_seen_at)
-  VALUES (?, ?, NULL, ?, ?)
-  ON CONFLICT(user_id) DO UPDATE SET
-    locale = excluded.locale,
-    last_seen_at = excluded.last_seen_at
-`);
-
-const setModeStatement = database.prepare(`
-  INSERT INTO bot_users (user_id, locale, mode, first_seen_at, last_seen_at)
-  VALUES (?, NULL, ?, ?, ?)
-  ON CONFLICT(user_id) DO UPDATE SET
-    mode = excluded.mode,
-    last_seen_at = excluded.last_seen_at
-`);
-
-const ensureCounterStatement = database.prepare(`
-  INSERT OR IGNORE INTO daily_counters (bucket_date, source, created_count, completed_count)
-  VALUES (?, ?, 0, 0)
-`);
-
-const incrementCreatedStatement = database.prepare(`
-  UPDATE daily_counters
-  SET created_count = created_count + 1
-  WHERE bucket_date = ? AND source = ?
-`);
-
-const incrementCompletedStatement = database.prepare(`
-  UPDATE daily_counters
-  SET completed_count = completed_count + 1
-  WHERE bucket_date = ? AND source = ?
-`);
-
-const getDailyUsersStatement = database.prepare(`
-  SELECT COUNT(*) AS count
-  FROM bot_daily_users
-  WHERE bucket_date = ?
-`);
-
-const getDailyCounterStatement = database.prepare(`
-  SELECT source, created_count, completed_count
-  FROM daily_counters
-  WHERE bucket_date = ?
-`);
-
-const deleteDailyUsersStatement = database.prepare(`
-  DELETE FROM bot_daily_users
-  WHERE bucket_date = ?
-`);
-
-const deleteDailyCountersStatement = database.prepare(`
-  DELETE FROM daily_counters
-  WHERE bucket_date = ?
-`);
+function writeStore(store: RuntimeStore) {
+  ensureStoreDir();
+  writeFileSync(runtimeDbPath, JSON.stringify(store, null, 2), "utf8");
+}
 
 function utcDateKey(offsetDays = 0) {
   const now = new Date();
@@ -126,16 +70,16 @@ function timestamp() {
   return new Date().toISOString();
 }
 
-function coerceLocale(value: unknown): AppLocale | undefined {
-  return value === "fr" || value === "en" ? value : undefined;
-}
+function ensureDailyRow(store: RuntimeStore, bucketDate: string) {
+  if (!store.daily[bucketDate]) {
+    store.daily[bucketDate] = {
+      botUsers: [],
+      downloadsCreated: { web: 0, bot: 0 },
+      downloadsCompleted: { web: 0, bot: 0 },
+    };
+  }
 
-function coerceMode(value: unknown): DownloadMode | undefined {
-  return value === "video" || value === "audio" ? value : undefined;
-}
-
-function ensureCounterRow(bucketDate: string, source: "web" | "bot") {
-  ensureCounterStatement.run(bucketDate, source);
+  return store.daily[bucketDate];
 }
 
 export function getRuntimeDbPath() {
@@ -147,16 +91,8 @@ export function getStoredUserPreferences(userId?: number): BotUserPreferences {
     return {};
   }
 
-  const row = getUserStatement.get(userId) as { locale: unknown; mode: unknown } | undefined;
-
-  if (!row) {
-    return {};
-  }
-
-  return {
-    locale: coerceLocale(row.locale),
-    mode: coerceMode(row.mode),
-  };
+  const store = readStore();
+  return store.botUsers[String(userId)] || {};
 }
 
 export function setStoredUserLocale(userId: number | undefined, locale: AppLocale) {
@@ -165,7 +101,16 @@ export function setStoredUserLocale(userId: number | undefined, locale: AppLocal
   }
 
   const now = timestamp();
-  setLocaleStatement.run(userId, locale, now, now);
+  const key = String(userId);
+  const store = readStore();
+  const current = store.botUsers[key] || {};
+  store.botUsers[key] = {
+    ...current,
+    locale,
+    firstSeenAt: current.firstSeenAt || now,
+    lastSeenAt: now,
+  };
+  writeStore(store);
 }
 
 export function setStoredUserMode(userId: number | undefined, mode: DownloadMode) {
@@ -174,7 +119,16 @@ export function setStoredUserMode(userId: number | undefined, mode: DownloadMode
   }
 
   const now = timestamp();
-  setModeStatement.run(userId, mode, now, now);
+  const key = String(userId);
+  const store = readStore();
+  const current = store.botUsers[key] || {};
+  store.botUsers[key] = {
+    ...current,
+    mode,
+    firstSeenAt: current.firstSeenAt || now,
+    lastSeenAt: now,
+  };
+  writeStore(store);
 }
 
 export function trackStoredBotUser(userId?: number) {
@@ -183,50 +137,62 @@ export function trackStoredBotUser(userId?: number) {
   }
 
   const now = timestamp();
+  const key = String(userId);
   const bucketDate = utcDateKey();
-  upsertUserStatement.run(userId, now, now);
-  upsertDailyUserStatement.run(bucketDate, userId);
+  const store = readStore();
+  const current = store.botUsers[key] || {};
+
+  store.botUsers[key] = {
+    ...current,
+    firstSeenAt: current.firstSeenAt || now,
+    lastSeenAt: now,
+  };
+
+  const row = ensureDailyRow(store, bucketDate);
+  if (!row.botUsers.includes(userId)) {
+    row.botUsers.push(userId);
+  }
+
+  writeStore(store);
 }
 
 export function incrementDailyCounter(source: "web" | "bot", kind: CounterKind) {
-  const bucketDate = utcDateKey();
-  ensureCounterRow(bucketDate, source);
+  const store = readStore();
+  const row = ensureDailyRow(store, utcDateKey());
 
   if (kind === "created") {
-    incrementCreatedStatement.run(bucketDate, source);
-    return;
+    row.downloadsCreated[source] += 1;
+  } else {
+    row.downloadsCompleted[source] += 1;
   }
 
-  incrementCompletedStatement.run(bucketDate, source);
+  writeStore(store);
 }
 
 export function getStoredDailySummary(bucketDate = utcDateKey()) {
-  const userRow = getDailyUsersStatement.get(bucketDate) as { count: number } | undefined;
-  const counterRows = getDailyCounterStatement.all(bucketDate) as Array<{
-    source: "web" | "bot";
-    created_count: number;
-    completed_count: number;
-  }>;
-
-  const downloadsCreated = { web: 0, bot: 0 };
-  const downloadsCompleted = { web: 0, bot: 0 };
-
-  for (const row of counterRows) {
-    downloadsCreated[row.source] = row.created_count;
-    downloadsCompleted[row.source] = row.completed_count;
-  }
+  const store = readStore();
+  const row = ensureDailyRow(store, bucketDate);
 
   return {
     date: bucketDate,
-    botUsers: Number(userRow?.count || 0),
-    downloadsCreated,
-    downloadsCompleted,
+    botUsers: row.botUsers.length,
+    downloadsCreated: { ...row.downloadsCreated },
+    downloadsCompleted: { ...row.downloadsCompleted },
   };
 }
 
 export function flushStoredDailySummary(bucketDate = utcDateKey(-1)) {
-  const summary = getStoredDailySummary(bucketDate);
-  deleteDailyUsersStatement.run(bucketDate);
-  deleteDailyCountersStatement.run(bucketDate);
+  const store = readStore();
+  const row = ensureDailyRow(store, bucketDate);
+  const summary = {
+    date: bucketDate,
+    botUsers: row.botUsers.length,
+    downloadsCreated: { ...row.downloadsCreated },
+    downloadsCompleted: { ...row.downloadsCompleted },
+  };
+
+  delete store.daily[bucketDate];
+  writeStore(store);
+
   return summary;
 }
