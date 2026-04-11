@@ -132,8 +132,8 @@ export function MediaCard({
             </div>
           )}
 
-          {/* Quick Preview Player for Direct Audio */}
-          {mode === "audio" && card.resolvedUrl && card.status !== "loading" && (
+          {/* Quick Preview Player for Direct Audio (Common in TikTok carousels/videos) */}
+          {card.resolvedUrl && card.status !== "loading" && (
             <div className="mt-5 overflow-hidden rounded-[20px] border border-line bg-background p-2">
               <audio 
                 controls 

@@ -61,6 +61,21 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&nbsp;/g, " ");
 }
 
+function normalizeUrl(url: string | null | undefined): string | undefined {
+  if (!url || typeof url !== "string") return undefined;
+  if (url.startsWith("//")) return `https:${url}`;
+  return url;
+}
+
+function normalizeMediaInfo(info: MediaInfo): MediaInfo {
+  return {
+    ...info,
+    thumbnail: normalizeUrl(info.thumbnail) || "",
+    images: info.images?.map((u) => normalizeUrl(u)).filter((u): u is string => !!u),
+    resolvedUrl: normalizeUrl(info.resolvedUrl),
+  };
+}
+
 function simplifyError(raw: string) {
   const lines = raw.trim().split(/\r?\n/).filter(Boolean);
   // Search all lines (not just last) for known error patterns, then fallback to last line
@@ -640,17 +655,17 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 }
 
 export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
-  logServer("info", "media.info.scrape.tiktok.started", {
-    url: urlForLogs(url),
+  // Clean TikTok URL to remove tracking parameters that may cause "Url parsing failed"
+  const cleanUrl = url.split("?")[0];
+  logServer("info", "media.info.scrape.tiktok.carousel.started", {
+    url: urlForLogs(cleanUrl),
   });
 
   try {
-    const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&count=12&cursor=0&web=1&hd=1`;
-    const response = await fetch(apiUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; PulsorClip/1.0)",
-        Accept: "application/json",
-      },
+    const response = await fetch("https://www.tikwm.com/api/", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `url=${encodeURIComponent(cleanUrl)}`,
     });
 
     if (!response.ok) {
@@ -678,11 +693,7 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
         .map((u: string) => (u.startsWith("//") ? `https:${u}` : u));
     }
 
-    if (images.length === 0) {
-      throw new Error(
-        "No images found in this TikTok post. It may be a video.",
-      );
-    }
+    // If it's a video-only post, images will be empty, which is fine for enrichment fallback
 
     const audioUrlCandidate = mediaData.music || mediaData.music_info?.play || "";
     let audioUrl = "";
@@ -809,7 +820,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     const videoOptions = pickVideoOptions(parsed);
     const audioOptions = pickAudioOptions(parsed);
 
-    return {
+    const mediaInfo: MediaInfo = {
       title: decodeHtmlEntities(
         typeof parsed.title === "string" ? parsed.title : "",
       ),
@@ -826,9 +837,29 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       audioOptions,
       images,
     };
+
+    // TikTok Enrichment Fallback: If no audioOptions, try to find the audio via Tikwm
+    if (sourceProfile.platform === "tiktok" && mediaInfo.audioOptions.length === 0) {
+      try {
+        const carouselInfo = await scrapeTikTokCarousel(url);
+        if (carouselInfo.audioOptions.length > 0) {
+          mediaInfo.audioOptions = carouselInfo.audioOptions;
+        }
+        if (!mediaInfo.resolvedUrl && carouselInfo.resolvedUrl) {
+          mediaInfo.resolvedUrl = carouselInfo.resolvedUrl;
+        }
+      } catch {
+        // Fallback failed, keep original yt-dlp info
+      }
+    }
+
+    return normalizeMediaInfo(mediaInfo);
   } catch (err) {
     if (url.includes("threads.net") || url.includes("threads.com")) {
-      return await scrapeThreadsInfo(url);
+      return normalizeMediaInfo(await scrapeThreadsInfo(url));
+    }
+    if (url.includes("tiktok.com")) {
+      return normalizeMediaInfo(await scrapeTikTokCarousel(url));
     }
     throw err;
   }
