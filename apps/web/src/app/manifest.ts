@@ -14,6 +14,27 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icon.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icon.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    screenshots: [
+      {
+        src: "/preview-light.png",
+        sizes: "1200x630",
+        type: "image/png",
+        label: "PulsorClip Light Mode",
+      },
+      {
+        src: "/preview-dark.png",
+        sizes: "1200x630",
+        type: "image/png",
+        label: "PulsorClip Dark Mode",
       },
     ],
   };
