@@ -64,9 +64,8 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
       "100",
       "--extractor-retries",
       "3",
-      "--force-ipv4",
     ],
-    note: "YouTube: mweb+ios+tv_embedded player chain with IPv4 enforcement for VPS stability. Add cookies via YTDLP_COOKIES_BASE64 for full access.",
+    note: "YouTube: mweb+ios+tv_embedded player chain with global IPv4 enforcement for VPS stability.",
   },
 ];
 
