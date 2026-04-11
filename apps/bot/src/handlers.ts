@@ -120,7 +120,7 @@ function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusT
     `<b>Request #${choice.requestId}</b>`,
     statusText,
     escapeHTML(trimTitle(meta.title || "")),
-    `🔗 ${sourceLink} | 🌐 <a href="${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}">Open in web</a>`,
+    `🔗 ${sourceLink}`,
   ].join("\n");
 }
 
@@ -250,7 +250,7 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
         chunk.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}\n\n🔗 <a href="${choice.url}">Source</a> | 🌐 <a href="${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}">Open in web</a>` : undefined,
+          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}\n\n🔗 <a href="${choice.url}">Source</a>` : undefined,
           parse_mode: "HTML",
         }))
       );
@@ -548,7 +548,6 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
 
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
     const refLink = `[Source](${url})`;
-    const openLink = `<a href="${appConfig.baseUrl}?url=${encodeURIComponent(url)}">Open in web</a>`;
     const text = [
       `<b>Request #${requestId}</b>`,
       t(locale, "botImageCarousel"), 
@@ -557,7 +556,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       "", 
       t(locale, "botImageGalleryHint"),
       "",
-      `🔗 ${refLink} | 🌐 ${openLink}`
+      `🔗 ${refLink}`
     ]
       .filter(Boolean)
       .join("\n");

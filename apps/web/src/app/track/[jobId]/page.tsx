@@ -15,13 +15,14 @@ export default async function TrackPage({
     <div className="flex min-h-screen flex-col bg-background selection:bg-foreground/10">
       <SiteHeader locale={locale} />
       
-      <main className="flex-1 flex items-center justify-center p-6 py-12">
-        <div className="w-full">
-            <JobTracker jobId={jobId} locale={locale} />
+      <main className="mx-auto flex w-full max-w-[1320px] flex-1 flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:px-8">
+        <section className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[28px] sm:p-5">
+          <JobTracker jobId={jobId} locale={locale} />
+        </section>
+        <div className="pb-2">
+          <SiteFooter locale={locale} />
         </div>
       </main>
-
-      <SiteFooter locale={locale} />
     </div>
   );
 }

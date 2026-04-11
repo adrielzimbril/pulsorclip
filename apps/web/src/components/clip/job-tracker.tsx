@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale } from "@pulsorclip/core/shared";
-import { Check, Loader2, AlertCircle, Download, ArrowLeft, ExternalLink } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, Download, ExternalLink, Loader2 } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
 
 interface JobStatus {
-  status: string;
+  status: "queued" | "downloading" | "done" | "error";
   progress: number;
   progressLabel: string | null;
   queuePosition: number;
@@ -43,79 +44,94 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`/api/status/${jobId}`);
+        const res = await fetch(`/api/status/${jobId}`, { cache: "no-store" });
+
         if (!res.ok) {
-          if (res.status === 404) {
-            setError(locale === "fr" ? "Travail introuvable ou expiré" : "Job not found or expired");
-          } else {
-            setError(locale === "fr" ? "Erreur de chargement" : "Error loading status");
-          }
+          if (!active) return;
+          setError(res.status === 404 ? t(locale, "trackJobMissing") : t(locale, "trackLoadingError"));
+          setLoading(false);
           return;
         }
 
-        const data = await res.json();
+        const data = (await res.json()) as JobStatus;
+        if (!active) return;
+
         setJob(data);
         setLoading(false);
 
         if (data.status === "done" || data.status === "error") {
-          clearInterval(interval);
+          window.clearInterval(interval);
         }
-      } catch (err) {
-        console.error("Failed to fetch job status", err);
+      } catch {
+        if (!active) return;
+        setError(t(locale, "trackLoadingError"));
+        setLoading(false);
       }
     };
 
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 2000);
+    void fetchStatus();
+    const interval = window.setInterval(() => {
+      void fetchStatus();
+    }, 2000);
 
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [jobId, locale]);
 
   if (loading && !error) {
     return (
-      <div className="flex flex-col items-center justify-center space-y-6 py-32 text-center animate-pulse">
-        <div className="relative">
-          <div className="absolute inset-0 blur-3xl bg-primary/20 rounded-full" />
-          <Loader2 className="relative h-16 w-16 animate-spin text-primary" />
+      <section className="rounded-[24px] border border-line bg-surface p-8 text-center sm:rounded-[32px] sm:p-12">
+        <div className="mx-auto flex max-w-xl flex-col items-center gap-5">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-line bg-background">
+            <Loader2 className="h-10 w-10 animate-spin text-foreground" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "trackTitle")}</p>
+            <h1 className="text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{t(locale, "botProcessing")}</h1>
+            <p className="text-sm leading-7 text-muted">{t(locale, "trackBody")}</p>
+          </div>
         </div>
-        <p className="text-xl font-medium text-muted-foreground">{t(locale, "botProcessing")}</p>
-      </div>
+      </section>
     );
   }
 
   if (error || (job && job.status === "error")) {
     return (
-      <div className="mx-auto max-w-lg overflow-hidden rounded-[32px] border border-red-500/20 bg-background/60 shadow-2xl backdrop-blur-xl">
-        <div className="flex flex-col items-center justify-center space-y-6 px-8 py-16 text-center">
-          <div className="rounded-full bg-red-500/10 p-5 text-red-500 shadow-inner">
-            <AlertCircle className="h-12 w-12" />
+      <section className="rounded-[24px] border border-red-200 bg-surface p-6 sm:rounded-[32px] sm:p-8 dark:border-red-950/50">
+        <div className="grid gap-6 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-300">
+            <AlertCircle className="h-10 w-10" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-3xl font-black tracking-tight">{locale === "fr" ? "Échec de l'export" : "Export Failed"}</h2>
-            <p className="text-muted-foreground line-clamp-3">
-              {error || job?.error || (locale === "fr" ? "Une erreur inconnue est survenue" : "An unknown error occurred")}
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "trackTitle")}</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{t(locale, "trackExportFailed")}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
+              {error || job?.error || t(locale, "trackUnknownError")}
             </p>
-          </div>
-          <div className="flex flex-col w-full space-y-3">
-            <button 
-              onClick={() => window.location.href = "/"}
-              className="group flex items-center justify-center space-x-2 rounded-2xl bg-foreground px-8 py-4 font-bold text-background transition-all hover:scale-[1.02] active:scale-95"
-            >
-              <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
-              <span>{locale === "fr" ? "Recharger un lien" : "Reload a link"}</span>
-            </button>
-            <a 
-              href={externalLinks.telegramBot}
-              className="flex items-center justify-center space-x-2 rounded-2xl border border-line bg-background/50 px-8 py-4 font-bold transition-all hover:bg-background active:scale-95"
-            >
-              <ExternalLink className="h-5 w-5" />
-              <span>{locale === "fr" ? "Retour au Bot" : "Back to Bot"}</span>
-            </a>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link className="btn-accent" href="/">
+                <span className="inline-flex items-center gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  {t(locale, "trackReloadLink")}
+                </span>
+              </Link>
+              <a className="btn-outline" href={externalLinks.telegramBot} rel="noreferrer" target="_blank">
+                <span className="inline-flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  {t(locale, "trackBackToBot")}
+                </span>
+              </a>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -123,135 +139,105 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
 
   const isCompleted = job.status === "done";
   const isQueued = job.status === "queued";
+  const headline = isCompleted
+    ? t(locale, "trackStatusDone")
+    : isQueued
+      ? t(locale, "trackStatusQueued")
+      : t(locale, "trackStatusProgress");
+  const detail = isCompleted
+    ? t(locale, "statusReadyMessage")
+    : isQueued
+      ? t(locale, "queuePositionValue").replace("{position}", String(job.queuePosition || 1))
+      : job.progressLabel || getFunnyWaiting(locale, jobId);
 
   return (
-    <div className="mx-auto max-w-2xl overflow-hidden rounded-[40px] border border-line bg-background/40 shadow-2xl backdrop-blur-3xl transition-all duration-500">
-      {/* Media Preview Section */}
-      <div className="relative aspect-video w-full overflow-hidden bg-muted/20">
-        {job.thumbnail ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src={job.thumbnail} 
-              alt="" 
-              className="absolute inset-0 h-full w-full object-cover blur-2xl opacity-40 scale-110" 
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src={job.thumbnail} 
-              alt={job.title || "Preview"} 
-              className="relative h-full w-full object-contain transition-transform duration-700 hover:scale-105" 
-            />
-          </>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/10 to-transparent">
-             <div className="h-20 w-20 rounded-3xl bg-background/50 flex items-center justify-center shadow-2xl backdrop-blur-sm">
-                {isCompleted ? <Check className="h-10 w-10 text-green-500" /> : <Loader2 className="h-10 w-10 animate-spin text-primary" />}
-             </div>
-          </div>
-        )}
-        
-        {/* Status Badge Over Image */}
-        <div className="absolute top-6 right-6">
-          <div className={`rounded-full border px-4 py-1.5 text-[10px] font-black uppercase tracking-widest backdrop-blur-md shadow-lg ${
-            isCompleted 
-              ? 'border-green-500/20 bg-green-500/10 text-green-500' 
-              : 'border-primary/20 bg-primary/10 text-primary'
-          }`}>
-             {job.status}
-          </div>
-        </div>
-      </div>
-
-      {/* Info Section */}
-      <div className="p-10 pb-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-black leading-tight tracking-tight line-clamp-2">
-              {job.title || (locale === "fr" ? "Traitement en cours..." : "Processing...")}
-            </h1>
-            <p className="text-sm font-mono text-muted-foreground/60">ID: {jobId}</p>
-          </div>
-          {job.platform && (
-            <div className="rounded-xl border border-line bg-surface-muted px-3 py-1 text-xs font-bold uppercase text-muted-foreground">
-              {job.platform}
+    <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_360px]">
+      <article className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
+        <div className="overflow-hidden rounded-[20px] border border-line bg-background">
+          {job.thumbnail ? (
+            <div className="relative aspect-video">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img alt="" className="absolute inset-0 h-full w-full object-cover opacity-25 blur-2xl scale-105" src={job.thumbnail} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img alt={job.title || "Preview"} className="relative h-full w-full object-contain" src={job.thumbnail} />
+            </div>
+          ) : (
+            <div className="flex aspect-video items-center justify-center bg-surface-muted">
+              {isCompleted ? <Check className="h-12 w-12 text-green-600" /> : <Loader2 className="h-12 w-12 animate-spin text-foreground" />}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Progress Section */}
-      <div className="px-10 py-6 space-y-10">
-        <div className="space-y-5">
-          <div className="flex items-end justify-between">
-            <div className="space-y-1">
-              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                 {isCompleted ? (locale === "fr" ? "Terminé" : "Completed") : (locale === "fr" ? "Progression" : "Progress")}
-              </span>
-              <p className="text-sm font-semibold opacity-80">
-                {isCompleted
-                  ? (locale === "fr" ? "Fichier prêt" : "File is ready")
-                  : (isQueued
-                    ? (locale === "fr" ? `Position #${job.queuePosition}` : `Position #${job.queuePosition}`)
-                    : job.progressLabel || getFunnyWaiting(locale, jobId))}
-              </p>
-            </div>
-            <div className="text-3xl font-black italic tracking-tighter">
-               {Math.round(job.progress)}<span className="text-lg font-bold opacity-30">%</span>
-            </div>
+        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "trackTitle")}</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+              {job.title || t(locale, "botProcessing")}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">{t(locale, "trackBody")}</p>
           </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-surface-muted shadow-inner">
-             <div 
-               className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-primary'}`}
-               style={{ width: `${job.progress}%` }}
-             />
+          <div className="flex flex-wrap gap-2">
+            {job.platform ? <span className="badge">{job.platform}</span> : null}
+            <span className="badge">{headline}</span>
           </div>
         </div>
 
-        {isCompleted && job.filename && (
-          <div className="relative animate-in fade-in zoom-in-95 duration-700">
-             <div className="absolute -inset-4 rounded-[40px] bg-primary/10 blur-xl opacity-50" />
-             <div className="relative space-y-4">
-              <a
-                href={`/api/file/${jobId}`}
-                download
-                className="flex w-full items-center justify-center space-x-3 rounded-[28px] bg-foreground py-6 text-xl font-black text-background shadow-2xl transition-all hover:scale-[1.01] active:scale-[0.98]"
-              >
-                <Download className="h-7 w-7" />
-                <span>{locale === "fr" ? "TÉLÉCHARGER" : "DOWNLOAD"}</span>
-              </a>
-              <div className="flex items-center justify-center space-x-2 text-xs font-mono text-muted-foreground/80">
-                <span className="block max-w-[80%] truncate overflow-hidden">{job.filename}</span>
-              </div>
+        <div className="mt-6 rounded-[20px] border border-line bg-background p-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{headline}</p>
+              <p className="mt-2 text-sm font-semibold">{detail}</p>
             </div>
+            <p className="text-3xl font-semibold tracking-[-0.04em]">{Math.round(job.progress)}%</p>
           </div>
-        )}
 
-        {!isCompleted && !isQueued && (
-            <div className="flex justify-center py-4">
-                <div className="flex items-center space-x-2 text-xs font-semibold text-muted-foreground animate-pulse">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    <span>{getFunnyWaiting(locale, jobId)}</span>
-                </div>
-            </div>
-        )}
-      </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-line">
+            <div className={`h-full transition-all duration-500 ${isCompleted ? "bg-green-600" : "bg-foreground"}`} style={{ width: `${job.progress}%` }} />
+          </div>
 
-      {/* Premium Footer with Back to Bot */}
-      <div className="mt-6 flex items-center justify-between border-t border-line bg-surface-muted/30 p-8">
-         <div className="flex space-x-4">
-            <a 
-              href={externalLinks.telegramBot}
-              className="flex items-center space-x-2 rounded-2xl bg-surface-muted px-6 py-3 text-sm font-black transition-all hover:bg-surface-muted/70 active:scale-95 border border-line"
-            >
-              <ExternalLink className="h-4 w-4" />
-              <span>TELEGRAM BOT</span>
+          {!isCompleted && !isQueued ? (
+            <p className="mt-4 text-sm text-muted">{getFunnyWaiting(locale, jobId)}</p>
+          ) : null}
+        </div>
+
+        {isCompleted && job.filename ? (
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a className="btn-accent" download href={`/api/file/${jobId}`}>
+              <span className="inline-flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                {t(locale, "trackDownloadCta")}
+              </span>
             </a>
-         </div>
-         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">
-            Powered by PulsorClip
-         </p>
-      </div>
-    </div>
+            <Link className="btn-outline" href="/">
+              {t(locale, "trackReloadLink")}
+            </Link>
+          </div>
+        ) : null}
+      </article>
+
+      <aside className="space-y-4">
+        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
+          <p className="text-sm font-semibold">{t(locale, "trackJobIdLabel")}</p>
+          <p className="mt-2 break-all font-mono text-sm text-muted">{jobId}</p>
+        </div>
+
+        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
+          <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
+          <p className="mt-2 text-sm leading-7 text-muted">{detail}</p>
+        </div>
+
+        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
+          <p className="text-sm font-semibold">{t(locale, "trackBackToBot")}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a className="btn-outline" href={externalLinks.telegramBot} rel="noreferrer" target="_blank">
+              <span className="inline-flex items-center gap-2">
+                <ExternalLink className="h-4 w-4" />
+                {t(locale, "trackBackToBot")}
+              </span>
+            </a>
+          </div>
+        </div>
+      </aside>
+    </section>
   );
 }

@@ -139,11 +139,11 @@ export function ClipWorkbench({
 
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setNotice(payload.error || "Unable to cancel this queued item.");
-        return;
-      }
+      setNotice(payload.error || t(locale, "queueCancelFailed"));
+      return;
+    }
 
-      setNotice("Queued item cancelled. You can restart it when needed.");
+      setNotice(t(locale, "cancelledQueueItem"));
       setServerQueue((current) =>
         current.map((job) =>
           job.id === jobId
@@ -693,9 +693,13 @@ export function ClipWorkbench({
             <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">Web queue</p>
+                  <p className="text-sm font-semibold">{t(locale, "webQueueTitle")}</p>
                   <p className="mt-1 text-sm text-muted">
-                    {queueSummary.queued} queued, {queueSummary.downloading} processing, {queueSummary.done} ready, {queueSummary.error} failed.
+                    {t(locale, "webQueueSummary")
+                      .replace("{queued}", String(queueSummary.queued))
+                      .replace("{downloading}", String(queueSummary.downloading))
+                      .replace("{done}", String(queueSummary.done))
+                      .replace("{error}", String(queueSummary.error))}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -704,14 +708,14 @@ export function ClipWorkbench({
                     onClick={() => clearLocalCards("done")}
                     type="button"
                   >
-                    Clear ready cards
+                    {t(locale, "clearReadyCards")}
                   </button>
                   <button
                     className="btn-outline px-3 py-2 text-xs"
                     onClick={() => clearLocalCards("error")}
                     type="button"
                   >
-                    Clear failed cards
+                    {t(locale, "clearFailedCards")}
                   </button>
                 </div>
               </div>
@@ -730,11 +734,11 @@ export function ClipWorkbench({
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <a className="btn-outline px-3 py-2 text-xs" href={`/track/${job.id}`}>
-                            Track
+                            {t(locale, "botOpenWeb")}
                           </a>
                           {job.status === "done" ? (
                             <a className="btn-outline px-3 py-2 text-xs" href={`/api/file/${job.id}`}>
-                              Download
+                              {t(locale, "download")}
                             </a>
                           ) : null}
                           {job.status === "queued" ? (
@@ -743,7 +747,7 @@ export function ClipWorkbench({
                               onClick={() => void cancelQueuedJob(job.id)}
                               type="button"
                             >
-                              Cancel
+                              {t(locale, "cancelQueueItem")}
                             </button>
                           ) : null}
                         </div>
@@ -754,7 +758,7 @@ export function ClipWorkbench({
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-muted">No web jobs on the server queue yet.</p>
+                <p className="mt-4 text-sm text-muted">{t(locale, "noWebQueueJobs")}</p>
               )}
             </div>
 

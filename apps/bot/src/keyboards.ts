@@ -5,7 +5,7 @@ import type { AppLocale, DownloadMode } from "@pulsorclip/core/shared";
 import type { PendingChoice } from "./types";
 
 export function webKeyboard(locale: AppLocale) {
-  return Markup.inlineKeyboard([Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)]);
+  return Markup.inlineKeyboard([Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)]);
 }
 
 export function modeKeyboard(locale: AppLocale) {
@@ -14,7 +14,7 @@ export function modeKeyboard(locale: AppLocale) {
       Markup.button.callback(t(locale, "botVideoLabel"), "mode:video"),
       Markup.button.callback(`🎧 ${t(locale, "botAudioLabel")}`, "mode:audio"),
     ],
-    [Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)],
+    [Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)],
   ]);
 }
 
@@ -34,7 +34,7 @@ export function extensionKeyboard(choice: PendingChoice, mode: DownloadMode) {
   return Markup.inlineKeyboard([
     exts.map(ext => Markup.button.callback(ext.toUpperCase(), `ext:${choice.id}:${mode}:${ext}`)),
     [Markup.button.callback(t(locale, "botBack"), "back:mode")],
-    [Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)],
+    [Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)],
   ]);
 }
 
@@ -48,7 +48,7 @@ export function qualityKeyboard(choice: PendingChoice, mode: DownloadMode, activ
       Markup.button.callback(`${option.label} (${activeExt.toUpperCase()})`, `dl:${choice.id}:${mode}:${option.id}:${activeExt}`)
     ]),
     [Markup.button.callback(t(locale, "botBack"), `back:ext:${choice.id}:${mode}`)],
-    [Markup.button.url(t(locale, "botOpenWeb"), appConfig.baseUrl)],
+    [Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)],
   ]);
 }
 
