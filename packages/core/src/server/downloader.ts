@@ -962,6 +962,14 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
 
     // TikTok Enrichment Fallback: If no audioOptions, try to find the audio via Tikwm
     if (sourceProfile.platform === "tiktok" && mediaInfo.audioOptions.length === 0) {
+      logServer("info", "media.download.started", {
+        jobId,
+        platform: sourceProfile.platform,
+        url: urlForLogs(job.url),
+        args: sourceArgs.map((arg) => (arg.includes("cookie") ? "***" : arg)),
+      });
+
+      const { stdout, stderr, exitCode } = await spawnYtDlp(sourceArgs, jobUrl);
       try {
         const carouselInfo = await scrapeTikTokCarousel(url);
         if (carouselInfo.audioOptions.length > 0) {
@@ -1046,6 +1054,8 @@ async function executeDownload(jobId: string) {
         "Sec-CH-UA-Mobile: ?0",
         "--add-header",
         "Sec-CH-UA-Platform: \"Windows\"",
+        "--no-check-certificates",
+        "--hls-prefer-native",
         "--ffmpeg-location",
         appConfig.ffmpegBin,
         "-o",
@@ -1066,6 +1076,13 @@ async function executeDownload(jobId: string) {
       }
 
       sourceArgs.push(jobUrl);
+
+      logServer("info", "media.download.started", {
+        jobId,
+        platform: sourceProfile.platform,
+        url: urlForLogs(job.url),
+        command: `yt-dlp ${sourceArgs.map((arg) => (arg.includes("cookie") ? "***" : arg)).join(" ")}`,
+      });
 
       const downloadResult = await runCommand(appConfig.ytDlpBin, sourceArgs, {
         timeoutMs: DOWNLOAD_TIMEOUT_MS,
