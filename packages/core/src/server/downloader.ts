@@ -486,20 +486,16 @@ async function downloadDirectFile(
   const writer = createWriteStream(outputPath);
   
   try {
-    // In Node 22+, pipeline natively supports Web Streams. 
-    // We use Readable.fromWeb if available for backward compatibility, 
-    // but we wrap the whole thing to catch potential ReferenceErrors (e.g. 'require') 
-    // that some polyfills might trigger.
-    if (Readable.fromWeb && response.body) {
-      const nodeStream = Readable.fromWeb(response.body as any);
-      // @ts-ignore
-      await pipeline(nodeStream, writer);
-    } else {
-      // @ts-ignore
-      await pipeline(response.body, writer);
-    }
+    // In Node 22, pipeline natively supports Web Streams (ReadableStream).
+    // We avoid using Readable.fromWeb explicitly to bypass potential ReferenceErrors
+    // in environments where it might be misconfigured or polyfilled.
+    // @ts-ignore
+    await pipeline(response.body, writer);
   } catch (err) {
     writer.destroy();
+    if (err instanceof Error && err.message.includes("require")) {
+       throw new Error(`Direct download stream failure: Node runtime error (${err.message}). Check ESM/CJS compatibility.`);
+    }
     throw err;
   }
 
@@ -859,8 +855,12 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 }
 
 export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
-  // Clean TikTok URL to remove tracking parameters that may cause "Url parsing failed"
-  const cleanUrl = url.split("?")[0];
+  // Clean TikTok URL to remove tracking parameters and ensure canonical format
+  let cleanUrl = url.split("?")[0];
+  if (cleanUrl.includes("vt.tiktok.com") || cleanUrl.includes("vm.tiktok.com")) {
+     // For short URLs, cleaning ? is enough as they redirect anyway.
+  }
+  
   logServer("info", "media.info.scrape.tiktok.carousel.started", {
     url: urlForLogs(cleanUrl),
   });
