@@ -1,3 +1,14 @@
+---
+title: PulsorClip
+emoji: 🎬
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 10000
+dockerfile: docker/render.Dockerfile
+pinned: false
+---
+
 # PulsorClip
 
 > 🌟 **Visual Showcase:** Check out the [PulsorClip Preview Gallery](preview/preview.md) to see the UI.
