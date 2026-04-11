@@ -85,6 +85,7 @@ function simplifyError(raw: string) {
   const lines = raw.trim().split(/\r?\n/).filter(Boolean);
   // Search all lines (not just last) for known error patterns, then fallback to last line
   const allText = lines.join(" ");
+  const lower = allText.toLowerCase();
   const lastLine = lines.at(-1) || raw.trim();
 
   if (!lastLine) {
@@ -1039,6 +1040,12 @@ async function executeDownload(jobId: string) {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
         "--add-header",
         "Accept-Language: en-US,en;q=0.9",
+        "--add-header",
+        "Sec-CH-UA: \"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\"",
+        "--add-header",
+        "Sec-CH-UA-Mobile: ?0",
+        "--add-header",
+        "Sec-CH-UA-Platform: \"Windows\"",
         "--ffmpeg-location",
         appConfig.ffmpegBin,
         "-o",

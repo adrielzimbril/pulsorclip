@@ -24,13 +24,18 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
   {
     platform: "tiktok",
     test: (url) => url.includes("tiktok.com/") || url.includes("vt.tiktok.com/"),
-    extractorArgs: [
+    extractorArgs: (url) => [
       "--extractor-args",
       "tiktok:app_info=7355728856979392262",
       "--referer",
-      "https://www.tiktok.com/",
+      url.includes("/story/") ? "https://www.tiktok.com/" : "https://www.tiktok.com/",
     ],
-    note: "TikTok: Simplified extractor profile with Referer spoofing for better resilience on datacenter IPs.",
+    note: "TikTok: Support for standard videos and Stories (Referer binding).",
+  },
+  {
+    platform: "generic", // Snapchat is handled well generically by yt-dlp, but we add a rule for naming
+    test: (url) => url.includes("snapchat.com/"),
+    extractorArgs: ["--referer", "https://www.snapchat.com/"],
   },
   {
     platform: "threads",
