@@ -112,15 +112,16 @@ function buildMediaSummary(choice: PendingChoice) {
   return [titleLine, parts.join(" • ")].filter(Boolean).join("\n");
 }
 
-function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusText: string) {
+function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusText: string, jobId?: string) {
   const meta = choice.info;
   const sourceLink = `<a href="${choice.url}">Source</a>`;
+  const trackLine = jobId ? ` | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>` : "";
 
   return [
     `<b>Request #${choice.requestId}</b>`,
     statusText,
     escapeHTML(trimTitle(meta.title || "")),
-    `🔗 ${sourceLink}`,
+    `🔗 ${sourceLink}${trackLine}`,
   ].join("\n");
 }
 
@@ -191,6 +192,16 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
     
     // Attach requestId to job object (hacky but works since it's in-memory)
     (job as any).requestId = choice.requestId;
+
+    if (choice.messageId) {
+      await editChoiceMessage(
+        bot,
+        ctx.chat.id,
+        choice,
+        buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`, job.id),
+        { inline_keyboard: [] },
+      );
+    }
 
     pendingByChat.delete(ctx.chat.id);
     
@@ -1086,9 +1097,6 @@ export function registerBotHandlers(bot: Telegraf) {
     // Answer immediately
     await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
 
-    // Remove buttons and show state (Processing...)
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
-
     if (mode === "audio") {
       await triggerAudioJob(bot, ctx, choice, selectedFormatId);
       return;
@@ -1108,6 +1116,14 @@ export function registerBotHandlers(bot: Telegraf) {
           : choice.info.resolvedUrl,
         thumbnail: choice.info.thumbnail,
       });
+
+      await editChoiceMessage(
+        bot,
+        chatId,
+        choice,
+        buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`, job.id),
+        { inline_keyboard: [] },
+      );
 
       pendingByChat.delete(chatId);
       void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"));
