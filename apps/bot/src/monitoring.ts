@@ -1,4 +1,5 @@
-import { flushDailySummary, getDailySummary, getServerDiagnostics } from "@pulsorclip/core/server";
+import { flushDailySummary, getDailySummary, getServerDiagnostics, appConfig, logServer } from "@pulsorclip/core/server";
+import cron from "node-cron";
 import { notifyAdmins } from "./notifications";
 
 type BotLike = {
@@ -92,12 +93,7 @@ export async function getQueueSnapshotText() {
   return formatQueue(await getServerDiagnostics());
 }
 
-function nextUtcMidnightDelay() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setUTCHours(24, 0, 0, 0);
-  return next.getTime() - now.getTime();
-}
+
 
 export function startBotMonitoring(bot: BotLike) {
   const runHealthCheck = async () => {
@@ -119,18 +115,27 @@ export function startBotMonitoring(bot: BotLike) {
   };
 
   void runHealthCheck();
-  setInterval(() => {
+  
+  // Custom cadence health check (standard is 15 mins)
+  const healthCron = `*/${appConfig.healthCheckCadenceMins} * * * *`;
+  cron.schedule(healthCron, () => {
+    logServer("info", "bot.monitoring.health_check.triggered", { cron: healthCron });
     void runHealthCheck();
-  }, 15 * 60_000);
+  });
 
-  const scheduleDaily = () => {
-    setTimeout(() => {
-      void notifyAdmins(bot, formatDailyReport());
-      scheduleDaily();
-    }, nextUtcMidnightDelay());
-  };
+  // Daily report at configurable hour (UTC)
+  const dailyCron = `0 ${appConfig.dailyReportHour} * * *`;
+  cron.schedule(dailyCron, () => {
+    logServer("info", "bot.monitoring.daily_report.triggered", { cron: dailyCron });
+    void notifyAdmins(bot, formatDailyReport());
+  }, {
+    timezone: "UTC"
+  });
 
-  scheduleDaily();
+  logServer("info", "bot.monitoring.started", {
+    healthCadenceMins: appConfig.healthCheckCadenceMins,
+    dailyReportHourUtc: appConfig.dailyReportHour,
+  });
 }
 
 export function getCurrentDailySummaryText() {

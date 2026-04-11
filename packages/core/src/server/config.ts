@@ -45,4 +45,6 @@ export const appConfig = {
     .map((value) => Number(value.trim()))
     .filter((value) => Number.isFinite(value) && value > 0),
   telegramMaintenanceMode: process.env.TELEGRAM_MAINTENANCE_MODE === "true",
+  dailyReportHour: Number(process.env.PULSORCLIP_DAILY_REPORT_HOUR || "0"),
+  healthCheckCadenceMins: Number(process.env.PULSORCLIP_HEALTH_CHECK_CADENCE_MINS || "15"),
 };

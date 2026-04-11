@@ -97,14 +97,29 @@ async function bootstrap() {
       supportsInlineQueries: me.supports_inline_queries,
     });
 
+    if (appConfig.telegramAdminIds.length === 0) {
+      logServer("warn", "bot.bootstrap.admins.none", {
+        message: "⚠️ NO TELEGRAM_ADMIN_IDS configured. Admin notifications (start, daily, health) will be SKIPPED.",
+        hint: "Set TELEGRAM_ADMIN_IDS to a comma-separated list of Telegram user IDs in your environment.",
+      });
+    }
+
     const adminValidation = await validateAdminRecipients(bot);
     const reachableAdmins = adminValidation.filter((item) => item.ok).map((item) => item.adminId);
     const unreachableAdmins = adminValidation.filter((item) => !item.ok);
-    logServer("info", "bot.bootstrap.admins.validated", {
-      message: `👥 Admin reachability checked: ${reachableAdmins.length} reachable, ${unreachableAdmins.length} unreachable`,
-      reachableAdmins,
-      unreachableAdmins,
-    });
+    if (appConfig.telegramAdminIds.length > 0 && reachableAdmins.length === 0) {
+      logServer("error", "bot.bootstrap.admins.unreachable", {
+        message: "❌ ALL configured TELEGRAM_ADMIN_IDS are unreachable! You will NOT receive notifications.",
+        hint: `Ensure you have started a private conversation with the bot (@${(await bot.telegram.getMe()).username}) and that your IDs are correct.`,
+        unreachable: unreachableAdmins,
+      });
+    } else {
+      logServer("info", "bot.bootstrap.admins.validated", {
+        message: `👥 Admin reachability checked: ${reachableAdmins.length} reachable, ${unreachableAdmins.length} unreachable`,
+        reachableAdmins,
+        unreachableAdmins,
+      });
+    }
 
     const adminMessage = appConfig.telegramMaintenanceMode
       ? t("en", "botStartupAdminMaintenance")
