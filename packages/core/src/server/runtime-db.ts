@@ -21,6 +21,8 @@ type DailySummaryRow = {
 type RuntimeStore = {
   botUsers: Record<string, BotUserPreferences>;
   daily: Record<string, DailySummaryRow>;
+  jobs: Record<string, DownloadJob>;
+  queue: string[];
 };
 
 const runtimeDir = join(appConfig.downloadsDir, ".runtime");
@@ -34,6 +36,8 @@ function createEmptyStore(): RuntimeStore {
   return {
     botUsers: {},
     daily: {},
+    jobs: {},
+    queue: [],
   };
 }
 
@@ -49,6 +53,8 @@ function readStore(): RuntimeStore {
     return {
       botUsers: parsed.botUsers || {},
       daily: parsed.daily || {},
+      jobs: parsed.jobs || {},
+      queue: parsed.queue || [],
     };
   } catch {
     return createEmptyStore();
@@ -195,4 +201,19 @@ export function flushStoredDailySummary(bucketDate = utcDateKey(-1)) {
   writeStore(store);
 
   return summary;
+}
+
+export function getStoredJobs(): Record<string, DownloadJob> {
+  return readStore().jobs;
+}
+
+export function getStoredQueue(): string[] {
+  return readStore().queue;
+}
+
+export function writeStoredJobs(jobs: Record<string, DownloadJob>, queue: string[]) {
+  const store = readStore();
+  store.jobs = jobs;
+  store.queue = queue;
+  writeStore(store);
 }

@@ -14,6 +14,7 @@ import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
+import { getStoredJobs, getStoredQueue, writeStoredJobs } from "./runtime-db";
 import { getSourceProfile } from "./source-adapters";
 import type {
   DownloadJob,
@@ -28,8 +29,8 @@ declare global {
   var __pulsorclipActiveJobId: string | null | undefined;
 }
 
-const jobs = global.__pulsorclipJobs ?? new Map<string, DownloadJob>();
-const queue = global.__pulsorclipQueue ?? [];
+const jobs = global.__pulsorclipJobs ?? new Map<string, DownloadJob>(Object.entries(getStoredJobs()));
+const queue = global.__pulsorclipQueue ?? getStoredQueue();
 
 global.__pulsorclipJobs = jobs;
 global.__pulsorclipQueue = queue;
@@ -38,6 +39,10 @@ global.__pulsorclipActiveJobId ??= null;
 const INFO_TIMEOUT_MS = 60_000;
 const DOWNLOAD_TIMEOUT_MS = 12 * 60_000;
 const TRANSCODE_TIMEOUT_MS = 25 * 60_000;
+
+function syncJobState() {
+  writeStoredJobs(Object.fromEntries(jobs), [...queue]);
+}
 
 function sanitizeFilename(input: string) {
   return input
@@ -159,6 +164,7 @@ function updateJobProgress(
   job.progress = Math.max(0, Math.min(100, Math.round(progress)));
   job.progressLabel = progressLabel;
   job.updatedAt = Date.now();
+  syncJobState();
 }
 
 function parseProgressLine(job: DownloadJob, line: string) {
@@ -239,6 +245,7 @@ function updateQueuePositions() {
       job.queuePosition = 0;
     }
   }
+  syncJobState();
 }
 
 function getJobTempDir(jobId: string) {
@@ -889,6 +896,9 @@ async function executeDownload(jobId: string) {
 
   job.status = "downloading";
   job.queuePosition = 0;
+  job.updatedAt = Date.now();
+  syncJobState();
+
   updateJobProgress(job, 2, "Connecting to source");
   logServer("info", "media.download.started", {
     jobId: job.id,
@@ -1004,6 +1014,7 @@ async function executeDownload(jobId: string) {
     job.filePath = outputPath;
     job.filename = `${safeTitle}.${finalExt}`;
     job.updatedAt = Date.now();
+    syncJobState();
     trackDownloadCompleted(job.source);
     logServer("info", "media.download.completed", {
       jobId: job.id,
@@ -1017,6 +1028,7 @@ async function executeDownload(jobId: string) {
     job.error =
       error instanceof Error ? error.message : "Unknown process failure";
     job.updatedAt = Date.now();
+    syncJobState();
     logServer("error", "media.download.failed", {
       jobId: job.id,
       platform: sourceProfile.platform,
@@ -1094,12 +1106,22 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     url: urlForLogs(job.url),
     queuePosition: job.queuePosition,
   });
+  syncJobState();
   void processQueue();
 
   return job;
 }
 
 export function getDownloadJob(jobId: string) {
+  const storedJobs = getStoredJobs();
+  const storedJob = storedJobs[jobId];
+
+  if (storedJob) {
+    // Sync to memory
+    jobs.set(jobId, storedJob);
+    return storedJob;
+  }
+
   return jobs.get(jobId) || null;
 }
 
