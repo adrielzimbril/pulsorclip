@@ -14,7 +14,7 @@ import {
   logServer,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
-import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
+import { type AppLocale, type DownloadMode, type MediaInfo } from "@pulsorclip/core/shared";
 import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard, trackKeyboard } from "./keyboards";
 import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
@@ -65,12 +65,12 @@ function helpMessage(locale: AppLocale, admin = false) {
       : "1. Send a media URL\n2. Pick the format\n3. Pick the quality\n4. Wait for the file or open the web tracker",
     "",
     `<b>${escapeHTML(t(locale, "botHelpShortcutsLine"))}</b>`,
-    ...shortcuts.map((item) => `• <code>${escapeHTML(item)}</code>`),
+    ...shortcuts.map((item) => `• ${escapeHTML(item)}`),
   ];
 
   if (admin) {
     lines.push("", `<b>${locale === "fr" ? "Commandes admin" : "Admin commands"}</b>`);
-    lines.push(...["/queuestatus", "/status", "/server", "/health", "/report", "/daily"].map((item) => `• <code>${escapeHTML(item)}</code>`));
+    lines.push(...["/queuestatus", "/status", "/server", "/health", "/report", "/daily"].map((item) => `• ${escapeHTML(item)}`));
   }
 
   lines.push("", t(locale, "botHelpGuidance"));
@@ -88,12 +88,12 @@ function adminHelpMessage(locale: AppLocale) {
     `<b>${title}</b>`,
     body,
     "",
-    "• <code>/queuestatus</code>",
-    "• <code>/status</code>",
-    "• <code>/server</code>",
-    "• <code>/health</code>",
-    "• <code>/report</code>",
-    "• <code>/daily</code>",
+    "• /queuestatus",
+    "• /status",
+    "• /server",
+    "• /health",
+    "• /report",
+    "• /daily",
   ].join("\n");
 }
 
@@ -311,7 +311,7 @@ async function processNextInQueue(bot: Telegraf, userId: number, ctx: any) {
 
   const locale = localeForTelegram(userId, ctx.from?.language_code);
   try {
-    await loadAndPrompt(bot, ctx, request.url, locale, request.mode, null, request.requestId);
+    await loadAndPrompt(bot, ctx, request.url, locale, request.mode, null, request.requestId, request.info);
   } catch (error) {
     await ctx.reply(`❌ Request #${request.requestId}: ${error instanceof Error ? error.message : t(locale, "botDownloadFailed")}`);
     userActiveRequest.set(userId, null);
@@ -564,10 +564,10 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
   }
 }
 
-async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null, requestId: number = 1) {
+async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null, requestId: number = 1, providedInfo?: MediaInfo) {
   await sendPresence(ctx, "typing");
   const loadingMessage = await ctx.reply(`🔍 Request #${requestId}: ${t(locale, "botInspecting")}`);
-  const info = await fetchMediaInfo(url);
+  const info = providedInfo || await fetchMediaInfo(url);
   const choice: PendingChoice = {
     id: randomUUID().slice(0, 8),
     url,
@@ -724,8 +724,9 @@ async function enqueueRequest(bot: Telegraf, ctx: any, url: string, mode: Downlo
   const nextId = currentCount + 1;
   userRequestCounter.set(userId, nextId);
 
+  const info = await fetchMediaInfo(url).catch(() => undefined);
   const queue = userQueues.get(userId) || [];
-  queue.push({ url, mode, requestId: nextId });
+  queue.push({ url, mode, requestId: nextId, info });
   userQueues.set(userId, queue);
 
   if (!userProcessing.get(userId)) {
@@ -785,6 +786,15 @@ function userQueueKeyboard(userId: number, locale: AppLocale) {
   };
 }
 
+function getRequestTypeLabel(request: QueuedRequest) {
+  if (!request.info) return request.mode.toUpperCase();
+  const info = request.info;
+  if (info.playlist) return "PLAYLIST";
+  if (info.images && info.images.length > 0) return "IMAGES";
+  if (info.audioOptions && info.audioOptions.length > 0 && (!info.videoOptions || info.videoOptions.length === 0)) return "AUDIO";
+  return "VIDEO";
+}
+
 function userQueueMessage(userId: number, locale: AppLocale) {
   const active = userActiveRequest.get(userId);
   const queue = userQueues.get(userId) || [];
@@ -794,8 +804,8 @@ function userQueueMessage(userId: number, locale: AppLocale) {
     "",
     active
       ? locale === "fr"
-        ? `▶️ En cours: #${active.requestId} · ${active.mode.toUpperCase()}`
-        : `▶️ Active: #${active.requestId} · ${active.mode.toUpperCase()}`
+        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)}`
+        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)}`
       : locale === "fr"
         ? "▶️ En cours: aucun job actif"
         : "▶️ Active: no job processing right now",
@@ -814,7 +824,7 @@ function userQueueMessage(userId: number, locale: AppLocale) {
   lines.push(
     "",
     ...(queue.slice(0, 8).map((request, index) =>
-      `${index + 1}. #${request.requestId} · ${request.mode.toUpperCase()} · ${request.url}`,
+      `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · ${request.url}`,
     )),
   );
 
