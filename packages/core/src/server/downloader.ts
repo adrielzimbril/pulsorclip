@@ -14,7 +14,7 @@ import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig, ensureAppDirs } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
-import { getStoredJobs, getStoredQueue, writeStoredJobs } from "./runtime-db";
+import { getStoredJob, getStoredJobs, getStoredQueue, writeStoredJobs } from "./runtime-db";
 import { getSourceProfile } from "./source-adapters";
 import type {
   DownloadJob,
@@ -668,7 +668,7 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
   return audioOptions;
 }
 
-async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
+export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
   // Use .net for internal fetching consistently
   const fetchUrl = url.replace("threads.com", "threads.net");
   logServer("info", "media.info.scrape.threads.started", {
@@ -703,17 +703,35 @@ async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     const html = await response.text();
     let resolvedUrl: string | undefined;
 
-    // 1. Try to find video versions in the JSON bootstrap (High Quality)
-    const jsonVersionsMatch = 
-      html.match(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/i) ||
-      html.match(/"video_url":\s*"([^"]+)"/i) ||
-      html.match(/"video":\s*\{\s*"url":\s*"([^"]+)"/i);
+    // 1. Try to find all video versions in the JSON bootstrap and pick the best one
+    const videoVersionsMatch = html.match(/"video_versions":\s*(\[.*?\])/i);
+    if (videoVersionsMatch) {
+      try {
+        const versions = JSON.parse(videoVersionsMatch[1]
+          .replace(/\\u0025/g, "%")
+          .replace(/\\\//g, "/")
+          .replace(/&amp;/g, "&")
+        );
+        if (Array.isArray(versions) && versions.length > 0) {
+          // Sort by width/height if available, otherwise pick the first one which is usually higher quality than the thumbnail
+          const sorted = versions.sort((a, b) => (b.width || 0) - (a.width || 0));
+          resolvedUrl = sorted[0].url;
+        }
+      } catch (e) {
+        // Fallback to simple match if JSON parse fails
+      }
+    }
 
-    if (jsonVersionsMatch) {
-      resolvedUrl = jsonVersionsMatch[1]
-        .replace(/\\u0025/g, "%")
-        .replace(/\\\//g, "/")
-        .replace(/&amp;/g, "&");
+    if (!resolvedUrl) {
+      const jsonMatch = 
+        html.match(/"video_url":\s*"([^"]+)"/i) ||
+        html.match(/"video":\s*\{\s*"url":\s*"([^"]+)"/i);
+      if (jsonMatch) {
+        resolvedUrl = jsonMatch[1]
+          .replace(/\\u0025/g, "%")
+          .replace(/\\\//g, "/")
+          .replace(/&amp;/g, "&");
+      }
     }
 
     // 2. Fallback to OpenGraph meta tags if JSON fails
@@ -881,7 +899,13 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
     const rawVideoUrl = mediaData.hdplay || mediaData.play || "";
     let resolvedVideoUrl = "";
     if (typeof rawVideoUrl === "string" && rawVideoUrl.startsWith("http")) {
-      resolvedVideoUrl = rawVideoUrl;
+      // Validation: If it's a slideshow, sometimes 'play' is the music URL.
+      // If play matches audioUrl and it's a carousel, it's not a real video.
+      if (images.length > 0 && !mediaData.hdplay && rawVideoUrl === audioUrl) {
+        resolvedVideoUrl = "";
+      } else {
+        resolvedVideoUrl = rawVideoUrl;
+      }
     }
 
     const videoOptions: MediaOption[] = resolvedVideoUrl
@@ -1428,8 +1452,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
 }
 
 export function getDownloadJob(jobId: string) {
-  const storedJobs = getStoredJobs();
-  const storedJob = storedJobs[jobId];
+  const storedJob = getStoredJob(jobId);
 
   if (storedJob) {
     // Sync to memory

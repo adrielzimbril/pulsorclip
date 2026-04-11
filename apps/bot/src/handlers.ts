@@ -229,7 +229,6 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
       tags: choice.info.tags,
     });
     
-    // Attach requestId to job object (hacky but works since it's in-memory)
     (job as any).requestId = choice.requestId;
 
     if (choice.messageId && !silent) {
@@ -244,12 +243,50 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
 
     pendingByChat.delete(ctx.chat.id);
     
-    // For TikTok auto-triggers, we might not have a choice.messageId we want to reuse if images were just sent
-    // So we just reply with a new status if no messageId is present
     if (!choice.messageId && !silent) {
        await ctx.reply(`🎧 ${t(choice.locale, "botAudioLabel")}: ${t(choice.locale, "botProcessingShort")}`);
-       // Re-fetch to get the new message for tracking
-       // But triggerAudioJob is usually followed by trackJobInChat which handles the editing
+    }
+
+    void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"), silent);
+  } catch (error) {
+    await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+    void processNextInQueue(bot, ctx.from?.id, ctx);
+  }
+}
+
+async function triggerVideoJob(bot: Telegraf, ctx: any, choice: PendingChoice, formatId: string = "best", targetExt: string = "mp4", silent: boolean = false) {
+  const jobTitle = choice.info.title;
+
+  try {
+    const job = createDownloadJob({
+      url: choice.url,
+      mode: "video",
+      formatId: formatId === "best" ? null : formatId,
+      targetExt,
+      title: jobTitle,
+      source: "bot",
+      resolvedUrl: choice.info.resolvedVideoUrl || choice.info.resolvedUrl,
+      thumbnail: choice.info.thumbnail,
+      description: choice.info.description,
+      tags: choice.info.tags,
+    });
+    
+    (job as any).requestId = choice.requestId;
+
+    if (choice.messageId && !silent) {
+      await editChoiceMessage(
+        bot,
+        ctx.chat.id,
+        choice,
+        buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`, job.id),
+        { inline_keyboard: [] },
+      );
+    }
+
+    pendingByChat.delete(ctx.chat.id);
+    
+    if (!choice.messageId && !silent) {
+       await ctx.reply(`🎬 ${t(choice.locale, "botVideoLabel")}: ${t(choice.locale, "botProcessingShort")}`);
     }
 
     void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"), silent);
