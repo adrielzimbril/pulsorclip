@@ -254,7 +254,7 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
   }
 
   if (job.status === "downloading") {
-    const webLink = `${appConfig.baseUrl}/?jobId=${jobId}`;
+    const webLink = `${appConfig.baseUrl}/track/${jobId}`;
     return [
       locale === "fr" ? "⚙️ Préparation du média" : "⚙️ Preparing media",
       `${progressBar(job.progress)} ${job.progress}%`,
@@ -280,7 +280,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
 
     const nextText = renderJobUpdate(choice.locale, jobId);
     if (nextText !== lastText) {
-      await editChoiceMessage(bot, ctx.chat.id, choice, nextText);
+      await editChoiceMessage(bot, ctx.chat.id, choice, nextText, { inline_keyboard: [] });
       lastText = nextText;
     }
 
@@ -318,7 +318,16 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   // Image gallery detected — offer direct images or web app
   if (info.images && info.images.length > 0) {
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
-    const text = [t(locale, "botImageCarousel"), countLine, trimTitle(info.title || ""), "", t(locale, "botImageGalleryHint")]
+    const refLink = `[Source](${url})`;
+    const text = [
+      t(locale, "botImageCarousel"), 
+      countLine, 
+      trimTitle(info.title || ""), 
+      "", 
+      t(locale, "botImageGalleryHint"),
+      "",
+      `🔗 ${refLink}`
+    ]
       .filter(Boolean)
       .join("\n");
     
@@ -769,7 +778,7 @@ export function registerBotHandlers(bot: Telegraf) {
           chunk.map((url, idx) => ({
             type: "photo",
             media: url,
-            caption: idx === 0 ? choice.info.title : undefined,
+            caption: idx === 0 ? `${choice.info.title}\n\n🔗 [Source](${choice.url})` : undefined,
           }))
         );
         // Small delay to avoid flood
