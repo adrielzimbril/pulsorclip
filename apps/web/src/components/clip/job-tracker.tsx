@@ -23,8 +23,6 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let interval: any;
-
     const fetchStatus = async () => {
       try {
         const res = await fetch(`/api/status/${jobId}`);
@@ -50,7 +48,7 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
     };
 
     fetchStatus();
-    interval = setInterval(fetchStatus, 2000);
+    const interval = setInterval(fetchStatus, 2000);
 
     return () => clearInterval(interval);
   }, [jobId, locale]);

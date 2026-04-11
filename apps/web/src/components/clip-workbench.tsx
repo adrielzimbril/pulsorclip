@@ -7,7 +7,6 @@ import { t } from "@pulsorclip/core/i18n";
 import { MediaCard } from "./clip/media-card";
 import { SupportedPlatformsModal } from "./clip/supported-platforms-modal";
 import type { ClipCard } from "./clip/types";
-import { SiteFooter } from "./site/site-footer";
 import { SiteHeader } from "./site/site-header";
 import { externalLinks } from "@/lib/external-links";
 

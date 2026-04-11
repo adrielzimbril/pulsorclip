@@ -4,7 +4,6 @@ import Link from "next/link";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale, DownloadMode, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
 import type { ClipCard, CardStatus } from "./types";
-import { ProgressBar } from "./progress-bar";
 
 function formatDuration(value: number | null) {
   if (!value) {

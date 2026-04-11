@@ -8,12 +8,11 @@
 
 PulsorClip is a self-hosted media download and export workspace by **Adriel Zimbril**.
 
-Private by design. Practical by default.
-
-- Creator: `Adriel Zimbril`
-- Website: `https://www.adrielzimbril.com/`
-- GitHub: `https://github.com/adrielzimbril`
-- Repository: `https://github.com/adrielzimbril/pulsorclip`
+### 🚀 Project status
+- 🌍 **Web Workspace:** ✅ 100% Functional
+- 🤖 **Telegram Bot:** ✅ 100% Functional
+- 🖥️ **Desktop (Native):** 🏗️ In Progress (Tauri)
+- 📱 **Mobile (Native):** 🏗️ In Progress (Capacitor)
 
 ## What It Is
 
