@@ -16,7 +16,7 @@ type SourceProfile = {
 type SourceAdapterRule = {
   platform: SourcePlatform;
   test: (normalizedUrl: string) => boolean;
-  extractorArgs?: string[];
+  extractorArgs?: string[] | ((url: string) => string[]);
   note?: string;
 };
 
@@ -39,10 +39,21 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
   {
     platform: "instagram",
     test: (url) => url.includes("instagram.com/"),
+    extractorArgs: (url) =>
+      url.includes("/stories/")
+        ? ["--referer", "https://www.instagram.com/stories/"]
+        : [],
   },
   {
     platform: "facebook",
-    test: (url) => url.includes("facebook.com/") || url.includes("fb.watch/"),
+    test: (url) =>
+      url.includes("facebook.com/") ||
+      url.includes("fb.watch/") ||
+      url.includes("facebook.com/share/s/"),
+    extractorArgs: (url) =>
+      url.includes("/stories/") || url.includes("/share/s/")
+        ? ["--referer", "https://www.facebook.com/"]
+        : [],
   },
   {
     platform: "x",
@@ -80,9 +91,16 @@ export function getSourceProfile(url: string): SourceProfile {
     };
   }
 
+  let extractorArgs: string[] = [];
+  if (matched.extractorArgs) {
+    extractorArgs = typeof matched.extractorArgs === "function" 
+      ? matched.extractorArgs(normalizedUrl) 
+      : matched.extractorArgs;
+  }
+
   return {
     platform: matched.platform,
-    extractorArgs: matched.extractorArgs || [],
+    extractorArgs,
     note: matched.note,
   };
 }

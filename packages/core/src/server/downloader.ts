@@ -91,6 +91,18 @@ function simplifyError(raw: string) {
     return "Unknown download error";
   }
 
+  if (lower.includes("sign in to confirm you are not a bot") || lower.includes("login required")) {
+    return "Authentication required. You must set YTDLP_COOKIES_BASE64 to download from this platform (especially for Stories).";
+  }
+
+  if (lower.includes("this story is no longer available") || lower.includes("story_unavailable")) {
+    return "This story is no longer available or has expired.";
+  }
+
+  if (lower.includes("private") && (lower.includes("story") || lower.includes("instagram") || lower.includes("facebook"))) {
+    return "This is a private story. You must provide valid cookies from an account that follows this user.";
+  }
+
   // YouTube bot detection / sign-in required
   if (
     allText.includes("Sign in to confirm") ||
