@@ -2,7 +2,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export function ensureAppDirs() {
-  const dir = resolve(process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
+  const dir = resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
   mkdirSync(dir, { recursive: true });
 }
 
@@ -25,7 +25,7 @@ function resolveBinary(envValue: string | undefined, fallback: string, candidate
 export const appConfig = {
   appName: "PulsorClip",
   get downloadsDir() {
-    return resolve(process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
+    return resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
   },
   debugLogs: process.env.PULSORCLIP_DEBUG_LOGS === "true",
   logFullUrls: process.env.PULSORCLIP_LOG_FULL_URLS === "true",

@@ -210,7 +210,7 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   }
 }
 
-async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, formatId: string = "best") {
+async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, formatId: string = "best", silent: boolean = false) {
   const targetExt = "mp3";
   const audioOption = choice.info.audioOptions.find((o: any) => o.id === formatId);
   const jobTitle = audioOption ? audioOption.label : choice.info.title;
@@ -232,7 +232,7 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
     // Attach requestId to job object (hacky but works since it's in-memory)
     (job as any).requestId = choice.requestId;
 
-    if (choice.messageId) {
+    if (choice.messageId && !silent) {
       await editChoiceMessage(
         bot,
         ctx.chat.id,
@@ -246,18 +246,19 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
     
     // For TikTok auto-triggers, we might not have a choice.messageId we want to reuse if images were just sent
     // So we just reply with a new status if no messageId is present
-    if (!choice.messageId) {
+    if (!choice.messageId && !silent) {
        await ctx.reply(`🎧 ${t(choice.locale, "botAudioLabel")}: ${t(choice.locale, "botProcessingShort")}`);
        // Re-fetch to get the new message for tracking
        // But triggerAudioJob is usually followed by trackJobInChat which handles the editing
     }
 
-    void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"));
+    void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"), silent);
   } catch (error) {
     await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
     void processNextInQueue(bot, ctx.from?.id, ctx);
   }
 }
+
 async function processNextInQueue(bot: Telegraf, userId: number, ctx: any) {
   const queue = userQueues.get(userId) || [];
   if (queue.length === 0) {
@@ -484,7 +485,7 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
   return job.error || t(locale, "botDownloadFailed");
 }
 
-async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jobId: string, title: string) {
+async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jobId: string, title: string, silent: boolean = false) {
   let lastText = "";
 
   while (true) {
@@ -492,7 +493,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
     if (!job) break;
 
     const nextText = renderJobUpdate(choice.locale, jobId);
-    if (nextText !== lastText) {
+    if (!silent && nextText !== lastText) {
       await editChoiceMessage(bot, ctx.chat.id, choice, nextText, { inline_keyboard: [] });
       lastText = nextText;
     }
@@ -575,15 +576,19 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   if (info.images && info.images.length > 0) {
     // TikTok specific: Auto-send without menu
     if (info.platform === "tiktok") {
-      await ctx.reply(`🖼️ TikTok Carousel: ${t(locale, "botProcessingShort")}`);
-      
       const hasAudioSource = Boolean(
         info.resolvedUrl ||
         (info.audioOptions && info.audioOptions.length > 0),
       );
 
+      const msg = hasAudioSource 
+        ? `🔥 ${t(locale, "botProcessingShort")} (Gallery + Audio)`
+        : `🖼️ ${t(locale, "botImagesSent")}: ${t(locale, "botProcessingShort")}`;
+
+      await ctx.reply(msg);
+      
       if (hasAudioSource) {
-        void triggerAudioJob(bot, ctx, choice);
+        void triggerAudioJob(bot, ctx, choice, "best", true);
       }
 
       await sendImagesGallery(ctx, choice);
