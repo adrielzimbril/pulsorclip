@@ -15,7 +15,7 @@ import {
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
-import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard } from "./keyboards";
+import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard, trackKeyboard } from "./keyboards";
 import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
 import { modeByChat, pendingByChat, userActiveRequest, userQueues, userProcessing, userRequestCounter } from "./state";
@@ -51,7 +51,7 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/mp3",
     "/formats",
     "/queue",
-    admin ? "/status, /server, /health, /report, /daily" : null,
+    admin ? "/queuestatus, /status, /server, /health, /report, /daily" : null,
   ].filter(Boolean);
 
   return [
@@ -137,12 +137,12 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   const file = requireCompletedJob(jobId);
 
   if (!job || !file?.filePath || !file.filename) {
-    await bot.telegram.sendMessage(chatId, t(locale, "botDownloadFailed"), webKeyboard(locale));
+    await bot.telegram.sendMessage(chatId, t(locale, "botDownloadFailed"), trackKeyboard(locale, jobId));
     return;
   }
 
   if (statSync(file.filePath).size > appConfig.telegramUploadLimitBytes) {
-    await bot.telegram.sendMessage(chatId, t(locale, "botTooLarge"), webKeyboard(locale));
+    await bot.telegram.sendMessage(chatId, t(locale, "botTooLarge"), trackKeyboard(locale, jobId));
     return;
   }
 
@@ -466,7 +466,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
             ? "Tu peux relancer ce fichier quand tu veux."
             : "You can retry this file whenever you want.",
         ].join("\n"),
-        { ...webKeyboard(choice.locale), parse_mode: "HTML" },
+        { ...trackKeyboard(choice.locale, jobId), parse_mode: "HTML" },
       );
       void processNextInQueue(bot, ctx.from?.id, ctx);
       break;
@@ -813,6 +813,17 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     await ctx.reply(personalMessage, userQueueKeyboard(userId, locale));
+  });
+
+  bot.command("queuestatus", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      return;
+    }
+
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
+    await ctx.reply(await getQueueSnapshotText(), webKeyboard(locale));
   });
 
   bot.command("formats", async (ctx) => {

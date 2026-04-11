@@ -8,6 +8,12 @@ export function webKeyboard(locale: AppLocale) {
   return Markup.inlineKeyboard([Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)]);
 }
 
+export function trackKeyboard(locale: AppLocale, jobId: string) {
+  return Markup.inlineKeyboard([
+    [Markup.button.url(t(locale, "botOpenWeb"), `${appConfig.baseUrl}/track/${jobId}`)],
+  ]);
+}
+
 export function modeKeyboard(locale: AppLocale) {
   return Markup.inlineKeyboard([
     [

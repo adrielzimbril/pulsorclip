@@ -17,7 +17,13 @@ async function safeTelegramCall<T = unknown>(
   payload?: Record<string, unknown>,
 ): Promise<T | null> {
   try {
+    logServer("info", "bot.metadata.call.started", {
+      method,
+      payload,
+    });
+
     const result = await bot.telegram.callApi(method as never, (payload || {}) as never);
+
     logServer("info", "bot.metadata.call.ok", {
       method,
       payload,
@@ -34,7 +40,7 @@ async function safeTelegramCall<T = unknown>(
   }
 }
 
-const publicEnglishCommands: BotCommand[] = [
+const publicEnglishBaseCommands: BotCommand[] = [
   { command: "start", description: "🚀 Start the guided PulsorClip flow" },
   { command: "language", description: "🌐 Choose the bot language" },
   { command: "help", description: "🧭 Show commands and examples" },
@@ -43,10 +49,14 @@ const publicEnglishCommands: BotCommand[] = [
   { command: "mp4", description: "📦 Save video mode, then send a URL" },
   { command: "mp3", description: "🎵 Save audio mode, then send a URL" },
   { command: "formats", description: "🧱 List supported download formats" },
+];
+
+const publicEnglishCommands: BotCommand[] = [
+  ...publicEnglishBaseCommands,
   { command: "queue", description: "📦 Show your queue and cancel waiting items" },
 ];
 
-const publicFrenchCommands: BotCommand[] = [
+const publicFrenchBaseCommands: BotCommand[] = [
   { command: "start", description: "🚀 Démarrer le flow guidé PulsorClip" },
   { command: "language", description: "🌐 Choisir la langue du bot" },
   { command: "help", description: "🧭 Afficher les commandes et exemples" },
@@ -55,11 +65,16 @@ const publicFrenchCommands: BotCommand[] = [
   { command: "mp4", description: "📦 Mémoriser le mode vidéo puis envoyer une URL" },
   { command: "mp3", description: "🎵 Mémoriser le mode audio puis envoyer une URL" },
   { command: "formats", description: "🧱 Lister les formats pris en charge" },
+];
+
+const publicFrenchCommands: BotCommand[] = [
+  ...publicFrenchBaseCommands,
   { command: "queue", description: "📦 Voir ta file et annuler les éléments en attente" },
 ];
 
 const adminEnglishCommands: BotCommand[] = [
   ...publicEnglishCommands,
+  { command: "queuestatus", description: "🗂️ Show the server queue snapshot" },
   { command: "status", description: "🟢 Check live bot and web counters" },
   { command: "server", description: "🖥️ Show full server diagnostics" },
   { command: "health", description: "🩺 Send a health snapshot to admins" },
@@ -69,6 +84,7 @@ const adminEnglishCommands: BotCommand[] = [
 
 const adminFrenchCommands: BotCommand[] = [
   ...publicFrenchCommands,
+  { command: "queuestatus", description: "🗂️ Voir l’état de la file serveur" },
   { command: "status", description: "🟢 Voir les compteurs live bot et web" },
   { command: "server", description: "🖥️ Voir le diagnostic serveur complet" },
   { command: "health", description: "🩺 Envoyer un point santé aux admins" },
@@ -107,14 +123,17 @@ async function setCommands(
 
 async function syncDescriptions(bot: Telegraf) {
   const botName = "Pulsor Clip - Media Downloader (TikTok, Instagram, YT & more)";
+  const descPrefix = "Dev: https://t.me/akaiokami_az\n\n";
+
+  logServer("info", "bot.metadata.descriptions.sync.started", {
+    botName,
+  });
 
   await safeTelegramCall(bot, "setMyName", { name: botName });
   await safeTelegramCall(bot, "setMyName", {
     language_code: "fr",
     name: botName,
   });
-
-  const descPrefix = "Dev: https://t.me/akaiokami_az\n\n";
 
   await safeTelegramCall(bot, "setMyDescription", {
     description: `${descPrefix}Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.`,
@@ -132,22 +151,44 @@ async function syncDescriptions(bot: Telegraf) {
     short_description: "🎬 Téléchargement vidéos et audio. Dev: @akaiokami_az",
   });
 
-  const description = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
-  const shortDescription = await safeTelegramCall<{ short_description: string }>(bot, "getMyShortDescription");
+  const descriptionDefault = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
+  const descriptionFr = await safeTelegramCall<{ description: string }>(bot, "getMyDescription", {
+    language_code: "fr",
+  });
+  const shortDescriptionDefault = await safeTelegramCall<{ short_description: string }>(bot, "getMyShortDescription");
+  const shortDescriptionFr = await safeTelegramCall<{ short_description: string }>(bot, "getMyShortDescription", {
+    language_code: "fr",
+  });
+  const nameDefault = await safeTelegramCall<{ name: string }>(bot, "getMyName");
+  const nameFr = await safeTelegramCall<{ name: string }>(bot, "getMyName", {
+    language_code: "fr",
+  });
 
-  logServer("info", "bot.metadata.description.snapshot", {
-    description: description?.description || null,
-    shortDescription: shortDescription?.short_description || null,
+  logServer("info", "bot.metadata.descriptions.snapshot", {
+    nameDefault: nameDefault?.name || null,
+    nameFr: nameFr?.name || null,
+    descriptionDefault: descriptionDefault?.description || null,
+    descriptionFr: descriptionFr?.description || null,
+    shortDescriptionDefault: shortDescriptionDefault?.short_description || null,
+    shortDescriptionFr: shortDescriptionFr?.short_description || null,
   });
 }
 
 export async function applyTelegramMetadata(bot: Telegraf) {
+  logServer("info", "bot.metadata.apply.started", {
+    adminCount: appConfig.telegramAdminIds.length,
+  });
+
   await setCommands(bot, publicEnglishCommands, { type: "default" });
   await setCommands(bot, publicFrenchCommands, { type: "default" }, "fr");
   await setCommands(bot, publicEnglishCommands, { type: "all_private_chats" });
   await setCommands(bot, publicFrenchCommands, { type: "all_private_chats" }, "fr");
 
   for (const adminId of appConfig.telegramAdminIds) {
+    logServer("info", "bot.metadata.apply.admin_scope", {
+      adminId,
+    });
+
     await setCommands(bot, adminEnglishCommands, {
       type: "chat",
       chat_id: adminId,
@@ -169,5 +210,9 @@ export async function applyTelegramMetadata(bot: Telegraf) {
     menu_button: {
       type: "commands",
     },
+  });
+
+  logServer("info", "bot.metadata.apply.completed", {
+    adminCount: appConfig.telegramAdminIds.length,
   });
 }

@@ -32,9 +32,18 @@ async function bootstrap() {
   ensureAppDirs();
 
   try {
+    logServer("info", "bot.bootstrap.telegram.cleanup.started", {});
     await bot.telegram.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);
+    logServer("info", "bot.bootstrap.telegram.cleanup.completed", {});
+
+    logServer("info", "bot.bootstrap.launch.started", {});
     await bot.launch();
+    logServer("info", "bot.bootstrap.launch.completed", {});
+
+    logServer("info", "bot.bootstrap.metadata.started", {});
     await applyTelegramMetadata(bot);
+    logServer("info", "bot.bootstrap.metadata.completed", {});
+
     const me = await bot.telegram.getMe();
     logServer("info", "bot.bootstrap.running", {
       botId: me.id,
