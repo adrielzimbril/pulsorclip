@@ -11,6 +11,7 @@ import {
   getDailySummary,
   requireCompletedJob,
   trackBotUser,
+  logServer,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
@@ -243,20 +244,23 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
 
   if (job.status === "queued") {
     return [
-      locale === "fr" ? "⏳ Telechargement en attente" : "⏳ Download queued",
+      locale === "fr" ? "⏳ File d'attente" : "⏳ Queue",
       "",
       t(locale, "botQueueLine").replace("{position}", String(job.queuePosition || 1)),
       locale === "fr"
-        ? "Le worker attend un slot libre avant de lancer la preparation."
-        : "The worker is waiting for a free slot before starting preparation.",
+        ? "Le worker attend un slot libre."
+        : "Waiting for a worker slot.",
     ].join("\n");
   }
 
   if (job.status === "downloading") {
+    const webLink = `${appConfig.baseUrl}/?jobId=${jobId}`;
     return [
-      locale === "fr" ? "⚙️ Preparation du fichier" : "⚙️ Preparing your file",
+      locale === "fr" ? "⚙️ Préparation du média" : "⚙️ Preparing media",
       `${progressBar(job.progress)} ${job.progress}%`,
-      job.progressLabel || (locale === "fr" ? "Le moteur traite encore le fichier." : "The exporter is still processing the file."),
+      job.progressLabel || (locale === "fr" ? "Traitement en cours..." : "Processing..."),
+      "",
+      locale === "fr" ? `🔗 Suis ici: ${webLink}` : `🔗 Track here: ${webLink}`,
     ].join("\n");
   }
 
@@ -271,15 +275,10 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
   let lastText = "";
 
   while (true) {
-    await new Promise((resolve) => setTimeout(resolve, 2500));
     const job = getDownloadJob(jobId);
-
-    if (!job) {
-      break;
-    }
+    if (!job) break;
 
     const nextText = renderJobUpdate(choice.locale, jobId);
-
     if (nextText !== lastText) {
       await editChoiceMessage(bot, ctx.chat.id, choice, nextText);
       lastText = nextText;
@@ -293,9 +292,12 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
 
     if (job.status === "error") {
       await sendPresence(ctx, "typing");
-      await ctx.reply(job.error || t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+      const errorMsg = job.error || t(choice.locale, "botDownloadFailed");
+      await ctx.reply(`❌ ${errorMsg}`, webKeyboard(choice.locale));
       break;
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 }
 
@@ -601,7 +603,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const chatId = ctx.chat?.id;
     const choice = chatId ? pendingByChat.get(chatId) : null;
     if (!chatId || !choice) {
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery().catch(() => {});
       return;
     }
     await ctx.answerCbQuery(locale === "fr" ? "Retour au mode" : "Back to mode");
@@ -613,18 +615,18 @@ export function registerBotHandlers(bot: Telegraf) {
     const chatId = ctx.chat?.id;
     const choice = chatId ? pendingByChat.get(chatId) : null;
     if (!chatId || !choice) {
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery().catch(() => {});
       return;
     }
     const mode = ctx.match[2] as DownloadMode;
-    await ctx.answerCbQuery(locale === "fr" ? "Retour au format" : "Back to format");
+    await ctx.answerCbQuery(locale === "fr" ? "Retour au format" : "Back to format").catch(() => {});
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseFormat")), extensionKeyboard(choice, mode).reply_markup);
   });
 
   bot.action(/mode:(video|audio)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
       const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery().catch(() => {});
       await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
       return;
     }
@@ -649,14 +651,14 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    await ctx.answerCbQuery(locale === "fr" ? "Choisis le format" : "Choose format");
+    await ctx.answerCbQuery(locale === "fr" ? "Choisis le format" : "Choose format").catch(() => {});
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseFormat")), extensionKeyboard(choice, mode).reply_markup);
   });
 
   bot.action(/ext:([a-z0-9]+):(video|audio):(mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
       const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery().catch(() => {});
       await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
       return;
     }
@@ -677,14 +679,14 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     const mode = rawMode as DownloadMode;
-    await ctx.answerCbQuery(ext.toUpperCase());
+    await ctx.answerCbQuery(ext.toUpperCase()).catch(() => {});
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseQuality")), qualityKeyboard(choice, mode, ext).reply_markup);
   });
 
   bot.action(/dl:([a-z0-9]+):(video|audio):(best|[0-9A-Za-z_-]+):(default|mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
     if (shouldGateForMaintenance(ctx.from?.id)) {
       const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery().catch(() => {});
       await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
       return;
     }
@@ -713,7 +715,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const jobTitle = audioOption ? audioOption.label : choice.info.title;
 
     // Answer immediately
-    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort"));
+    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
 
     // Remove buttons and show state (Processing...)
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
@@ -744,22 +746,25 @@ export function registerBotHandlers(bot: Telegraf) {
     const choice = pendingByChat.get(chatId);
 
     if (!choice || choice.id !== pendingId || !choice.info.images) {
-      await ctx.answerCbQuery("Expired.");
+      await ctx.answerCbQuery("Expired.").catch(() => {});
       return;
     }
 
     const images = choice.info.images;
     const locale = choice.locale;
 
-    await ctx.answerCbQuery(t(locale, "botProcessingShort"));
+    await ctx.answerCbQuery(t(locale, "botProcessingShort")).catch(() => {});
     
     // Remove buttons and show state
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, `⏳ ${t(locale, "botProcessing")}`), { inline_keyboard: [] });
 
     try {
+      // Internal fix: Ensure URLs are absolute for media group
+      const validatedImages = images.map(u => (typeof u === "string" && u.startsWith("//") ? `https:${u}` : u));
+
       // Send images in groups of 10 (Telegram limit for media groups)
-      for (let i = 0; i < images.length; i += 10) {
-        const chunk = images.slice(i, i + 10);
+      for (let i = 0; i < validatedImages.length; i += 10) {
+        const chunk = validatedImages.slice(i, i + 10);
         await ctx.replyWithMediaGroup(
           chunk.map((url, idx) => ({
             type: "photo",
@@ -768,15 +773,15 @@ export function registerBotHandlers(bot: Telegraf) {
           }))
         );
         // Small delay to avoid flood
-        if (i + 10 < images.length) {
+        if (i + 10 < validatedImages.length) {
           await new Promise(r => setTimeout(r, 1000));
         }
       }
       
-      await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, t(locale, "botImagesSent")));
+      await ctx.reply(`✅ ${t(locale, "botImagesSent")}`, webKeyboard(locale));
     } catch (error) {
-      console.error("Bot image delivery failed:", error);
-      await ctx.reply(t(locale, "botDownloadFailed"), webKeyboard(locale));
+      logServer("error", "bot.images.failed", { error: error instanceof Error ? error.message : "Network error" });
+      await ctx.reply("❌ Error sending gallery images. Please use the web app.", webKeyboard(locale));
     }
   });
 }

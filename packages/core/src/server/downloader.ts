@@ -476,7 +476,7 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
     }
   }
 
-  return [...entries.values()]
+  const audioOptions: MediaOption[] = [...entries.values()]
     .sort((left, right) => (right.abr || 0) - (left.abr || 0))
     .map((entry) => ({
       id: entry.id,
@@ -485,6 +485,18 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
       abr: entry.abr,
       qualityLabel: entry.qualityLabel,
     }));
+  
+  // High-priority fallback for TikTok standard videos to ensure Audio button appears
+  if (audioOptions.length === 0 && rawInfo.webpage_url && (rawInfo.webpage_url as string).includes("tiktok.com")) {
+    audioOptions.push({
+      id: "bestaudio",
+      label: "Best Audio",
+      ext: "mp3",
+      qualityLabel: "Best",
+    });
+  }
+
+  return audioOptions;
 }
 
 async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
@@ -658,11 +670,12 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
     let images: string[] = [];
 
     if (Array.isArray(mediaData.images) && mediaData.images.length > 0) {
-      images = mediaData.images;
+      images = mediaData.images.map((u: any) => (typeof u === "string" && u.startsWith("//") ? `https:${u}` : u));
     } else if (mediaData.image_post_info?.images) {
       images = mediaData.image_post_info.images
         .map((img: any) => img.display_image?.url_list?.[0])
-        .filter((u: any): u is string => typeof u === "string");
+        .filter((u: any): u is string => typeof u === "string")
+        .map((u: string) => (u.startsWith("//") ? `https:${u}` : u));
     }
 
     if (images.length === 0) {
@@ -672,9 +685,11 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
     }
 
     const audioUrlCandidate = mediaData.music || mediaData.music_info?.play || "";
-    const audioUrl = (typeof audioUrlCandidate === "string" && audioUrlCandidate.startsWith("http")) 
-      ? audioUrlCandidate 
-      : "";
+    let audioUrl = "";
+    if (typeof audioUrlCandidate === "string" && audioUrlCandidate.length > 0) {
+      audioUrl = audioUrlCandidate.startsWith("//") ? `https:${audioUrlCandidate}` : audioUrlCandidate;
+      if (!audioUrl.startsWith("http")) audioUrl = "";
+    }
 
     const audioTitle = mediaData.music_info?.title || mediaData.music_info?.author || "TikTok Audio";
     const audioOptions: MediaOption[] = audioUrl
@@ -688,18 +703,19 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
         ]
       : [];
 
-    return {
-      title: decodeHtmlEntities(mediaData.title || "TikTok carousel"),
-      thumbnail: mediaData.cover || images[0] || "",
-      duration: null,
-      uploader: "TikTok",
+    const result: MediaInfo = {
+      title: mediaData.title || mediaData.music_info?.title || "TikTok Carousel",
+      uploader: mediaData.author?.nickname || mediaData.author?.unique_id,
+      duration: mediaData.duration,
       platform: "tiktok",
-      extractorNote: "Scraped via Tikwm fallback",
+      thumbnail: mediaData.cover?.startsWith("//") ? `https:${mediaData.cover}` : mediaData.cover,
+      images,
       videoOptions: [],
       audioOptions,
-      images,
-      resolvedUrl: audioUrl,
+      resolvedUrl: audioUrl, // Use the absolute audioUrl
     };
+
+    return result;
   } catch (err) {
     logServer("error", "media.info.scrape.tiktok.failed", {
       url: urlForLogs(url),
