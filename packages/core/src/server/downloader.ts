@@ -153,7 +153,8 @@ function simplifyError(raw: string) {
     return "Network error — the server could not reach the media host. Try again.";
   }
 
-  return lastLine;
+  // Generic fallback: prioritize the last meaningful line, but include raw snippet if it looks like a system error
+  return lastLine.length > 3 ? lastLine : `Extraction failed (Check Railway logs for raw stderr)`;
 }
 
 function updateJobProgress(
@@ -1057,7 +1058,7 @@ async function executeDownload(jobId: string) {
           platform: sourceProfile.platform,
           url: urlForLogs(job.url),
           exitCode: downloadResult.exitCode,
-          stderrTail: stderrTail(downloadResult.stderr),
+          stderr: downloadResult.stderr.slice(-500), // Log more context for debugging
         });
         return;
       }

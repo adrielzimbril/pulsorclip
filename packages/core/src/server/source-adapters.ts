@@ -26,9 +26,11 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
     test: (url) => url.includes("tiktok.com/") || url.includes("vt.tiktok.com/"),
     extractorArgs: [
       "--extractor-args",
-      "tiktok:api_hostname=api16-normal-useast5.us.tiktokv.com;app_info=7355728856979392262",
+      "tiktok:app_info=7355728856979392262",
+      "--referer",
+      "https://www.tiktok.com/",
     ],
-    note: "TikTok uses a tuned extractor profile to improve video and photo-post handling.",
+    note: "TikTok: Simplified extractor profile with Referer spoofing for better resilience on datacenter IPs.",
   },
   {
     platform: "threads",
