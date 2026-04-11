@@ -1159,7 +1159,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     throw err;
   }
 }
-async function executeDownload(jobId: string) {
+export async function executeDownload(jobId: string) {
   const job = jobs.get(jobId);
 
   if (!job) {
@@ -1382,7 +1382,7 @@ async function processQueue() {
   }
 }
 
-function createDownloadJob(input: DownloadRequestPayload) {
+export function createDownloadJob(input: DownloadRequestPayload) {
   ensureAppDirs();
   const mode = input.mode;
   const defaultExt = mode === "audio" ? "mp3" : "mp4";
@@ -1427,7 +1427,7 @@ function createDownloadJob(input: DownloadRequestPayload) {
   return job;
 }
 
-function getDownloadJob(jobId: string) {
+export function getDownloadJob(jobId: string) {
   const storedJobs = getStoredJobs();
   const storedJob = storedJobs[jobId];
 

@@ -40,8 +40,9 @@ console.*
 
 bin/
 
-downloads_test/.runtime/
 downloads_test/
+downloads_batch_test/
+downloads_batch_v2/
 
 scratch/
 
