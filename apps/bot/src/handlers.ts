@@ -159,6 +159,65 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   }
 }
 
+async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, formatId: string = "best") {
+  const targetExt = "mp3";
+  const audioOption = choice.info.audioOptions.find((o: any) => o.id === formatId);
+  const jobTitle = audioOption ? audioOption.label : choice.info.title;
+
+  try {
+    const job = createDownloadJob({
+      url: choice.url,
+      mode: "audio",
+      formatId: formatId === "best" ? null : formatId,
+      targetExt,
+      title: jobTitle,
+      source: "bot",
+      resolvedUrl: choice.info.resolvedUrl,
+      thumbnail: choice.info.thumbnail,
+    });
+
+    pendingByChat.delete(ctx.chat.id);
+    void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"));
+  } catch (error) {
+    await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+  }
+}
+
+async function sendImagesGallery(ctx: any, choice: PendingChoice) {
+  const images = choice.info.images;
+  const locale = choice.locale;
+
+  if (!images || images.length === 0) {
+    return;
+  }
+
+  try {
+    // Internal fix: Ensure URLs are absolute for media group
+    const validatedImages = images.map((u: any) => (typeof u === "string" && u.startsWith("//") ? `https:${u}` : u));
+
+    // Send images in groups of 10 (Telegram limit for media groups)
+    for (let i = 0; i < validatedImages.length; i += 10) {
+      const chunk = validatedImages.slice(i, i + 10);
+      await ctx.replyWithMediaGroup(
+        chunk.map((url: string, idx: number) => ({
+          type: "photo",
+          media: url,
+          caption: idx === 0 ? `${choice.info.title}\n\n🔗 [Source](${choice.url})` : undefined,
+        }))
+      );
+      // Small delay to avoid flood
+      if (i + 10 < validatedImages.length) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    
+    await ctx.reply(`✅ ${t(locale, "botImagesSent")}`, webKeyboard(locale));
+  } catch (error) {
+    logServer("error", "bot.images.failed", { error: error instanceof Error ? error.message : "Network error" });
+    await ctx.reply("❌ Error sending gallery images. Please use the web app.", webKeyboard(locale));
+  }
+}
+
 function inlineResult(locale: AppLocale, query: string) {
   const hasUrl = !!firstHttpUrl(query);
   const text = hasUrl ? `${t(locale, "botInlineTitle")}\n${query}` : t(locale, "botInlineEmpty");
@@ -317,6 +376,25 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
 
   // Image gallery detected — offer direct images or web app
   if (info.images && info.images.length > 0) {
+    // TikTok specific: Auto-send without menu
+    if (info.platform === "tiktok") {
+      await ctx.reply(`🖼️ TikTok Carousel: ${t(locale, "botProcessingShort")}`);
+      
+      // 1. Send Images
+      await sendImagesGallery(ctx, choice);
+      
+      // 2. Trigger Audio if exists
+      const hasAudio = info.audioOptions && info.audioOptions.length > 0;
+      const isMusicOnly = info.resolvedUrl && (!info.videoOptions || info.videoOptions.length === 0);
+      
+      if (hasAudio || isMusicOnly) {
+        await triggerAudioJob(bot, ctx, choice);
+      }
+      
+      pendingByChat.delete(ctx.chat.id);
+      return;
+    }
+
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
     const refLink = `[Source](${url})`;
     const text = [
@@ -729,6 +807,11 @@ export function registerBotHandlers(bot: Telegraf) {
     // Remove buttons and show state (Processing...)
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
 
+    if (mode === "audio") {
+      await triggerAudioJob(bot, ctx, choice, selectedFormatId);
+      return;
+    }
+
     try {
       const job = createDownloadJob({
         url: choice.url,
@@ -760,38 +843,11 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    const images = choice.info.images;
-    const locale = choice.locale;
-
-    await ctx.answerCbQuery(t(locale, "botProcessingShort")).catch(() => {});
+    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
     
     // Remove buttons and show state
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, locale, `⏳ ${t(locale, "botProcessing")}`), { inline_keyboard: [] });
+    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
 
-    try {
-      // Internal fix: Ensure URLs are absolute for media group
-      const validatedImages = images.map(u => (typeof u === "string" && u.startsWith("//") ? `https:${u}` : u));
-
-      // Send images in groups of 10 (Telegram limit for media groups)
-      for (let i = 0; i < validatedImages.length; i += 10) {
-        const chunk = validatedImages.slice(i, i + 10);
-        await ctx.replyWithMediaGroup(
-          chunk.map((url, idx) => ({
-            type: "photo",
-            media: url,
-            caption: idx === 0 ? `${choice.info.title}\n\n🔗 [Source](${choice.url})` : undefined,
-          }))
-        );
-        // Small delay to avoid flood
-        if (i + 10 < validatedImages.length) {
-          await new Promise(r => setTimeout(r, 1000));
-        }
-      }
-      
-      await ctx.reply(`✅ ${t(locale, "botImagesSent")}`, webKeyboard(locale));
-    } catch (error) {
-      logServer("error", "bot.images.failed", { error: error instanceof Error ? error.message : "Network error" });
-      await ctx.reply("❌ Error sending gallery images. Please use the web app.", webKeyboard(locale));
-    }
+    await sendImagesGallery(ctx, choice);
   });
 }
