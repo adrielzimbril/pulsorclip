@@ -35,45 +35,45 @@ async function safeTelegramCall<T = unknown>(
 }
 
 const publicEnglishCommands: BotCommand[] = [
-  { command: "start", description: "🚀 Start the guided PulsorClip flow" },
-  { command: "language", description: "🌐 Choose the bot language" },
-  { command: "help", description: "🧭 Show commands and examples" },
-  { command: "video", description: "🎬 Download video from a URL" },
-  { command: "audio", description: "🎧 Download audio from a URL" },
-  { command: "mp4", description: "📦 Save video mode, then send a URL" },
-  { command: "mp3", description: "🎵 Save audio mode, then send a URL" },
-  { command: "formats", description: "🧱 List supported download formats" },
+  { command: "start", description: "Start the guided PulsorClip flow" },
+  { command: "language", description: "Choose the bot language" },
+  { command: "help", description: "Show commands and examples" },
+  { command: "video", description: "Download video from a URL" },
+  { command: "audio", description: "Download audio from a URL" },
+  { command: "mp4", description: "Save video mode, then send a URL" },
+  { command: "mp3", description: "Save audio mode, then send a URL" },
+  { command: "formats", description: "List supported download formats" },
+  { command: "queue", description: "Show your queue and cancel waiting items" },
 ];
 
 const publicFrenchCommands: BotCommand[] = [
-  { command: "start", description: "🚀 Demarrer le flow guide PulsorClip" },
-  { command: "language", description: "🌐 Choisir la langue du bot" },
-  { command: "help", description: "🧭 Afficher les commandes et exemples" },
-  { command: "video", description: "🎬 Telecharger une video depuis une URL" },
-  { command: "audio", description: "🎧 Telecharger un audio depuis une URL" },
-  { command: "mp4", description: "📦 Memoriser le mode video puis envoyer une URL" },
-  { command: "mp3", description: "🎵 Memoriser le mode audio puis envoyer une URL" },
-  { command: "formats", description: "🧱 Lister les formats pris en charge" },
+  { command: "start", description: "Demarrer le flow guide PulsorClip" },
+  { command: "language", description: "Choisir la langue du bot" },
+  { command: "help", description: "Afficher les commandes et exemples" },
+  { command: "video", description: "Telecharger une video depuis une URL" },
+  { command: "audio", description: "Telecharger un audio depuis une URL" },
+  { command: "mp4", description: "Memoriser le mode video puis envoyer une URL" },
+  { command: "mp3", description: "Memoriser le mode audio puis envoyer une URL" },
+  { command: "formats", description: "Lister les formats pris en charge" },
+  { command: "queue", description: "Voir ta file et annuler les elements en attente" },
 ];
 
 const adminEnglishCommands: BotCommand[] = [
   ...publicEnglishCommands,
-  { command: "status", description: "🟢 Check live bot and web counters" },
-  { command: "server", description: "🖥️ Show full server diagnostics" },
-  { command: "queue", description: "📦 Show active and queued jobs" },
-  { command: "health", description: "🩺 Send a health snapshot to admins" },
-  { command: "report", description: "📊 Show the current daily report" },
-  { command: "daily", description: "🗓️ Send the daily summary now" },
+  { command: "status", description: "Check live bot and web counters" },
+  { command: "server", description: "Show full server diagnostics" },
+  { command: "health", description: "Send a health snapshot to admins" },
+  { command: "report", description: "Show the current daily report" },
+  { command: "daily", description: "Send the daily summary now" },
 ];
 
 const adminFrenchCommands: BotCommand[] = [
   ...publicFrenchCommands,
-  { command: "status", description: "🟢 Voir les compteurs live bot et web" },
-  { command: "server", description: "🖥️ Voir le diagnostic serveur complet" },
-  { command: "queue", description: "📦 Voir les jobs actifs et en file" },
-  { command: "health", description: "🩺 Envoyer un point sante aux admins" },
-  { command: "report", description: "📊 Voir le rapport journalier courant" },
-  { command: "daily", description: "🗓️ Envoyer le recap journalier maintenant" },
+  { command: "status", description: "Voir les compteurs live bot et web" },
+  { command: "server", description: "Voir le diagnostic serveur complet" },
+  { command: "health", description: "Envoyer un point sante aux admins" },
+  { command: "report", description: "Voir le rapport journalier courant" },
+  { command: "daily", description: "Envoyer le recap journalier maintenant" },
 ];
 
 async function setCommands(
@@ -106,9 +106,8 @@ async function setCommands(
 }
 
 async function syncDescriptions(bot: Telegraf) {
-  // 1. Set Bot Name (Max 64 chars)
   const botName = "Pulsor Clip - Media Downloader (TikTok, Instagram, YT & more)";
-  
+
   await safeTelegramCall(bot, "setMyName", {
     name: botName,
   });
@@ -117,9 +116,8 @@ async function syncDescriptions(bot: Telegraf) {
     name: botName,
   });
 
-  // 2. Set Descriptions with Dev Link
   const descPrefix = "Dev: https://t.me/akaiokami_az\n\n";
-  
+
   await safeTelegramCall(bot, "setMyDescription", {
     description: `${descPrefix}Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.`,
   });
@@ -129,11 +127,11 @@ async function syncDescriptions(bot: Telegraf) {
   });
 
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "🎬 Download videos/audio. Dev: @akaiokami_az",
+    short_description: "Download videos and audio. Dev: @akaiokami_az",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
     language_code: "fr",
-    short_description: "🎬 Telechargement videos/audio. Dev: @akaiokami_az",
+    short_description: "Telechargement videos et audio. Dev: @akaiokami_az",
   });
 
   const description = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");

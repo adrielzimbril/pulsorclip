@@ -20,14 +20,14 @@ interface JobStatus {
 
 const funnyWaitingLines = {
   en: [
-    "Packing pixels for the last mile.",
-    "The converter is arguing with the bitrate.",
-    "Final checks in progress before release.",
+    "📦 Packing pixels for the last mile.",
+    "🎛️ The converter is arguing with the bitrate.",
+    "✨ Final checks in progress before release.",
   ],
   fr: [
-    "On emballe les pixels pour le dernier kilometre.",
-    "Le convertisseur discute avec le bitrate.",
-    "Dernieres verifications avant livraison.",
+    "📦 On emballe les pixels pour le dernier kilomètre.",
+    "🎛️ Le convertisseur discute avec le bitrate.",
+    "✨ Dernières vérifications avant livraison.",
   ],
 } as const;
 

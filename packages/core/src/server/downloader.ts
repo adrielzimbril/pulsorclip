@@ -40,6 +40,8 @@ global.__pulsorclipActiveJobId ??= null;
 const INFO_TIMEOUT_MS = 60_000;
 const DOWNLOAD_TIMEOUT_MS = 12 * 60_000;
 const TRANSCODE_TIMEOUT_MS = 25 * 60_000;
+const DOWNLOAD_IDLE_TIMEOUT_MS = 90_000;
+const TRANSCODE_IDLE_TIMEOUT_MS = 120_000;
 
 function syncJobState() {
   writeStoredJobs(Object.fromEntries(jobs), [...queue]);
@@ -415,7 +417,11 @@ async function convertAudio(
       ...codecArgs,
       outputPath,
     ],
-    TRANSCODE_TIMEOUT_MS,
+    {
+      timeoutMs: TRANSCODE_TIMEOUT_MS,
+      idleTimeoutMs: TRANSCODE_IDLE_TIMEOUT_MS,
+      idleTimeoutMessage: `Audio conversion stalled for ${Math.round(TRANSCODE_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
+    },
   );
 
   if (result.exitCode !== 0) {
@@ -507,7 +513,11 @@ async function convertVideo(
       ...codecArgs,
       outputPath,
     ],
-    TRANSCODE_TIMEOUT_MS,
+    {
+      timeoutMs: TRANSCODE_TIMEOUT_MS,
+      idleTimeoutMs: TRANSCODE_IDLE_TIMEOUT_MS,
+      idleTimeoutMessage: `Video conversion stalled for ${Math.round(TRANSCODE_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
+    },
   );
 
   if (result.exitCode !== 0) {
@@ -1221,6 +1231,8 @@ async function executeDownload(jobId: string) {
 
       const downloadResult = await runCommand(appConfig.ytDlpBin, sourceArgs, {
         timeoutMs: DOWNLOAD_TIMEOUT_MS,
+        idleTimeoutMs: DOWNLOAD_IDLE_TIMEOUT_MS,
+        idleTimeoutMessage: `Download stalled for ${Math.round(DOWNLOAD_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
         onStdoutLine: (line) => parseProgressLine(job, line),
         onStderrLine: (line) => parseProgressLine(job, line),
       });
@@ -1411,6 +1423,35 @@ export function getQueueSnapshot() {
     completedJobs: [...jobs.values()].filter((job) => job.status === "done")
       .length,
   };
+}
+
+export function listDownloadJobs(source?: "web" | "bot") {
+  return [...jobs.values()]
+    .filter((job) => !source || job.source === source)
+    .sort((left, right) => right.createdAt - left.createdAt);
+}
+
+export function cancelDownloadJob(jobId: string) {
+  const job = jobs.get(jobId);
+
+  if (!job || job.status !== "queued") {
+    return false;
+  }
+
+  const index = queue.indexOf(jobId);
+  if (index >= 0) {
+    queue.splice(index, 1);
+  }
+
+  job.status = "error";
+  job.error = "Cancelled by user before processing started.";
+  job.progress = 0;
+  job.progressLabel = "Cancelled";
+  job.queuePosition = 0;
+  job.updatedAt = Date.now();
+  updateQueuePositions();
+  syncJobState();
+  return true;
 }
 
 export function getQueuePosition(jobId: string) {

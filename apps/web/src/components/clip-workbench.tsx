@@ -12,6 +12,19 @@ import { externalLinks } from "@/lib/external-links";
 
 type WorkspaceView = "normal" | "bulk";
 type PlaylistModalState = { title: string; count: number; entries: PlaylistEntry[] };
+type QueueJob = {
+  id: string;
+  title: string;
+  url: string;
+  mode: DownloadMode;
+  status: "queued" | "downloading" | "done" | "error";
+  progress: number;
+  progressLabel: string | null;
+  queuePosition: number;
+  error: string | null;
+  filename: string | null;
+  createdAt: number;
+};
 
 function parseUrls(raw: string) {
   const urlPattern = /^https?:\/\//i;
@@ -41,6 +54,7 @@ export function ClipWorkbench({
   const [isZipping, setIsZipping] = useState(false);
   const [isQueueingPlaylist, setIsQueueingPlaylist] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
+  const [serverQueue, setServerQueue] = useState<QueueJob[]>([]);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
 
@@ -54,6 +68,35 @@ export function ClipWorkbench({
       for (const interval of activeIntervals.values()) {
         window.clearInterval(interval);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    const refreshQueue = async () => {
+      try {
+        const response = await fetch("/api/queue", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as { jobs?: QueueJob[] };
+        if (alive) {
+          setServerQueue(payload.jobs || []);
+        }
+      } catch {
+        // Keep the last known queue state.
+      }
+    };
+
+    void refreshQueue();
+    const interval = window.setInterval(() => {
+      void refreshQueue();
+    }, 2500);
+
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -73,9 +116,48 @@ export function ClipWorkbench({
   const activeInput = view === "normal" ? normalInput : bulkInput;
   const visibleCards = useMemo(() => (view === "normal" ? cards.slice(0, 1) : cards), [cards, view]);
   const canPrepareAll = useMemo(() => visibleCards.some((card) => card.status === "ready"), [visibleCards]);
+  const queueSummary = useMemo(() => ({
+    queued: serverQueue.filter((job) => job.status === "queued").length,
+    downloading: serverQueue.filter((job) => job.status === "downloading").length,
+    done: serverQueue.filter((job) => job.status === "done").length,
+    error: serverQueue.filter((job) => job.status === "error").length,
+  }), [serverQueue]);
 
   function updateCard(id: string, updater: (current: ClipCard) => ClipCard) {
     setCards((current) => current.map((card) => (card.id === id ? updater(card) : card)));
+  }
+
+  async function cancelQueuedJob(jobId: string) {
+    try {
+      const response = await fetch("/api/queue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "cancel", jobId }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setNotice(payload.error || "Unable to cancel this queued item.");
+        return;
+      }
+
+      setNotice("Queued item cancelled. You can restart it when needed.");
+      setServerQueue((current) =>
+        current.map((job) =>
+          job.id === jobId
+            ? { ...job, status: "error", error: "Cancelled by user before processing started.", progressLabel: "Cancelled", queuePosition: 0 }
+            : job,
+        ),
+      );
+    } catch {
+      setNotice(t(locale, "networkError"));
+    }
+  }
+
+  function clearLocalCards(status: "done" | "error") {
+    setCards((current) => current.filter((card) => card.status !== status));
   }
 
   function openDownload(jobId: string) {
@@ -606,6 +688,74 @@ export function ClipWorkbench({
             <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4">
               <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
               <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "patienceBody")}</p>
+            </div>
+
+            <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Web queue</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {queueSummary.queued} queued, {queueSummary.downloading} processing, {queueSummary.done} ready, {queueSummary.error} failed.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="btn-outline px-3 py-2 text-xs"
+                    onClick={() => clearLocalCards("done")}
+                    type="button"
+                  >
+                    Clear ready cards
+                  </button>
+                  <button
+                    className="btn-outline px-3 py-2 text-xs"
+                    onClick={() => clearLocalCards("error")}
+                    type="button"
+                  >
+                    Clear failed cards
+                  </button>
+                </div>
+              </div>
+
+              {serverQueue.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                  {serverQueue.slice(0, 8).map((job) => (
+                    <div className="rounded-[16px] border border-line bg-background px-3 py-3" key={job.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{job.title || `Job ${job.id}`}</p>
+                          <p className="mt-1 text-xs text-muted">
+                            {job.mode.toUpperCase()} · {job.status}
+                            {job.status === "queued" && job.queuePosition ? ` · #${job.queuePosition}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <a className="btn-outline px-3 py-2 text-xs" href={`/track/${job.id}`}>
+                            Track
+                          </a>
+                          {job.status === "done" ? (
+                            <a className="btn-outline px-3 py-2 text-xs" href={`/api/file/${job.id}`}>
+                              Download
+                            </a>
+                          ) : null}
+                          {job.status === "queued" ? (
+                            <button
+                              className="btn-outline px-3 py-2 text-xs"
+                              onClick={() => void cancelQueuedJob(job.id)}
+                              type="button"
+                            >
+                              Cancel
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <p className="mt-2 line-clamp-1 text-xs text-muted">{job.url}</p>
+                      <p className="mt-2 text-xs text-muted">{job.error || job.progressLabel || `${job.progress}%`}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted">No web jobs on the server queue yet.</p>
+              )}
             </div>
 
             <div className="mt-5 hidden gap-3 sm:grid-cols-2 lg:grid">

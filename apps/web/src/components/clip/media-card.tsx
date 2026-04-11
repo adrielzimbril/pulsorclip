@@ -45,36 +45,36 @@ function explainError(locale: AppLocale, error: string | null | undefined) {
 const funnyStatusLines = {
   en: {
     queued: [
-      "Server hamsters are waiting for a free wheel.",
-      "Queue slot reserved. The pixels are stretching.",
-      "Your clip is parked in the launch lane.",
+      "🐹 Server hamsters are waiting for a free wheel.",
+      "🪑 Queue slot reserved. The pixels are stretching.",
+      "🛫 Your clip is parked in the launch lane.",
     ],
     downloading: [
-      "Packing pixels and tightening bolts.",
-      "Pulling bytes from the cloud with both hands.",
-      "Convincing the converter to behave.",
+      "📦 Packing pixels and tightening bolts.",
+      "☁️ Pulling bytes from the cloud with both hands.",
+      "🎛️ Convincing the converter to behave.",
     ],
     finishing: [
-      "Dusting the file and checking the corners.",
-      "Adding the final polish before release.",
-      "Wrapping the export for delivery.",
+      "✨ Dusting the file and checking the corners.",
+      "🧼 Adding the final polish before release.",
+      "📮 Wrapping the export for delivery.",
     ],
   },
   fr: {
     queued: [
-      "Les hamsters du serveur attendent une roue libre.",
-      "Le slot est reserve. Les pixels s echauffent.",
-      "Le clip est gare dans la ligne de lancement.",
+      "🐹 Les hamsters du serveur attendent une roue libre.",
+      "🪑 Le slot est réservé. Les pixels s'échauffent.",
+      "🛫 Le clip est garé dans la ligne de lancement.",
     ],
     downloading: [
-      "On emballe les pixels et on resserre les boulons.",
-      "On tire les octets du cloud a deux mains.",
-      "On negocie avec le convertisseur pour qu il reste sage.",
+      "📦 On emballe les pixels et on resserre les boulons.",
+      "☁️ On tire les octets du cloud à deux mains.",
+      "🎛️ On négocie avec le convertisseur pour qu'il reste sage.",
     ],
     finishing: [
-      "On depoussierre le fichier avant livraison.",
-      "On ajoute la derniere couche de finition.",
-      "L export est en train d etre emballe.",
+      "✨ On dépoussière le fichier avant livraison.",
+      "🧼 On ajoute la dernière couche de finition.",
+      "📮 L'export est en train d'être emballé.",
     ],
   },
 } as const;

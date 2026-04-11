@@ -8,6 +8,8 @@ type ProcessResult = {
 
 type RunCommandOptions = {
   timeoutMs: number;
+  idleTimeoutMs?: number;
+  idleTimeoutMessage?: string;
   onStdoutLine?: (line: string) => void;
   onStderrLine?: (line: string) => void;
 };
@@ -51,6 +53,31 @@ export async function runCommand(
     let stdoutRemainder = "";
     let stderrRemainder = "";
     let finished = false;
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const clearIdleTimer = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    };
+
+    const resetIdleTimer = () => {
+      if (!options.idleTimeoutMs) {
+        return;
+      }
+
+      clearIdleTimer();
+      idleTimer = setTimeout(() => {
+        if (finished) {
+          return;
+        }
+
+        finished = true;
+        child.kill("SIGKILL");
+        reject(new Error(options.idleTimeoutMessage || "Process stalled"));
+      }, options.idleTimeoutMs);
+    };
 
     const timer = setTimeout(() => {
       if (finished) {
@@ -58,19 +85,24 @@ export async function runCommand(
       }
 
       finished = true;
+      clearIdleTimer();
       child.kill("SIGKILL");
       reject(new Error("Process timed out"));
     }, options.timeoutMs);
 
+    resetIdleTimer();
+
     child.stdout.on("data", (chunk) => {
       const text = chunk.toString();
       stdout += text;
+      resetIdleTimer();
       stdoutRemainder = emitLines(text, stdoutRemainder, options.onStdoutLine);
     });
 
     child.stderr.on("data", (chunk) => {
       const text = chunk.toString();
       stderr += text;
+      resetIdleTimer();
       stderrRemainder = emitLines(text, stderrRemainder, options.onStderrLine);
     });
 
@@ -81,6 +113,7 @@ export async function runCommand(
 
       finished = true;
       clearTimeout(timer);
+      clearIdleTimer();
       reject(error);
     });
 
@@ -91,6 +124,7 @@ export async function runCommand(
 
       finished = true;
       clearTimeout(timer);
+      clearIdleTimer();
 
       if (stdoutRemainder.trim()) {
         options.onStdoutLine?.(stdoutRemainder.trim());

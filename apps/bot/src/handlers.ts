@@ -18,7 +18,7 @@ import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
 import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard } from "./keyboards";
 import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
-import { modeByChat, pendingByChat, userQueues, userProcessing, userRequestCounter } from "./state";
+import { modeByChat, pendingByChat, userActiveRequest, userQueues, userProcessing, userRequestCounter } from "./state";
 import type { PendingChoice, QueuedRequest } from "./types";
 import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance, escapeHTML } from "./utils";
 
@@ -50,7 +50,8 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/mp4",
     "/mp3",
     "/formats",
-    admin ? "/status, /server, /queue, /health, /report, /daily" : null,
+    "/queue",
+    admin ? "/status, /server, /health, /report, /daily" : null,
   ].filter(Boolean);
 
   return [
@@ -113,15 +114,13 @@ function buildMediaSummary(choice: PendingChoice) {
 
 function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusText: string) {
   const meta = choice.info;
-  const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}`;
   const sourceLink = `<a href="${choice.url}">Source</a>`;
-  const trackLink = `<a href="${webUrl}">Track</a>`;
 
   return [
     `<b>Request #${choice.requestId}</b>`,
     statusText,
     escapeHTML(trimTitle(meta.title || "")),
-    `🔗 ${sourceLink} | 📊 ${trackLink}`,
+    `🔗 ${sourceLink} | 🌐 <a href="${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}">Open in web</a>`,
   ].join("\n");
 }
 
@@ -213,18 +212,21 @@ async function processNextInQueue(bot: Telegraf, userId: number, ctx: any) {
   const queue = userQueues.get(userId) || [];
   if (queue.length === 0) {
     userProcessing.set(userId, false);
+    userActiveRequest.set(userId, null);
     return;
   }
 
   userProcessing.set(userId, true);
   const request = queue.shift()!;
   userQueues.set(userId, queue);
+  userActiveRequest.set(userId, request);
 
   const locale = localeForTelegram(userId, ctx.from?.language_code);
   try {
     await loadAndPrompt(bot, ctx, request.url, locale, request.mode, null, request.requestId);
   } catch (error) {
     await ctx.reply(`❌ Request #${request.requestId}: ${error instanceof Error ? error.message : t(locale, "botDownloadFailed")}`);
+    userActiveRequest.set(userId, null);
     void processNextInQueue(bot, userId, ctx);
   }
 }
@@ -244,12 +246,11 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
     // Send images in groups of 10 (Telegram limit for media groups)
     for (let i = 0; i < validatedImages.length; i += 10) {
       const chunk = validatedImages.slice(i, i + 10);
-      const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}`;
       await ctx.replyWithMediaGroup(
         chunk.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}\n\n🔗 <a href="${choice.url}">Source</a> | 📊 <a href="${webUrl}">Track</a>` : undefined,
+          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}\n\n🔗 <a href="${choice.url}">Source</a> | 🌐 <a href="${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}">Open in web</a>` : undefined,
           parse_mode: "HTML",
         }))
       );
@@ -456,7 +457,17 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
     if (job.status === "error") {
       await sendPresence(ctx, "typing");
       const errorMsg = job.error || t(choice.locale, "botDownloadFailed");
-      await ctx.reply(`❌ Request #${choice.requestId}: ${errorMsg}`, webKeyboard(choice.locale));
+      await ctx.reply(
+        [
+          `❌ Request #${choice.requestId}: ${errorMsg}`,
+          escapeHTML(trimTitle(title)),
+          `🔗 ${choice.url}`,
+          choice.locale === "fr"
+            ? "Tu peux relancer ce fichier quand tu veux."
+            : "You can retry this file whenever you want.",
+        ].join("\n"),
+        { ...webKeyboard(choice.locale), parse_mode: "HTML" },
+      );
       void processNextInQueue(bot, ctx.from?.id, ctx);
       break;
     }
@@ -536,9 +547,8 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     }
 
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
-    const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(url)}`;
     const refLink = `[Source](${url})`;
-    const trackLink = `<a href="${webUrl}">Track</a>`;
+    const openLink = `<a href="${appConfig.baseUrl}?url=${encodeURIComponent(url)}">Open in web</a>`;
     const text = [
       `<b>Request #${requestId}</b>`,
       t(locale, "botImageCarousel"), 
@@ -547,7 +557,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       "", 
       t(locale, "botImageGalleryHint"),
       "",
-      `🔗 ${refLink} | 📊 ${trackLink}`
+      `🔗 ${refLink} | 🌐 ${openLink}`
     ]
       .filter(Boolean)
       .join("\n");
@@ -662,6 +672,71 @@ async function enqueuePlaylistRequests(bot: Telegraf, ctx: any, choice: PendingC
   );
 }
 
+function userQueueKeyboard(userId: number, locale: AppLocale) {
+  const queue = userQueues.get(userId) || [];
+  if (queue.length === 0) {
+    return webKeyboard(locale);
+  }
+
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        ...queue.slice(0, 8).map((request) => [
+          { text: `❌ Cancel #${request.requestId}`, callback_data: `uqcancel:${request.requestId}` },
+        ]),
+        [{ text: "🌐 Open web", url: appConfig.baseUrl }],
+      ],
+    },
+  };
+}
+
+function userQueueMessage(userId: number, locale: AppLocale) {
+  const active = userActiveRequest.get(userId);
+  const queue = userQueues.get(userId) || [];
+
+  const lines = [
+    locale === "fr" ? "📦 Ta file" : "📦 Your queue",
+    "",
+    active
+      ? locale === "fr"
+        ? `▶️ En cours: #${active.requestId} · ${active.mode.toUpperCase()}`
+        : `▶️ Active: #${active.requestId} · ${active.mode.toUpperCase()}`
+      : locale === "fr"
+        ? "▶️ En cours: aucun job actif"
+        : "▶️ Active: no job processing right now",
+  ];
+
+  if (queue.length === 0) {
+    lines.push(
+      "",
+      locale === "fr"
+        ? "Aucun élément en attente. Envoie un lien pour relancer la file."
+        : "Nothing is waiting. Send a link to refill the queue.",
+    );
+    return lines.join("\n");
+  }
+
+  lines.push(
+    "",
+    ...(queue.slice(0, 8).map((request, index) =>
+      `${index + 1}. #${request.requestId} · ${request.mode.toUpperCase()} · ${request.url}`,
+    )),
+  );
+
+  if (queue.length > 8) {
+    lines.push(locale === "fr" ? `… et ${queue.length - 8} autres.` : `… and ${queue.length - 8} more.`);
+  }
+
+  lines.push(
+    "",
+    locale === "fr"
+      ? "Utilise les boutons ci-dessous pour annuler les éléments encore en attente."
+      : "Use the buttons below to cancel items that are still waiting.",
+  );
+
+  return lines.join("\n");
+}
+
 export function registerBotHandlers(bot: Telegraf) {
   bot.start(async (ctx) => {
     rememberUser(ctx.from?.id);
@@ -721,14 +796,24 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.command("queue", async (ctx) => {
-    if (!isAdmin(ctx.from?.id)) {
-      return;
-    }
-
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(await getQueueSnapshotText(), webKeyboard(locale));
+    const userId = ctx.from?.id;
+    if (!userId) {
+      await ctx.reply(locale === "fr" ? "Utilisateur introuvable." : "User not found.");
+      return;
+    }
+
+    const personalMessage = userQueueMessage(userId, locale);
+
+    if (isAdmin(ctx.from?.id)) {
+      const serverSnapshot = await getQueueSnapshotText();
+      await ctx.reply([personalMessage, "", serverSnapshot].join("\n"), userQueueKeyboard(userId, locale));
+      return;
+    }
+
+    await ctx.reply(personalMessage, userQueueKeyboard(userId, locale));
   });
 
   bot.command("formats", async (ctx) => {
@@ -1045,6 +1130,30 @@ export function registerBotHandlers(bot: Telegraf) {
     );
     pendingByChat.delete(chatId);
     await enqueuePlaylistRequests(bot, ctx, choice, rawMode as DownloadMode);
+  });
+
+  bot.action(/uqcancel:(\d+)/, async (ctx) => {
+    const userId = ctx.from?.id;
+    const chatId = ctx.chat?.id;
+    if (!userId || !chatId) {
+      return;
+    }
+
+    const requestId = Number(ctx.match[1]);
+    const locale = localeForTelegram(userId, ctx.from?.language_code);
+    const queue = userQueues.get(userId) || [];
+    const nextQueue = queue.filter((request) => request.requestId !== requestId);
+
+    if (nextQueue.length === queue.length) {
+      await ctx.answerCbQuery(locale === "fr" ? "Déjà lancé ou introuvable." : "Already started or not found.").catch(() => {});
+      return;
+    }
+
+    userQueues.set(userId, nextQueue);
+    await ctx.answerCbQuery(locale === "fr" ? `Élément #${requestId} annulé.` : `Item #${requestId} cancelled.`).catch(() => {});
+    await ctx.editMessageText(userQueueMessage(userId, locale), {
+      ...userQueueKeyboard(userId, locale),
+    }).catch(() => {});
   });
 
   bot.action(/imgs:([a-z0-9]+)/, async (ctx) => {
