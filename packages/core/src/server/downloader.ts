@@ -1089,6 +1089,8 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       extractorNote: sourceProfile.note,
       width: typeof parsed.width === "number" ? parsed.width : undefined,
       height: typeof parsed.height === "number" ? parsed.height : undefined,
+      description: typeof parsed.description === "string" ? parsed.description : undefined,
+      tags: Array.isArray(parsed.tags) ? parsed.tags : undefined,
       videoOptions,
       audioOptions,
       images,
@@ -1174,36 +1176,42 @@ async function executeDownload(jobId: string) {
       const directPath = join(tempDir, `source.${directExt}`);
       await downloadDirectFile(job, jobUrl, directPath);
     } else {
-      const sourceArgs = [
-        ...getAuthArgs(),
-        ...sourceProfile.extractorArgs,
-        "--no-playlist",
-        "--newline",
-        "--progress",
-        "--socket-timeout",
-        "30",
-        "--retries",
-        "10",
-        "--no-part",
-        "--geo-bypass",
-        "--user-agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "--add-header",
-        "Accept-Language: en-US,en;q=0.9",
-        "--add-header",
-        "Sec-CH-UA: \"Chromium\";v=\"122\", \"Not(A:Brand\";v=\"24\", \"Google Chrome\";v=\"122\"",
-        "--add-header",
-        "Sec-CH-UA-Mobile: ?0",
-        "--add-header",
-        "Sec-CH-UA-Platform: \"Windows\"",
-        "--no-check-certificates",
-        "--prefer-free-formats",
-        "--hls-prefer-native",
-        "--ffmpeg-location",
-        appConfig.ffmpegBin,
-        "-o",
-        getTempOutputTemplate(jobId),
-      ];
+      let sourceArgs: string[] = [];
+
+      if (sourceProfile.platform === "tiktok") {
+        sourceArgs = [
+          ...getAuthArgs(),
+          ...sourceProfile.extractorArgs,
+          "--no-playlist",
+          "--newline",
+          "--progress",
+          "--ffmpeg-location",
+          appConfig.ffmpegBin,
+          "-o",
+          getTempOutputTemplate(jobId),
+        ];
+      } else {
+        sourceArgs = [
+          ...getAuthArgs(),
+          ...sourceProfile.extractorArgs,
+          "--no-playlist",
+          "--newline",
+          "--progress",
+          "--socket-timeout",
+          "30",
+          "--retries",
+          "10",
+          "--no-part",
+          "--geo-bypass",
+          "--no-check-certificates",
+          "--prefer-free-formats",
+          "--hls-prefer-native",
+          "--ffmpeg-location",
+          appConfig.ffmpegBin,
+          "-o",
+          getTempOutputTemplate(jobId),
+        ];
+      }
 
       if (job.mode === "audio") {
         sourceArgs.push("-f", job.formatId || "bestaudio/best");
@@ -1374,6 +1382,8 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     updatedAt: Date.now(),
     resolvedUrl: input.resolvedUrl,
     thumbnail: input.thumbnail,
+    description: input.description,
+    tags: input.tags,
   };
 
   jobs.set(jobId, job);

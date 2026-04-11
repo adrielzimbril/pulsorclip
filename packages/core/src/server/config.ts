@@ -34,7 +34,7 @@ export const appConfig = {
   ytDlpCookiesFromBrowser: process.env.YTDLP_COOKIES_FROM_BROWSER || "",
   ytDlpCookiesFile: process.env.YTDLP_COOKIES_FILE || "",
   ytDlpCookiesBase64: process.env.YTDLP_COOKIES_BASE64 || "",
-  baseUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  baseUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:10000",
   defaultLocale: (process.env.PULSORCLIP_DEFAULT_LOCALE || "en") as "en" | "fr",
   telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || "pulsorclip_bot",
   telegramUploadLimitBytes: Number(process.env.TELEGRAM_UPLOAD_LIMIT_MB || "45") * 1024 * 1024,
