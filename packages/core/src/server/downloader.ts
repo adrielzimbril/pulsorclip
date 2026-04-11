@@ -454,9 +454,15 @@ async function downloadDirectFile(
     throw new Error(`Direct download failed: ${response.status} ${response.statusText}`);
   }
 
+  const contentLength = Number(response.headers.get("content-length"));
   if (!response.body) {
     throw new Error("Direct download failed: Response body is empty");
   }
+
+  logServer("info", "media.download.direct.stream", { 
+    url: urlForLogs(url), 
+    contentLength: contentLength || "unknown" 
+  });
 
   const writer = createWriteStream(outputPath);
   // Fix for Web Streams in Node pipeline
@@ -464,6 +470,13 @@ async function downloadDirectFile(
   const stream = Readable.fromWeb ? Readable.fromWeb(response.body as any) : response.body;
   // @ts-ignore
   await pipeline(stream, writer);
+
+  if (contentLength > 0) {
+    const stats = statSync(outputPath);
+    if (stats.size < contentLength) {
+      throw new Error(`Direct download truncated: expected ${contentLength} bytes, got ${stats.size} bytes`);
+    }
+  }
 }
 
 async function convertVideo(
@@ -1193,6 +1206,7 @@ async function executeDownload(jobId: string) {
           "--no-playlist",
           "--newline",
           "--progress",
+          "--no-part",
           "--ffmpeg-location",
           appConfig.ffmpegBin,
           "-o",
@@ -1368,7 +1382,7 @@ async function processQueue() {
   }
 }
 
-export function createDownloadJob(input: DownloadRequestPayload) {
+function createDownloadJob(input: DownloadRequestPayload) {
   ensureAppDirs();
   const mode = input.mode;
   const defaultExt = mode === "audio" ? "mp3" : "mp4";
@@ -1413,7 +1427,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
   return job;
 }
 
-export function getDownloadJob(jobId: string) {
+function getDownloadJob(jobId: string) {
   const storedJobs = getStoredJobs();
   const storedJob = storedJobs[jobId];
 

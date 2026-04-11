@@ -37,3 +37,13 @@ test_*
 HANDOFF.md
 
 console.*
+
+bin/
+
+downloads_test/.runtime/
+downloads_test/
+
+scratch/
+
+scripts/setup_wsl.sh
+*.build.json

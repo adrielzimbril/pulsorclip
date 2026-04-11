@@ -42,8 +42,23 @@ export async function runCommand(
       ? { timeoutMs: timeoutOrOptions }
       : timeoutOrOptions;
 
+  let actualCommand = command;
+  let actualArgs = [...args];
+
+  // Automatic WSL wrapping for Linux paths on Windows
+  if (process.platform === "win32" && command.startsWith("/mnt/")) {
+    actualCommand = "wsl";
+    actualArgs = ["-e", command, ...args.map(arg => {
+      if (typeof arg === "string" && (arg.includes(":\\") || arg.includes(":/"))) {
+        // Convert Windows path to WSL path: F:\path -> /mnt/f/path
+        return arg.replace(/^([a-zA-Z]):\\/, (_, drive) => `/mnt/${drive.toLowerCase()}/`).replace(/\\/g, "/");
+      }
+      return arg;
+    })];
+  }
+
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(actualCommand, actualArgs, {
       stdio: ["ignore", "pipe", "pipe"],
       env: process.env,
     });
