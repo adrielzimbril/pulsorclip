@@ -111,7 +111,11 @@ function buildMediaSummary(choice: PendingChoice) {
 }
 
 function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, copy: string) {
-  return [buildMediaSummary(choice), "", copy].join("\n");
+  const sourceLink = `[Source](${choice.url})`;
+  const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}`;
+  const webLink = `[Web](${webUrl})`;
+  
+  return [buildMediaSummary(choice), "", `🔗 ${sourceLink} | 🌐 ${webLink}`, "", copy].join("\n");
 }
 
 async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "upload_document" | "upload_video" | "upload_voice" = "typing") {
@@ -123,9 +127,10 @@ async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "uploa
 }
 
 async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLocale, jobId: string, title: string) {
+  const job = getDownloadJob(jobId);
   const file = requireCompletedJob(jobId);
 
-  if (!file?.filePath || !file.filename) {
+  if (!job || !file?.filePath || !file.filename) {
     await bot.telegram.sendMessage(chatId, t(locale, "botDownloadFailed"), webKeyboard(locale));
     return;
   }
@@ -136,14 +141,16 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   }
 
   const extension = extname(file.filename).toLowerCase();
+  const finalCaption = `${title}\n\n🔗 [Source](${job.url}) | 📊 [Track](${appConfig.baseUrl}/track/${jobId})`;
+  const options = { caption: finalCaption, parse_mode: "Markdown" as const };
 
   if (extension === ".mp3" || extension === ".m4a") {
-    await bot.telegram.sendAudio(chatId, { source: createReadStream(file.filePath), filename: file.filename }, { caption: title });
+    await bot.telegram.sendAudio(chatId, { source: createReadStream(file.filePath), filename: file.filename }, options);
     return;
   }
 
   if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
-    await bot.telegram.sendPhoto(chatId, { source: createReadStream(file.filePath) }, { caption: title });
+    await bot.telegram.sendPhoto(chatId, { source: createReadStream(file.filePath) }, options);
     return;
   }
 
@@ -151,11 +158,11 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
     await bot.telegram.sendVideo(
       chatId,
       { source: createReadStream(file.filePath), filename: file.filename },
-      { caption: title, supports_streaming: true },
+      { ...options, supports_streaming: true },
     );
   } catch (err) {
     console.error("Bot video delivery failed, falling back to document:", err);
-    await bot.telegram.sendDocument(chatId, { source: createReadStream(file.filePath), filename: file.filename }, { caption: title });
+    await bot.telegram.sendDocument(chatId, { source: createReadStream(file.filePath), filename: file.filename }, options);
   }
 }
 
@@ -198,11 +205,13 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
     // Send images in groups of 10 (Telegram limit for media groups)
     for (let i = 0; i < validatedImages.length; i += 10) {
       const chunk = validatedImages.slice(i, i + 10);
+      const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}`;
       await ctx.replyWithMediaGroup(
         chunk.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: idx === 0 ? `${choice.info.title}\n\n🔗 [Source](${choice.url})` : undefined,
+          caption: idx === 0 ? `${choice.info.title}\n\n🔗 [Source](${choice.url}) | 🌐 [Web](${webUrl})` : undefined,
+          parse_mode: "Markdown",
         }))
       );
       // Small delay to avoid flood
@@ -253,6 +262,7 @@ async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, 
     await sendPresence(ctx, "upload_photo");
     const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
       caption: text,
+      parse_mode: "Markdown",
       reply_markup: replyMarkup,
     });
 
@@ -262,7 +272,7 @@ async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, 
   }
 
   await sendPresence(ctx, "typing");
-  const message = await ctx.reply(text, { reply_markup: replyMarkup });
+  const message = await ctx.reply(text, { reply_markup: replyMarkup, parse_mode: "Markdown" });
   choice.messageId = message.message_id;
   choice.messageKind = "text";
 }
@@ -375,7 +385,7 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
   if (job.status === "done") {
     return [
       getFunnyStatus(jobId, 100, "done"),
-      locale === "fr" ? "✅ Fichier pret. Envoi en cours." : "✅ File ready. Delivering now.",
+      t(locale, "botReadyLine"),
     ].join("\n");
   }
 
@@ -436,10 +446,12 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       await sendImagesGallery(ctx, choice);
       
       // 2. Trigger Audio if exists
-      const hasAudio = info.audioOptions && info.audioOptions.length > 0;
+      const hasAudio = (info.audioOptions && info.audioOptions.length > 0);
       const isMusicOnly = info.resolvedUrl && (!info.videoOptions || info.videoOptions.length === 0);
+      const isTikTok = info.platform === "tiktok";
       
-      if (hasAudio || isMusicOnly) {
+      if (hasAudio || isMusicOnly || isTikTok) {
+        // Force audio download for TikTok carousels even if not explicitly in info
         await triggerAudioJob(bot, ctx, choice);
       }
       
@@ -448,7 +460,9 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     }
 
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
+    const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(url)}`;
     const refLink = `[Source](${url})`;
+    const webLink = `[Web](${webUrl})`;
     const text = [
       t(locale, "botImageCarousel"), 
       countLine, 
@@ -456,7 +470,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       "", 
       t(locale, "botImageGalleryHint"),
       "",
-      `🔗 ${refLink}`
+      `🔗 ${refLink} | 🌐 ${webLink}`
     ]
       .filter(Boolean)
       .join("\n");
@@ -516,7 +530,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
 async function replyWelcome(ctx: any, locale: AppLocale) {
   const intro = [statusMessage(locale), t(locale, "botWelcome"), "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
   await sendPresence(ctx, "typing");
-  await ctx.reply(intro, modeKeyboard(locale));
+  await ctx.reply(intro, { ...modeKeyboard(locale), parse_mode: "Markdown" });
 }
 
 export function registerBotHandlers(bot: Telegraf) {
@@ -538,7 +552,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), modeKeyboard(locale));
+    await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), { ...modeKeyboard(locale), parse_mode: "Markdown" });
   });
 
   bot.command("language", async (ctx) => {
