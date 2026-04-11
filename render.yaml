@@ -13,9 +13,9 @@ services:
       - key: PULSORCLIP_LOG_FULL_URLS
         value: false
       - key: YTDLP_BIN
-        value: yt-dlp
+        value: /usr/local/bin/yt-dlp
       - key: FFMPEG_BIN
-        value: ffmpeg
+        value: /usr/bin/ffmpeg
       - key: PULSORCLIP_DOWNLOAD_DIR
         value: /tmp/pulsorclip-downloads
       - key: PULSORCLIP_DEFAULT_LOCALE
@@ -28,6 +28,8 @@ services:
         value: pulsorclip_bot
       - key: TELEGRAM_UPLOAD_LIMIT_MB
         value: 45
+      - key: TELEGRAM_BOT_ALLOW_USERS
+        value: false
       - key: TELEGRAM_ADMIN_IDS
         sync: false
       - key: TELEGRAM_MAINTENANCE_MODE

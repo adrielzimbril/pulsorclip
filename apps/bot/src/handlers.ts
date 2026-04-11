@@ -20,7 +20,7 @@ import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, 
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
 import { modeByChat, pendingByChat, userActiveRequest, userQueues, userProcessing, userRequestCounter } from "./state";
 import type { PendingChoice, QueuedRequest } from "./types";
-import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance, escapeHTML } from "./utils";
+import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance, shouldGateForPublicAccess, escapeHTML } from "./utils";
 
 function statusMessage(locale: AppLocale) {
   return appConfig.telegramMaintenanceMode ? t(locale, "botStatusMaintenance") : t(locale, "botStatusReady");
@@ -44,8 +44,8 @@ function formatDuration(value: number | null) {
 
 function helpMessage(locale: AppLocale, admin = false) {
   const shortcuts = [
-    "/video <url>",
-    "/audio <url>",
+    "/video <media_url>",
+    "/audio <media_url>",
     "/mp4",
     "/mp3",
     "/formats",
@@ -75,6 +75,32 @@ function helpMessage(locale: AppLocale, admin = false) {
 
   lines.push("", t(locale, "botHelpGuidance"));
   return lines.join("\n");
+}
+
+function adminHelpMessage(locale: AppLocale) {
+  const title = locale === "fr" ? "Commandes admin" : "Admin commands";
+  const body =
+    locale === "fr"
+      ? "Ces commandes servent au pilotage et au diagnostic du bot."
+      : "These commands are for bot operations and diagnostics.";
+
+  return [
+    `<b>${title}</b>`,
+    body,
+    "",
+    "• <code>/queuestatus</code>",
+    "• <code>/status</code>",
+    "• <code>/server</code>",
+    "• <code>/health</code>",
+    "• <code>/report</code>",
+    "• <code>/daily</code>",
+  ].join("\n");
+}
+
+function publicUnavailableMessage(locale: AppLocale) {
+  return locale === "fr"
+    ? "Le bot est actuellement indisponible pour le public. Seuls les admins peuvent l utiliser pour le moment."
+    : "The bot is currently unavailable to the public. Only admins can use it right now.";
 }
 
 function promptForMode(locale: AppLocale, title?: string) {
@@ -638,7 +664,7 @@ async function replyWelcome(ctx: any, locale: AppLocale) {
     locale === "fr"
       ? "<b>PulsorClip est pret.</b>\nEnvoie un lien media et je te guide etape par etape."
       : "<b>PulsorClip is ready.</b>\nSend one media link and I will guide you step by step.";
-  const intro = [statusMessage(locale), welcome, "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
+  const intro = [statusMessage(locale), welcome, "", helpMessage(locale)].join("\n");
   await sendPresence(ctx, "typing");
   await ctx.reply(intro, { ...modeKeyboard(locale), parse_mode: "HTML" });
 }
@@ -761,6 +787,25 @@ function userQueueMessage(userId: number, locale: AppLocale) {
 }
 
 export function registerBotHandlers(bot: Telegraf) {
+  bot.use(async (ctx, next) => {
+    const userId = ctx.from?.id;
+    const locale = localeForTelegram(userId, ctx.from?.language_code);
+
+    if (!shouldGateForPublicAccess(userId)) {
+      return next();
+    }
+
+    if ("answerCbQuery" in ctx) {
+      await ctx.answerCbQuery(publicUnavailableMessage(locale)).catch(() => {});
+    }
+
+    if ("reply" in ctx) {
+      await ctx.reply(publicUnavailableMessage(locale));
+    }
+
+    return;
+  });
+
   bot.start(async (ctx) => {
     rememberUser(ctx.from?.id);
     const savedLocale = getUserPreferences(ctx.from?.id).locale;
@@ -779,7 +824,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), { ...modeKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(helpMessage(locale), { ...modeKeyboard(locale), parse_mode: "HTML" });
+    if (isAdmin(ctx.from?.id)) {
+      await ctx.reply(adminHelpMessage(locale), { parse_mode: "HTML" });
+    }
   });
 
   bot.command("language", async (ctx) => {

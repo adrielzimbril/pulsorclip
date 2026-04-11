@@ -1,9 +1,25 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export function ensureAppDirs() {
   const dir = resolve(process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
   mkdirSync(dir, { recursive: true });
+}
+
+function resolveBinary(envValue: string | undefined, fallback: string, candidates: string[] = []) {
+  const requested = envValue?.trim();
+
+  if (requested) {
+    return requested;
+  }
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return fallback;
 }
 
 export const appConfig = {
@@ -13,8 +29,8 @@ export const appConfig = {
   },
   debugLogs: process.env.PULSORCLIP_DEBUG_LOGS === "true",
   logFullUrls: process.env.PULSORCLIP_LOG_FULL_URLS === "true",
-  ytDlpBin: process.env.YTDLP_BIN || "yt-dlp",
-  ffmpegBin: process.env.FFMPEG_BIN || "ffmpeg",
+  ytDlpBin: resolveBinary(process.env.YTDLP_BIN, "yt-dlp", ["/usr/local/bin/yt-dlp", "/usr/bin/yt-dlp"]),
+  ffmpegBin: resolveBinary(process.env.FFMPEG_BIN, "ffmpeg", ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"]),
   ytDlpCookiesFromBrowser: process.env.YTDLP_COOKIES_FROM_BROWSER || "",
   ytDlpCookiesFile: process.env.YTDLP_COOKIES_FILE || "",
   ytDlpCookiesBase64: process.env.YTDLP_COOKIES_BASE64 || "",
@@ -23,6 +39,7 @@ export const appConfig = {
   telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || "pulsorclip_bot",
   telegramUploadLimitBytes: Number(process.env.TELEGRAM_UPLOAD_LIMIT_MB || "45") * 1024 * 1024,
   telegramBotEnabled: process.env.TELEGRAM_BOT_ENABLED !== "false",
+  telegramBotAllowUsers: process.env.TELEGRAM_BOT_ALLOW_USERS === "true",
   telegramAdminIds: (process.env.TELEGRAM_ADMIN_IDS || "")
     .split(",")
     .map((value) => Number(value.trim()))

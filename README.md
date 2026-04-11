@@ -1,25 +1,15 @@
----
-title: PulsorClip
-emoji: 🎬
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 10000
-dockerfile: docker/render.Dockerfile
-pinned: false
----
-
 # PulsorClip
 
 > 🌟 **Visual Showcase:** Check out the [PulsorClip Preview Gallery](preview/preview.md) to see the UI.
 
-|                 Light Mode                 |                Dark Mode                 |
-| :----------------------------------------: | :--------------------------------------: |
+|                 Light Mode                  |                 Dark Mode                 |
+| :-----------------------------------------: | :---------------------------------------: |
 | ![preview-light](preview/preview-light.png) | ![preview-dark](preview/preview-dark.png) |
 
 PulsorClip is a self-hosted media download and export workspace by **Adriel Zimbril**.
 
 ### 🚀 Project status
+
 - 🌍 **Web Workspace:** ✅ 100% Functional
 - 🤖 **Telegram Bot:** ✅ 100% Functional
 - 🖥️ **Desktop (Native):** 🏗️ In Progress (Tauri)
@@ -132,15 +122,17 @@ Important variables:
 ## Deployment
 
 ### Railway (Recommended)
- 1. Connect this repository to a new Railway project.
- 2. Railway will automatically detect the `railway.json` and use `docker/render.Dockerfile`.
- 3. Set the following environment variables (see `.env.example`):
+
+1.  Connect this repository to a new Railway project.
+2.  Railway will automatically detect the `railway.json` and use `docker/render.Dockerfile`.
+3.  Set the following environment variables (see `.env.example`):
     - `NEXT_PUBLIC_APP_URL`: Your Railway app URL.
     - `TELEGRAM_BOT_TOKEN`: Your bot token.
     - `PULSORCLIP_DEBUG_LOGS`: `true`.
- 
- ### Render
- Current default target: **Render free Web Service** with one Docker runtime for both web and bot.
+
+### Render
+
+Current default target: **Render free Web Service** with one Docker runtime for both web and bot.
 
 Why this topology:
 
@@ -193,20 +185,20 @@ See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Platforms
 
-| Platform | Status | Extraction Method |
-| :--- | :--- | :--- |
-| **Threads** | ✅ Stable | Custom JSON Scraper (up to 1280p) |
-| **TikTok** | ✅ Stable | Tikwm API + Carousel Fallback |
-| **Instagram** | ✅ Stable | `yt-dlp` + direct CDN fallback |
-| **Facebook** | ✅ Stable | `yt-dlp` |
-| **X / Twitter** | ✅ Stable | `yt-dlp` |
-| **YouTube** | ⚠️ Restricted | Stable locally. **"Sign in to confirm"** errors common on VPS/Datacenter IPs. Use authenticated cookies to bypass. |
+| Platform        | Status        | Extraction Method                                                                                                  |
+| :-------------- | :------------ | :----------------------------------------------------------------------------------------------------------------- |
+| **Threads**     | ✅ Stable     | Custom JSON Scraper (up to 1280p)                                                                                  |
+| **TikTok**      | ✅ Stable     | Tikwm API + Carousel Fallback                                                                                      |
+| **Instagram**   | ✅ Stable     | `yt-dlp` + direct CDN fallback                                                                                     |
+| **Facebook**    | ✅ Stable     | `yt-dlp`                                                                                                           |
+| **X / Twitter** | ✅ Stable     | `yt-dlp`                                                                                                           |
+| **YouTube**     | ⚠️ Restricted | Stable locally. **"Sign in to confirm"** errors common on VPS/Datacenter IPs. Use authenticated cookies to bypass. |
 
 ## Legal & Educational Disclaimer
 
-**PulsorClip is an educational and research project.** 
+**PulsorClip is an educational and research project.**
 
-It is designed to explore media extraction concepts and self-hosting architectures. The author(s) do not encourage or condone the unauthorized downloading, distribution, or storage of copyrighted material. 
+It is designed to explore media extraction concepts and self-hosting architectures. The author(s) do not encourage or condone the unauthorized downloading, distribution, or storage of copyrighted material.
 
 - **User Responsibility:** Users are solely responsible for their actions and must ensure compliance with the terms of service of the target platforms and local copyright laws (DMCA, etc.).
 - **Notice:** This software is provided "as is", without warranty of any kind. The authors are not responsible for any legal consequences or liability arising from the use or misuse of this software.

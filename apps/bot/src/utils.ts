@@ -19,6 +19,10 @@ export function shouldGateForMaintenance(userId?: number) {
   return appConfig.telegramMaintenanceMode && !isAdmin(userId);
 }
 
+export function shouldGateForPublicAccess(userId?: number) {
+  return !appConfig.telegramBotAllowUsers && !isAdmin(userId);
+}
+
 export function escapeHTML(text: string) {
   return text
     .replace(/&/g, "&amp;")
