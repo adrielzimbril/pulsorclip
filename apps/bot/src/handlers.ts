@@ -18,9 +18,9 @@ import { type AppLocale, type DownloadMode } from "@pulsorclip/core/shared";
 import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard } from "./keyboards";
 import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
-import { modeByChat, pendingByChat } from "./state";
-import type { PendingChoice } from "./types";
-import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance } from "./utils";
+import { modeByChat, pendingByChat, userQueues, userProcessing, userRequestCounter } from "./state";
+import type { PendingChoice, QueuedRequest } from "./types";
+import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance, escapeHTML } from "./utils";
 
 function statusMessage(locale: AppLocale) {
   return appConfig.telegramMaintenanceMode ? t(locale, "botStatusMaintenance") : t(locale, "botStatusReady");
@@ -107,15 +107,22 @@ function trimTitle(value: string) {
 
 function buildMediaSummary(choice: PendingChoice) {
   const parts = [choice.info.platform?.toUpperCase(), choice.info.uploader, formatDuration(choice.info.duration)].filter(Boolean);
-  return [trimTitle(choice.info.title || "Media"), parts.join(" • ")].filter(Boolean).join("\n");
+  const titleLine = `<b>Request #${choice.requestId}</b>\n${escapeHTML(trimTitle(choice.info.title || "Media"))}`;
+  return [titleLine, parts.join(" • ")].filter(Boolean).join("\n");
 }
 
-function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, copy: string) {
-  const sourceLink = `[Source](${choice.url})`;
+function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusText: string) {
+  const meta = choice.info;
   const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(choice.url)}`;
-  const webLink = `[Web](${webUrl})`;
-  
-  return [buildMediaSummary(choice), "", `🔗 ${sourceLink} | 🌐 ${webLink}`, "", copy].join("\n");
+  const sourceLink = `<a href="${choice.url}">Source</a>`;
+  const trackLink = `<a href="${webUrl}">Track</a>`;
+
+  return [
+    `<b>Request #${choice.requestId}</b>`,
+    statusText,
+    escapeHTML(trimTitle(meta.title || "")),
+    `🔗 ${sourceLink} | 📊 ${trackLink}`,
+  ].join("\n");
 }
 
 async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "upload_document" | "upload_video" | "upload_voice" = "typing") {
@@ -141,8 +148,8 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   }
 
   const extension = extname(file.filename).toLowerCase();
-  const finalCaption = `${title}\n\n🔗 [Source](${job.url}) | 📊 [Track](${appConfig.baseUrl}/track/${jobId})`;
-  const options = { caption: finalCaption, parse_mode: "Markdown" as const };
+  const finalCaption = `<b>Request #${job.source === "bot" ? (job as any).requestId || "?" : "?"}</b>\n${escapeHTML(title)}\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
+  const options = { caption: finalCaption, parse_mode: "HTML" as const };
 
   if (extension === ".mp3" || extension === ".m4a") {
     await bot.telegram.sendAudio(chatId, { source: createReadStream(file.filePath), filename: file.filename }, options);
@@ -182,11 +189,43 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
       resolvedUrl: choice.info.resolvedUrl,
       thumbnail: choice.info.thumbnail,
     });
+    
+    // Attach requestId to job object (hacky but works since it's in-memory)
+    (job as any).requestId = choice.requestId;
 
     pendingByChat.delete(ctx.chat.id);
+    
+    // For TikTok auto-triggers, we might not have a choice.messageId we want to reuse if images were just sent
+    // So we just reply with a new status if no messageId is present
+    if (!choice.messageId) {
+       await ctx.reply(`🎧 ${t(choice.locale, "botAudioLabel")}: ${t(choice.locale, "botProcessingShort")}`);
+       // Re-fetch to get the new message for tracking
+       // But triggerAudioJob is usually followed by trackJobInChat which handles the editing
+    }
+
     void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"));
   } catch (error) {
     await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+    void processNextInQueue(bot, ctx.from?.id, ctx);
+  }
+}
+async function processNextInQueue(bot: Telegraf, userId: number, ctx: any) {
+  const queue = userQueues.get(userId) || [];
+  if (queue.length === 0) {
+    userProcessing.set(userId, false);
+    return;
+  }
+
+  userProcessing.set(userId, true);
+  const request = queue.shift()!;
+  userQueues.set(userId, queue);
+
+  const locale = localeForTelegram(userId, ctx.from?.language_code);
+  try {
+    await loadAndPrompt(bot, ctx, request.url, locale, request.mode, null, request.requestId);
+  } catch (error) {
+    await ctx.reply(`❌ Request #${request.requestId}: ${error instanceof Error ? error.message : t(locale, "botDownloadFailed")}`);
+    void processNextInQueue(bot, userId, ctx);
   }
 }
 
@@ -210,8 +249,8 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
         chunk.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: idx === 0 ? `${choice.info.title}\n\n🔗 [Source](${choice.url}) | 🌐 [Web](${webUrl})` : undefined,
-          parse_mode: "Markdown",
+          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}\n\n🔗 <a href="${choice.url}">Source</a> | 📊 <a href="${webUrl}">Track</a>` : undefined,
+          parse_mode: "HTML",
         }))
       );
       // Small delay to avoid flood
@@ -262,7 +301,7 @@ async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, 
     await sendPresence(ctx, "upload_photo");
     const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
       caption: text,
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: replyMarkup,
     });
 
@@ -272,7 +311,7 @@ async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, 
   }
 
   await sendPresence(ctx, "typing");
-  const message = await ctx.reply(text, { reply_markup: replyMarkup, parse_mode: "Markdown" });
+  const message = await ctx.reply(text, { reply_markup: replyMarkup, parse_mode: "HTML" });
   choice.messageId = message.message_id;
   choice.messageKind = "text";
 }
@@ -286,12 +325,14 @@ async function editChoiceMessage(bot: Telegraf, chatId: number, choice: PendingC
     if (choice.messageKind === "photo") {
       await bot.telegram.editMessageCaption(chatId, choice.messageId, undefined, text, {
         reply_markup: replyMarkup,
+        parse_mode: "HTML",
       });
       return;
     }
 
     await bot.telegram.editMessageText(chatId, choice.messageId, undefined, text, {
       reply_markup: replyMarkup,
+      parse_mode: "HTML",
     });
   } catch {
     // Ignore transient edit issues.
@@ -408,13 +449,15 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
     if (job.status === "done") {
       await sendPresence(ctx, "upload_document");
       await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
+      void processNextInQueue(bot, ctx.from?.id, ctx);
       break;
     }
 
     if (job.status === "error") {
       await sendPresence(ctx, "typing");
       const errorMsg = job.error || t(choice.locale, "botDownloadFailed");
-      await ctx.reply(`❌ ${errorMsg}`, webKeyboard(choice.locale));
+      await ctx.reply(`❌ Request #${choice.requestId}: ${errorMsg}`, webKeyboard(choice.locale));
+      void processNextInQueue(bot, ctx.from?.id, ctx);
       break;
     }
 
@@ -422,15 +465,16 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
   }
 }
 
-async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null) {
+async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null, requestId: number = 1) {
   await sendPresence(ctx, "typing");
-  const loadingMessage = await ctx.reply(t(locale, "botInspecting"));
+  const loadingMessage = await ctx.reply(`🔍 Request #${requestId}: ${t(locale, "botInspecting")}`);
   const info = await fetchMediaInfo(url);
   const choice: PendingChoice = {
     id: randomUUID().slice(0, 8),
     url,
     info,
     locale,
+    requestId,
   };
 
   pendingByChat.set(ctx.chat.id, choice);
@@ -453,6 +497,8 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       if (hasAudio || isMusicOnly || isTikTok) {
         // Force audio download for TikTok carousels even if not explicitly in info
         await triggerAudioJob(bot, ctx, choice);
+      } else {
+        void processNextInQueue(bot, ctx.from?.id, ctx);
       }
       
       pendingByChat.delete(ctx.chat.id);
@@ -462,15 +508,16 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
     const webUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(url)}`;
     const refLink = `[Source](${url})`;
-    const webLink = `[Web](${webUrl})`;
+    const trackLink = `<a href="${webUrl}">Track</a>`;
     const text = [
+      `<b>Request #${requestId}</b>`,
       t(locale, "botImageCarousel"), 
       countLine, 
-      trimTitle(info.title || ""), 
+      escapeHTML(trimTitle(info.title || "")), 
       "", 
       t(locale, "botImageGalleryHint"),
       "",
-      `🔗 ${refLink} | 🌐 ${webLink}`
+      `🔗 ${refLink} | 📊 ${trackLink}`
     ]
       .filter(Boolean)
       .join("\n");
@@ -530,7 +577,27 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
 async function replyWelcome(ctx: any, locale: AppLocale) {
   const intro = [statusMessage(locale), t(locale, "botWelcome"), "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
   await sendPresence(ctx, "typing");
-  await ctx.reply(intro, { ...modeKeyboard(locale), parse_mode: "Markdown" });
+  await ctx.reply(intro, { ...modeKeyboard(locale), parse_mode: "HTML" });
+}
+
+async function enqueueRequest(bot: Telegraf, ctx: any, url: string, mode: DownloadMode) {
+  const userId = ctx.from?.id;
+  const locale = localeForTelegram(userId, ctx.from?.language_code);
+  if (!userId) return;
+
+  const currentCount = userRequestCounter.get(userId) || 0;
+  const nextId = currentCount + 1;
+  userRequestCounter.set(userId, nextId);
+
+  const queue = userQueues.get(userId) || [];
+  queue.push({ url, mode, requestId: nextId });
+  userQueues.set(userId, queue);
+
+  if (!userProcessing.get(userId)) {
+    void processNextInQueue(bot, userId, ctx);
+  } else {
+    await ctx.reply(`⏳ Added to your queue: <b>Request #${nextId}</b>`, { parse_mode: "HTML" });
+  }
 }
 
 export function registerBotHandlers(bot: Telegraf) {
@@ -552,7 +619,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), { ...modeKeyboard(locale), parse_mode: "Markdown" });
+    await ctx.reply(helpMessage(locale, isAdmin(ctx.from?.id)), { ...modeKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("language", async (ctx) => {
@@ -654,11 +721,7 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    try {
-      await loadAndPrompt(bot, ctx, request.url, locale, "video", request.format);
-    } catch (error) {
-      await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
-    }
+    void enqueueRequest(bot, ctx, request.url, "video");
   });
 
   bot.command("audio", async (ctx) => {
@@ -674,11 +737,7 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    try {
-      await loadAndPrompt(bot, ctx, request.url, locale, "audio", request.format);
-    } catch (error) {
-      await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
-    }
+    void enqueueRequest(bot, ctx, request.url, "audio");
   });
 
   bot.command("mp4", async (ctx) => {
@@ -732,8 +791,8 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     try {
-      const preferredMode = modeByChat.get(ctx.chat.id) || getUserPreferences(ctx.from?.id).mode;
-      await loadAndPrompt(bot, ctx, url, locale, preferredMode);
+      const preferredMode = modeByChat.get(ctx.chat.id) || getUserPreferences(ctx.from?.id).mode || "video";
+      void enqueueRequest(bot, ctx, url, preferredMode);
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
     }

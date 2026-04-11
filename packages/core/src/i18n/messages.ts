@@ -134,7 +134,7 @@ export const messages = {
     botHealthSent: "Admin health snapshot sent.",
     botReportSent: "Daily report sent to admins.",
     botTooLarge: "This file is larger than the Telegram upload limit. Open the web app instead.",
-    botOpenWeb: "🌐 Open web app",
+    botOpenWeb: "📊 Track request",
     botVideoLabel: "🎬 Video",
     botAudioLabel: "🎧 Audio",
     botBack: "← Back",
@@ -174,7 +174,7 @@ export const messages = {
     // Bot carousel
     botImageCarousel: "Image gallery detected",
     botImageGalleryHint: "This post contains images. Open the web app for batch controls, or select an option below:",
-    botOpenWebGallery: "🌐 Open Gallery (Web)",
+    botOpenWebGallery: "📊 Track gallery",
     botSendImages: "🖼️ Send all images here",
     // Bot help & misc
     botHelpIntro: "PulsorClip Telegram",
@@ -320,7 +320,7 @@ export const messages = {
     botHealthSent: "Point sante admin envoye.",
     botReportSent: "Rapport journalier envoye aux admins.",
     botTooLarge: "Ce fichier depasse la limite Telegram. Ouvre plutot l application web.",
-    botOpenWeb: "🌐 Ouvrir l app web",
+    botOpenWeb: "📊 Suivre la requête",
     botVideoLabel: "🎬 Video",
     botAudioLabel: "🎧 Audio",
     botBack: "← Retour",
@@ -361,7 +361,7 @@ export const messages = {
     // Bot carousel
     botImageCarousel: "Galerie d images detectee",
     botImageGalleryHint: "Ce post contient des images. Ouvre l'app web pour tout contrôler, ou choisis une option :",
-    botOpenWebGallery: "🌐 Ouvrir la galerie (Web)",
+    botOpenWebGallery: "📊 Suivre la galerie",
     botSendImages: "🖼️ Envoyer toutes les images ici",
     // Bot help & misc
     botHelpIntro: "PulsorClip Telegram",

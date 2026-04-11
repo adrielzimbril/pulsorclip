@@ -18,3 +18,10 @@ export function isAdmin(userId?: number) {
 export function shouldGateForMaintenance(userId?: number) {
   return appConfig.telegramMaintenanceMode && !isAdmin(userId);
 }
+
+export function escapeHTML(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
