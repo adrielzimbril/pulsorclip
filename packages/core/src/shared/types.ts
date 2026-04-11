@@ -19,6 +19,15 @@ export type MediaOption = {
   fps?: number;
 };
 
+export type PlaylistEntry = {
+  id: string;
+  url: string;
+  title: string;
+  thumbnail?: string;
+  duration: number | null;
+  uploader?: string;
+};
+
 export type MediaInfo = {
   title: string;
   thumbnail: string;
@@ -37,6 +46,13 @@ export type MediaInfo = {
   /** A direct video URL found during scraping/analysis (e.g. tikwm play URL). Distinct from resolvedUrl which is audio. */
   resolvedVideoUrl?: string | null;
   postId?: string;
+  /** Present when the URL resolves to a media playlist rather than a single item. */
+  playlist?: {
+    id?: string;
+    title: string;
+    count: number;
+    entries: PlaylistEntry[];
+  };
 };
 
 export type JobStatus = "queued" | "downloading" | "done" | "error";

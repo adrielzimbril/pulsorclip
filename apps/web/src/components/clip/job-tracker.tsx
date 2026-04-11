@@ -18,6 +18,25 @@ interface JobStatus {
   thumbnail?: string | null;
 }
 
+const funnyWaitingLines = {
+  en: [
+    "Packing pixels for the last mile.",
+    "The converter is arguing with the bitrate.",
+    "Final checks in progress before release.",
+  ],
+  fr: [
+    "On emballe les pixels pour le dernier kilometre.",
+    "Le convertisseur discute avec le bitrate.",
+    "Dernieres verifications avant livraison.",
+  ],
+} as const;
+
+function getFunnyWaiting(locale: AppLocale, seedSource: string) {
+  const lines = funnyWaitingLines[locale];
+  const seed = [...seedSource].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return lines[seed % lines.length];
+}
+
 export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale }) {
   const [job, setJob] = useState<JobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +59,7 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
         setJob(data);
         setLoading(false);
 
-        if (data.status === "completed" || data.status === "failed") {
+        if (data.status === "done" || data.status === "error") {
           clearInterval(interval);
         }
       } catch (err) {
@@ -66,7 +85,7 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
     );
   }
 
-  if (error || (job && job.status === "failed")) {
+  if (error || (job && job.status === "error")) {
     return (
       <div className="mx-auto max-w-lg overflow-hidden rounded-[32px] border border-red-500/20 bg-background/60 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col items-center justify-center space-y-6 px-8 py-16 text-center">
@@ -102,7 +121,7 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
 
   if (!job) return null;
 
-  const isCompleted = job.status === "completed";
+  const isCompleted = job.status === "done";
   const isQueued = job.status === "queued";
 
   return (
@@ -170,7 +189,11 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
                  {isCompleted ? (locale === "fr" ? "Terminé" : "Completed") : (locale === "fr" ? "Progression" : "Progress")}
               </span>
               <p className="text-sm font-semibold opacity-80">
-                {isCompleted ? (locale === "fr" ? "Fichier prêt" : "File is ready") : (isQueued ? (locale === "fr" ? `Position #${job.queuePosition}` : `Position #${job.queuePosition}`) : job.progressLabel || (locale === "fr" ? "Préparation..." : "Preparing..."))}
+                {isCompleted
+                  ? (locale === "fr" ? "Fichier prêt" : "File is ready")
+                  : (isQueued
+                    ? (locale === "fr" ? `Position #${job.queuePosition}` : `Position #${job.queuePosition}`)
+                    : job.progressLabel || getFunnyWaiting(locale, jobId))}
               </p>
             </div>
             <div className="text-3xl font-black italic tracking-tighter">
@@ -208,7 +231,7 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
             <div className="flex justify-center py-4">
                 <div className="flex items-center space-x-2 text-xs font-semibold text-muted-foreground animate-pulse">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    <span>{locale === "fr" ? "En attente du résultat final..." : "Waiting for results..."}</span>
+                    <span>{getFunnyWaiting(locale, jobId)}</span>
                 </div>
             </div>
         )}

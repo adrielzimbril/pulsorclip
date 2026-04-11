@@ -480,6 +480,36 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
   pendingByChat.set(ctx.chat.id, choice);
   await safeDeleteMessage(bot, ctx.chat.id, loadingMessage.message_id);
 
+  if (info.playlist && info.playlist.entries.length > 0) {
+    const text = [
+      `<b>Request #${requestId}</b>`,
+      t(locale, "botPlaylistDetected"),
+      `${info.playlist.entries.length} items`,
+      escapeHTML(trimTitle(info.playlist.title || info.title || "")),
+      "",
+      t(locale, "botPlaylistHint"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t(locale, "botQueuePlaylistVideo"), callback_data: `pl:${choice.id}:video` }],
+          [{ text: t(locale, "botQueuePlaylistAudio"), callback_data: `pl:${choice.id}:audio` }],
+          [{ text: t(locale, "botOpenWebPlaylist"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }],
+        ],
+      },
+    };
+
+    if (info.thumbnail) {
+      await ctx.replyWithPhoto(info.thumbnail, { caption: text, ...keyboard, parse_mode: "HTML" });
+    } else {
+      await ctx.reply(text, { ...keyboard, parse_mode: "HTML" });
+    }
+    return;
+  }
+
   // Image gallery detected — offer direct images or web app
   if (info.images && info.images.length > 0) {
     // TikTok specific: Auto-send without menu
@@ -598,6 +628,38 @@ async function enqueueRequest(bot: Telegraf, ctx: any, url: string, mode: Downlo
   } else {
     await ctx.reply(`⏳ Added to your queue: <b>Request #${nextId}</b>`, { parse_mode: "HTML" });
   }
+}
+
+async function enqueuePlaylistRequests(bot: Telegraf, ctx: any, choice: PendingChoice, mode: DownloadMode) {
+  const userId = ctx.from?.id;
+  if (!userId || !choice.info.playlist?.entries?.length) {
+    return;
+  }
+
+  const locale = localeForTelegram(userId, ctx.from?.language_code);
+  const queue = userQueues.get(userId) || [];
+  let currentCount = userRequestCounter.get(userId) || 0;
+
+  for (const entry of choice.info.playlist.entries) {
+    currentCount += 1;
+    queue.push({
+      url: entry.url,
+      mode,
+      requestId: currentCount,
+    });
+  }
+
+  userRequestCounter.set(userId, currentCount);
+  userQueues.set(userId, queue);
+
+  if (!userProcessing.get(userId)) {
+    void processNextInQueue(bot, userId, ctx);
+  }
+
+  await ctx.reply(
+    t(locale, "playlistQueued").replace("{count}", String(choice.info.playlist.entries.length)),
+    webKeyboard(locale),
+  );
 }
 
 export function registerBotHandlers(bot: Telegraf) {
@@ -957,6 +1019,32 @@ export function registerBotHandlers(bot: Telegraf) {
     } catch (error) {
       await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
     }
+  });
+
+  bot.action(/pl:([a-z0-9]+):(video|audio)/, async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) {
+      return;
+    }
+
+    const [, pendingId, rawMode] = ctx.match;
+    const choice = pendingByChat.get(chatId);
+
+    if (!choice || choice.id !== pendingId || !choice.info.playlist?.entries?.length) {
+      await ctx.answerCbQuery("Expired.").catch(() => {});
+      return;
+    }
+
+    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
+    await editChoiceMessage(
+      bot,
+      chatId,
+      choice,
+      buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`),
+      { inline_keyboard: [] },
+    );
+    pendingByChat.delete(chatId);
+    await enqueuePlaylistRequests(bot, ctx, choice, rawMode as DownloadMode);
   });
 
   bot.action(/imgs:([a-z0-9]+)/, async (ctx) => {

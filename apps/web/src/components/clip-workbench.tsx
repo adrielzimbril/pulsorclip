@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppLocale, DownloadMode, MediaInfo, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
+import type { AppLocale, DownloadMode, MediaInfo, AudioContainer, VideoContainer, PlaylistEntry } from "@pulsorclip/core/shared";
 import { t } from "@pulsorclip/core/i18n";
 import { MediaCard } from "./clip/media-card";
 import { SupportedPlatformsModal } from "./clip/supported-platforms-modal";
@@ -11,6 +11,7 @@ import { SiteHeader } from "./site/site-header";
 import { externalLinks } from "@/lib/external-links";
 
 type WorkspaceView = "normal" | "bulk";
+type PlaylistModalState = { title: string; count: number; entries: PlaylistEntry[] };
 
 function parseUrls(raw: string) {
   const urlPattern = /^https?:\/\//i;
@@ -34,8 +35,11 @@ export function ClipWorkbench({
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [tiktokCarousel, setTiktokCarousel] = useState<{ images: string[]; title: string; postId: string; audioUrl?: string } | null>(null);
+  const [playlistModal, setPlaylistModal] = useState<PlaylistModalState | null>(null);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [selectedPlaylistEntries, setSelectedPlaylistEntries] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
+  const [isQueueingPlaylist, setIsQueueingPlaylist] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
@@ -171,6 +175,59 @@ export function ClipWorkbench({
     setNotice(`${imagesToDownload.length} ${t(locale, "zipReady")}`);
   }
 
+  function buildPlaylistCards(entries: PlaylistEntry[]): ClipCard[] {
+    return entries.map((entry, index) => ({
+      id: `playlist-${Date.now()}-${index}`,
+      url: entry.url,
+      title: entry.title,
+      thumbnail: entry.thumbnail || "",
+      uploader: entry.uploader || "YouTube",
+      duration: entry.duration ?? null,
+      videoOptions: [],
+      audioOptions: [],
+      selectedVideoFormatId: null,
+      selectedAudioFormatId: null,
+      videoExt: "mp4",
+      audioExt: "mp3",
+      status: "ready",
+      progress: 0,
+      progressLabel: t(locale, "inspectReady"),
+    }));
+  }
+
+  async function queuePlaylistSelection(mode: DownloadMode) {
+    if (!playlistModal || selectedPlaylistEntries.size === 0) {
+      return;
+    }
+
+    const selectedEntries = playlistModal.entries.filter((entry) => selectedPlaylistEntries.has(entry.url));
+    const playlistCards = buildPlaylistCards(selectedEntries);
+
+    setIsQueueingPlaylist(true);
+    setView("bulk");
+    setNotice(t(locale, "queueingSelection"));
+    setCards((current) => [...playlistCards, ...current]);
+    setPlaylistModal(null);
+
+    try {
+      if (downloadMode !== mode) {
+        setDownloadMode(mode);
+      }
+
+      for (const card of playlistCards) {
+        await prepareDownload({
+          ...card,
+          videoExt: mode === "video" ? "mp4" : card.videoExt,
+          audioExt: mode === "audio" ? "mp3" : card.audioExt,
+        }, mode);
+      }
+
+      setNotice(t(locale, "playlistQueued").replace("{count}", String(selectedEntries.length)));
+    } finally {
+      setIsQueueingPlaylist(false);
+    }
+  }
+
   async function inspectUrls(urls: string[]) {
     if (!urls.length) {
       return;
@@ -216,6 +273,19 @@ export function ClipWorkbench({
           // BUT: for Threads, we prioritize the regular workbench if video is present
           const isThreads = card.url.includes("threads.net") || card.url.includes("threads.com");
           const hasVideo = payload.videoOptions && payload.videoOptions.length > 0;
+
+          if (response.ok && payload.playlist?.entries && payload.playlist.entries.length > 0) {
+            setCards([]);
+            setIsFetching(false);
+            setPlaylistModal({
+              title: payload.playlist.title || payload.title || t(locale, "playlistTitle"),
+              count: payload.playlist.count || payload.playlist.entries.length,
+              entries: payload.playlist.entries,
+            });
+            setSelectedPlaylistEntries(new Set(payload.playlist.entries.map((entry) => entry.url)));
+            setNotice(t(locale, "playlistDetected"));
+            return;
+          }
 
           if (response.ok && payload.images && payload.images.length > 0 && (!isThreads || !hasVideo)) {
             setCards([]);
@@ -282,7 +352,9 @@ export function ClipWorkbench({
     await inspectUrls(view === "normal" ? urls.slice(0, 1) : urls);
   }
 
-  async function prepareDownload(card: ClipCard) {
+  async function prepareDownload(card: ClipCard, modeOverride?: DownloadMode) {
+    const activeMode = modeOverride || downloadMode;
+
     updateCard(card.id, (current) => ({
       ...current,
       status: "queued",
@@ -291,8 +363,8 @@ export function ClipWorkbench({
       progressLabel: t(locale, "queuedDownload"),
     }));
 
-    const formatId = downloadMode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
-    const targetExt = downloadMode === "video" ? card.videoExt : card.audioExt;
+    const formatId = activeMode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
+    const targetExt = activeMode === "video" ? card.videoExt : card.audioExt;
 
     try {
       const response = await fetch("/api/download", {
@@ -302,7 +374,7 @@ export function ClipWorkbench({
         },
         body: JSON.stringify({
           url: card.url,
-          mode: downloadMode,
+          mode: activeMode,
           formatId,
           targetExt,
           title: card.title,
@@ -668,14 +740,148 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      {/* Image Gallery Carousel Modal — generic, no JSX grid changes */}
+      {playlistModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t(locale, "playlistTitle")}
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isQueueingPlaylist) {
+              setPlaylistModal(null);
+            }
+          }}
+        >
+          <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-[28px] border border-line bg-surface">
+            <div className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-line bg-surface p-6 pb-4">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground">
+                  {t(locale, "playlistTitle")}
+                </p>
+                <h2 className="mt-1 truncate text-base font-bold">
+                  {playlistModal.title}
+                </h2>
+                <p className="mt-1 text-xs text-muted">
+                  {selectedPlaylistEntries.size} / {playlistModal.entries.length} {t(locale, "itemsSelected")}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label={t(locale, "closeModal")}
+                disabled={isQueueingPlaylist}
+                onClick={() => setPlaylistModal(null)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-muted transition hover:border-foreground hover:text-foreground disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 pt-4">
+              <div className="space-y-3">
+                {playlistModal.entries.map((entry, index) => {
+                  const isSelected = selectedPlaylistEntries.has(entry.url);
+                  return (
+                    <button
+                      key={`${entry.id}-${index}`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedPlaylistEntries((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(entry.url)) next.delete(entry.url);
+                          else next.add(entry.url);
+                          return next;
+                        })
+                      }
+                      className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${
+                        isSelected
+                          ? "border-foreground bg-background"
+                          : "border-line bg-background/50 hover:border-foreground/50"
+                      }`}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface-muted text-xs font-bold">
+                        {String(index + 1).padStart(2, "0")}
+                      </div>
+                      {entry.thumbnail ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={entry.thumbnail} alt="" className="h-16 w-28 rounded-xl object-cover" />
+                      ) : (
+                        <div className="flex h-16 w-28 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-muted text-[11px] font-semibold uppercase text-muted">
+                          YouTube
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-semibold">{entry.title}</p>
+                        <p className="mt-1 text-xs text-muted">
+                          {[entry.uploader, entry.duration ? `${Math.floor(entry.duration / 60)}:${String(entry.duration % 60).padStart(2, "0")}` : null]
+                            .filter(Boolean)
+                            .join(" • ")}
+                        </p>
+                      </div>
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${isSelected ? "border-foreground bg-foreground text-background" : "border-line text-muted"}`}>
+                        {isSelected ? "✓" : ""}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 z-20 flex flex-col gap-3 border-t border-line bg-surface p-6 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlaylistEntries(new Set(playlistModal.entries.map((entry) => entry.url)))}
+                    className="btn-outline px-4 py-2 text-xs"
+                  >
+                    {t(locale, "selectAll")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlaylistEntries(new Set())}
+                    className="btn-outline px-4 py-2 text-xs"
+                  >
+                    {t(locale, "deselectAll")}
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={selectedPlaylistEntries.size === 0 || isQueueingPlaylist}
+                    onClick={() => void queuePlaylistSelection("audio")}
+                    className="btn-outline px-4 py-2 text-xs"
+                  >
+                    {t(locale, "queueSelectedAudio")} ({selectedPlaylistEntries.size})
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedPlaylistEntries.size === 0 || isQueueingPlaylist}
+                    onClick={() => void queuePlaylistSelection("video")}
+                    className="btn-primary px-4 py-2 text-xs"
+                  >
+                    {t(locale, "queueSelectedVideo")} ({selectedPlaylistEntries.size})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Gallery Carousel Modal */}
       {tiktokCarousel && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={t(locale, "imageGallery")}
           className="modal-backdrop"
-          onClick={(e) => { if (e.target === e.currentTarget) setTiktokCarousel(null); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowDownloadDropdown(false);
+              setTiktokCarousel(null);
+            }
+          }}
         >
           <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[28px] border border-line bg-surface">
             {/* Header — Sticky */}
@@ -694,7 +900,10 @@ export function ClipWorkbench({
               <button
                 type="button"
                 aria-label={t(locale, "closeModal")}
-                onClick={() => setTiktokCarousel(null)}
+                onClick={() => {
+                  setShowDownloadDropdown(false);
+                  setTiktokCarousel(null);
+                }}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-muted transition hover:border-foreground hover:text-foreground"
               >
                 ✕

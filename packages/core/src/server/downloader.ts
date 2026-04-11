@@ -21,6 +21,7 @@ import type {
   DownloadRequestPayload,
   MediaInfo,
   MediaOption,
+  PlaylistEntry,
 } from "../shared/types";
 
 declare global {
@@ -78,7 +79,103 @@ function normalizeMediaInfo(info: MediaInfo): MediaInfo {
     thumbnail: normalizeUrl(info.thumbnail) || "",
     images: info.images?.map((u) => normalizeUrl(u)).filter((u): u is string => !!u),
     resolvedUrl: normalizeUrl(info.resolvedUrl),
+    resolvedVideoUrl: normalizeUrl(info.resolvedVideoUrl),
+    playlist: info.playlist
+      ? {
+          ...info.playlist,
+          entries: info.playlist.entries
+            .map((entry) => ({
+              ...entry,
+              thumbnail: normalizeUrl(entry.thumbnail),
+            }))
+            .filter((entry) => !!entry.url),
+        }
+      : undefined,
   };
+}
+
+function isYoutubePlaylistUrl(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    const hasList = parsed.searchParams.has("list");
+
+    if (!hasList) {
+      return false;
+    }
+
+    return (
+      hostname.includes("youtube.com") ||
+      hostname.includes("youtu.be") ||
+      hostname.includes("music.youtube.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolvePlaylistEntryUrl(entry: Record<string, unknown>, playlistUrl: string) {
+  const directUrl = typeof entry.url === "string" ? entry.url : null;
+
+  if (directUrl?.startsWith("http")) {
+    return directUrl;
+  }
+
+  if (typeof entry.webpage_url === "string" && entry.webpage_url.startsWith("http")) {
+    return entry.webpage_url;
+  }
+
+  if (typeof entry.id === "string" && isYoutubePlaylistUrl(playlistUrl)) {
+    try {
+      const playlist = new URL(playlistUrl);
+      const listId = playlist.searchParams.get("list");
+      const watchUrl = new URL("https://www.youtube.com/watch");
+      watchUrl.searchParams.set("v", entry.id);
+      if (listId) {
+        watchUrl.searchParams.set("list", listId);
+      }
+      return watchUrl.toString();
+    } catch {
+      return `https://www.youtube.com/watch?v=${entry.id}`;
+    }
+  }
+
+  return null;
+}
+
+function extractPlaylistEntries(parsed: Record<string, unknown>, playlistUrl: string): PlaylistEntry[] {
+  if (parsed._type !== "playlist" || !Array.isArray(parsed.entries)) {
+    return [];
+  }
+
+  const entries = (parsed.entries as Record<string, unknown>[])
+    .map<PlaylistEntry | null>((entry, index) => {
+      const url = resolvePlaylistEntryUrl(entry, playlistUrl);
+
+      if (!url) {
+        return null;
+      }
+
+      return {
+        id:
+          (typeof entry.id === "string" && entry.id) ||
+          `${index + 1}`,
+        url,
+        title: decodeHtmlEntities(
+          typeof entry.title === "string" && entry.title.trim()
+            ? entry.title
+            : `Item ${index + 1}`,
+        ),
+        thumbnail: normalizeUrl(typeof entry.thumbnail === "string" ? entry.thumbnail : undefined),
+        duration: typeof entry.duration === "number" ? entry.duration : null,
+        uploader:
+          typeof entry.uploader === "string" && entry.uploader.trim()
+            ? decodeHtmlEntities(entry.uploader)
+            : undefined,
+      };
+    });
+
+  return entries.filter((entry): entry is PlaylistEntry => entry !== null);
 }
 
 function simplifyError(raw: string) {
@@ -897,6 +994,7 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
 
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   const url = await expandUrl(rawUrl);
+  const allowPlaylistInfo = isYoutubePlaylistUrl(url);
 
   const sourceProfile = getSourceProfile(url);
   logServer("info", "media.info.fetch.started", {
@@ -912,7 +1010,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
         ...getAuthArgs(),
         ...sourceProfile.extractorArgs,
         "--dump-single-json",
-        "--no-playlist",
+        ...(allowPlaylistInfo ? [] : ["--no-playlist"]),
         "--socket-timeout",
         "30",
         "--geo-bypass",
@@ -936,9 +1034,10 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     }
 
     const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
+    const playlistEntries = extractPlaylistEntries(parsed, url);
 
     let images: string[] | undefined;
-    if (parsed._type === "playlist" && Array.isArray(parsed.entries)) {
+    if (parsed._type === "playlist" && Array.isArray(parsed.entries) && playlistEntries.length === 0) {
       const extracted = (parsed.entries as Record<string, unknown>[])
         .flatMap((entry) => {
           if (
@@ -983,6 +1082,22 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       videoOptions,
       audioOptions,
       images,
+      playlist:
+        playlistEntries.length > 0
+          ? {
+              id: typeof parsed.id === "string" ? parsed.id : undefined,
+              title: decodeHtmlEntities(
+                typeof parsed.title === "string" && parsed.title.trim()
+                  ? parsed.title
+                  : "Playlist",
+              ),
+              count:
+                typeof parsed.playlist_count === "number"
+                  ? parsed.playlist_count
+                  : playlistEntries.length,
+              entries: playlistEntries,
+            }
+          : undefined,
     };
 
     // TikTok Enrichment Fallback: If no audioOptions, try to find the audio via Tikwm

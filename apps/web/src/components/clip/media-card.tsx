@@ -42,6 +42,60 @@ function explainError(locale: AppLocale, error: string | null | undefined) {
   return error;
 }
 
+const funnyStatusLines = {
+  en: {
+    queued: [
+      "Server hamsters are waiting for a free wheel.",
+      "Queue slot reserved. The pixels are stretching.",
+      "Your clip is parked in the launch lane.",
+    ],
+    downloading: [
+      "Packing pixels and tightening bolts.",
+      "Pulling bytes from the cloud with both hands.",
+      "Convincing the converter to behave.",
+    ],
+    finishing: [
+      "Dusting the file and checking the corners.",
+      "Adding the final polish before release.",
+      "Wrapping the export for delivery.",
+    ],
+  },
+  fr: {
+    queued: [
+      "Les hamsters du serveur attendent une roue libre.",
+      "Le slot est reserve. Les pixels s echauffent.",
+      "Le clip est gare dans la ligne de lancement.",
+    ],
+    downloading: [
+      "On emballe les pixels et on resserre les boulons.",
+      "On tire les octets du cloud a deux mains.",
+      "On negocie avec le convertisseur pour qu il reste sage.",
+    ],
+    finishing: [
+      "On depoussierre le fichier avant livraison.",
+      "On ajoute la derniere couche de finition.",
+      "L export est en train d etre emballe.",
+    ],
+  },
+} as const;
+
+function getFunnyStatus(locale: AppLocale, seedSource: string, status: CardStatus, progress: number) {
+  const seed = [...seedSource].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+  if (status === "queued") {
+    const lines = funnyStatusLines[locale].queued;
+    return lines[seed % lines.length];
+  }
+
+  if (progress >= 90 || status === "done") {
+    const lines = funnyStatusLines[locale].finishing;
+    return lines[seed % lines.length];
+  }
+
+  const lines = funnyStatusLines[locale].downloading;
+  return lines[seed % lines.length];
+}
+
 export function MediaCard({
   locale,
   card,
@@ -64,6 +118,11 @@ export function MediaCard({
   const activeContainer = mode === "video" ? card.videoExt : card.audioExt;
   const canPrepare = card.status === "ready" || card.status === "error";
   const canDownload = card.status === "done" && !!card.jobId;
+  const waitingLine =
+    card.progressLabel ||
+    (card.status === "done"
+      ? t(locale, "statusReadyMessage")
+      : getFunnyStatus(locale, card.jobId || card.id, card.status, card.progress));
 
   return (
     <article className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
@@ -126,7 +185,7 @@ export function MediaCard({
                 <div className="progress-bar-accent" style={{ width: `${card.progress}%` }} />
               </div>
               <p className="mt-3 text-sm text-muted">
-                {card.progressLabel || (card.status === "done" ? t(locale, "statusReadyMessage") : t(locale, "statusWaiting"))}
+                {waitingLine}
               </p>
             </div>
           )}
