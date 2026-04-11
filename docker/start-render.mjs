@@ -4,35 +4,46 @@ const children = [];
 let shuttingDown = false;
 
 function run(name, command, args, env = process.env) {
-  const child = spawn(command, args, {
-    stdio: "inherit",
-    env,
-    shell: process.platform === "win32",
-  });
+  let restartCount = 0;
 
-  child.on("exit", (code) => {
-    if (shuttingDown) {
-      return;
-    }
-    
-    console.error(`[pulsorclip] ${name} exited with code ${code}.`);
-    
-    // Only shutdown everything if the web process crashes.
-    // If the bot crashes, we just log it and let web continue.
-    if (name === "web") {
-      shuttingDown = true;
-      for (const current of children) {
-        if (current !== child && !current.killed) {
-          current.kill("SIGTERM");
-        }
+  function spawnChild() {
+    const child = spawn(command, args, {
+      stdio: "inherit",
+      env,
+      shell: process.platform === "win32",
+    });
+
+    child.on("exit", (code) => {
+      if (shuttingDown) {
+        return;
       }
-      process.exit(code ?? 1);
-    }
-  });
 
-  children.push(child);
-  console.log(`[pulsorclip] started ${name}`);
-  return child;
+      console.error(`[pulsorclip] ${name} exited with code ${code}.`);
+
+      if (name === "web") {
+        // Render expects the main process to exit if the web server fails,
+        // but since we want auto-restart, we'll only exit if it's a fatal shutdown.
+        // However, if it crashed, we restart it.
+        console.log(`[pulsorclip] restarting ${name} in 5s... (attempt ${++restartCount})`);
+        setTimeout(spawnChild, 5000);
+      } else {
+        console.log(`[pulsorclip] restarting ${name} in 5s... (attempt ${++restartCount})`);
+        setTimeout(spawnChild, 5000);
+      }
+    });
+
+    const index = children.findIndex(c => c.name === name);
+    if (index !== -1) {
+      children[index].child = child;
+    } else {
+      children.push({ name, child });
+    }
+
+    console.log(`[pulsorclip] started ${name}`);
+    return child;
+  }
+
+  return spawnChild();
 }
 
 const port = process.env.PORT || "10000";
@@ -57,9 +68,9 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
     shuttingDown = true;
 
-    for (const child of children) {
-      if (!child.killed) {
-        child.kill(signal);
+    for (const item of children) {
+      if (item.child && !item.child.killed) {
+        item.child.kill(signal);
       }
     }
 

@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig, ensureAppDirs } from "./config";
@@ -466,7 +467,6 @@ async function downloadDirectFile(
 
   const writer = createWriteStream(outputPath);
   // Fix for Web Streams in Node pipeline
-  const { Readable } = require("stream");
   const stream = Readable.fromWeb ? Readable.fromWeb(response.body as any) : response.body;
   // @ts-ignore
   await pipeline(stream, writer);
