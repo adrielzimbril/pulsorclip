@@ -436,14 +436,19 @@ async function downloadDirectFile(
 ) {
   updateJobProgress(job, 15, "Fetching high-speed media stream");
   logServer("info", "media.download.direct.started", { url: urlForLogs(url), outputPath });
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Referer": "https://www.threads.net/",
-    },
-  });
+  const headers: Record<string, string> = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+
+  if (url.includes("threads") || url.includes("cdninstagram")) {
+    headers["Referer"] = "https://www.threads.net/";
+  } else if (url.includes("tiktok") || url.includes("tikwm")) {
+    headers["Referer"] = "https://www.tiktok.com/";
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Direct download failed: ${response.status} ${response.statusText}`);
@@ -454,8 +459,11 @@ async function downloadDirectFile(
   }
 
   const writer = createWriteStream(outputPath);
-  // @ts-ignore - ReadableStream/Readable type mismatch in some Node environments
-  await pipeline(response.body, writer);
+  // Fix for Web Streams in Node pipeline
+  const { Readable } = require("stream");
+  const stream = Readable.fromWeb ? Readable.fromWeb(response.body as any) : response.body;
+  // @ts-ignore
+  await pipeline(stream, writer);
 }
 
 async function convertVideo(
