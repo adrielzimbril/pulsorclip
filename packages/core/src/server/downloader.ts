@@ -962,14 +962,6 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
 
     // TikTok Enrichment Fallback: If no audioOptions, try to find the audio via Tikwm
     if (sourceProfile.platform === "tiktok" && mediaInfo.audioOptions.length === 0) {
-      logServer("info", "media.download.started", {
-        jobId,
-        platform: sourceProfile.platform,
-        url: urlForLogs(job.url),
-        args: sourceArgs.map((arg) => (arg.includes("cookie") ? "***" : arg)),
-      });
-
-      const { stdout, stderr, exitCode } = await spawnYtDlp(sourceArgs, jobUrl);
       try {
         const carouselInfo = await scrapeTikTokCarousel(url);
         if (carouselInfo.audioOptions.length > 0) {
