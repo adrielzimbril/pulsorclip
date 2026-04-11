@@ -758,21 +758,105 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
 }
 
 async function expandUrl(url: string): Promise<string> {
-  if (!url.includes("vt.tiktok.com") && !url.includes("vm.tiktok.com") && !url.includes("youtu.be") && !url.includes("t.co")) {
+  const needsExpansion = [
+    "vt.tiktok.com",
+    "vm.tiktok.com",
+    "youtu.be",
+    "t.co",
+    "facebook.com/share",
+    "fb.watch",
+  ].some((pattern) => url.includes(pattern));
+
+  if (!needsExpansion) {
     return url;
   }
 
   try {
     const response = await fetch(url, {
-      method: "HEAD",
+      method: "GET", // Use GET to ensure we follow all levels of redirects
       redirect: "follow",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
     });
     return response.url || url;
   } catch {
     return url;
+  }
+}
+
+async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      },
+    });
+
+    const html = await response.text();
+
+    const titleMatch = html.match(
+      /<meta property="og:title" content="([^"]+)"/i,
+    );
+    const thumbnailMatch = html.match(
+      /<meta property="og:image" content="([^"]+)"/i,
+    );
+    const descriptionMatch = html.match(
+      /<meta property="og:description" content="([^"]+)"/i,
+    );
+
+    const title = decodeHtmlEntities(titleMatch ? titleMatch[1] : "");
+    const thumbnail = thumbnailMatch
+      ? thumbnailMatch[1].replace(/&amp;/g, "&")
+      : "";
+    const description = decodeHtmlEntities(
+      descriptionMatch ? descriptionMatch[1] : "",
+    );
+
+    const images: string[] = [];
+    if (thumbnail) images.push(thumbnail);
+
+    // Heuristic for finding other images in the post carousel/album
+    const imgRegex = /"https:\/\/scontent\.[^"]+\.jpg[^"]*"/g;
+    const matches = html.match(imgRegex);
+    if (matches) {
+      matches.forEach((m) => {
+        const u = m
+          .replace(/"/g, "")
+          .replace(/\\/g, "")
+          .replace(/&amp;/g, "&");
+        // Filter out common UI icons/tracking pixels by checking for known dimensions or patterns
+        if (
+          !images.includes(u) &&
+          !u.includes("/cp0/") &&
+          !u.includes("/p100x100/")
+        ) {
+          images.push(u);
+        }
+      });
+    }
+
+    return normalizeMediaInfo({
+      title: title || description || "Facebook Post",
+      thumbnail,
+      duration: null,
+      uploader: "Facebook",
+      platform: "facebook",
+      images: images.length > 0 ? [...new Set(images)].slice(0, 15) : undefined,
+      videoOptions: [],
+      audioOptions: [],
+    });
+  } catch (err) {
+    logServer("error", "media.info.scrape.facebook.failed", {
+      url: urlForLogs(url),
+      error: String(err),
+    });
+    throw err;
   }
 }
 
@@ -805,6 +889,9 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       }
       if (sourceProfile.platform === "tiktok") {
         return await scrapeTikTokCarousel(url);
+      }
+      if (sourceProfile.platform === "facebook") {
+        return await scrapeFacebookInfo(url);
       }
       throw new Error(simplifyError(result.stderr));
     }
