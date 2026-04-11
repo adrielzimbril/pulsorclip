@@ -702,7 +702,16 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
       if (!audioUrl.startsWith("http")) audioUrl = "";
     }
 
-    const audioTitle = mediaData.music_info?.title || mediaData.music_info?.author || "TikTok Audio";
+    const musicAuthor = mediaData.music_info?.author || "";
+    const musicTitle = mediaData.music_info?.title || "";
+    let audioTitle = "TikTok Audio";
+    
+    if (musicAuthor && musicTitle) {
+      audioTitle = `${musicAuthor} - ${musicTitle}`;
+    } else if (musicTitle || musicAuthor) {
+      audioTitle = musicTitle || musicAuthor;
+    }
+
     const audioOptions: MediaOption[] = audioUrl
       ? [
           {
@@ -715,7 +724,7 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
       : [];
 
     const result: MediaInfo = {
-      title: mediaData.title || mediaData.music_info?.title || "TikTok Carousel",
+      title: mediaData.title || audioTitle || "TikTok Media",
       uploader: mediaData.author?.nickname || mediaData.author?.unique_id,
       duration: mediaData.duration,
       platform: "tiktok",

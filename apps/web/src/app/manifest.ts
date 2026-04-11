@@ -1,15 +1,14 @@
-﻿import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PulsorClip",
+    name: "PulsorClip — Premium Media Downloader",
     short_name: "PulsorClip",
-    description:
-      "Self-hosted media download and export workspace by Adriel Zimbril.",
+    description: "The most powerful self-hosted media download and export workspace. Save TikTok, Reels, Threads, and X media with one click.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f4f5f6",
-    theme_color: "#111318",
+    background_color: "#000000",
+    theme_color: "#000000",
     icons: [
       {
         src: "/icon.png",

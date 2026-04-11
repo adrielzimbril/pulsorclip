@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -35,11 +35,28 @@ export const metadata: Metadata = {
   keywords: [
     "PulsorClip",
     "Adriel Zimbril",
+    "tiktok downloader",
+    "tiktok video saver",
+    "tiktok music extractor",
+    "tiktok mp3 downloader",
+    "threads downloader",
+    "threads video saver",
+    "threads image gallery",
+    "instagram reels downloader",
+    "reels saver",
+    "twitter video downloader",
+    "x video saver",
+    "youtube downloader",
+    "yt-dlp web UI",
+    "ffmpeg media export",
     "self-hosted downloader",
-    "yt-dlp",
-    "Telegram bot",
-    "media download workspace",
-    "Next.js 16",
+    "telegram media bot",
+    "cobalt alternative",
+    "download music from tiktok",
+    "save tiktok without watermark",
+    "fast media downloader",
+    "secure file exporter",
+    "web-based yt-dlp",
   ],
   openGraph: {
     title: "PulsorClip",
@@ -47,6 +64,14 @@ export const metadata: Metadata = {
       "Download media with yt-dlp and ffmpeg, then release manual downloads from a clean self-hosted workspace.",
     url: appUrl,
     siteName: "PulsorClip",
+    images: [
+      {
+        url: "/preview-light.png",
+        width: 1200,
+        height: 630,
+        alt: "PulsorClip — Premium Media Downloader",
+      },
+    ],
     type: "website",
     locale: "en_US",
   },
@@ -55,6 +80,7 @@ export const metadata: Metadata = {
     title: "PulsorClip",
     description: "Self-hosted media download and export workflow by Adriel Zimbril.",
     creator: "@adrielzimbril",
+    images: ["/preview-light.png"],
   },
   robots: {
     index: true,
@@ -66,6 +92,14 @@ export const metadata: Metadata = {
       "max-snippet": -1,
       "max-video-preview": -1,
     },
+  },
+  verification: {
+    google: "google-site-verification-placeholder",
+  },
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
   },
 };
 
