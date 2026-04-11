@@ -31,12 +31,30 @@ declare global {
   var __pulsorclipActiveJobId: string | null | undefined;
 }
 
-const jobs = global.__pulsorclipJobs ?? new Map<string, DownloadJob>(Object.entries(getStoredJobs()));
-const queue = global.__pulsorclipQueue ?? getStoredQueue();
+function getJobs() {
+  if (!global.__pulsorclipJobs) {
+    global.__pulsorclipJobs = new Map<string, DownloadJob>(Object.entries(getStoredJobs()));
+  }
+  return global.__pulsorclipJobs;
+}
 
-global.__pulsorclipJobs = jobs;
-global.__pulsorclipQueue = queue;
-global.__pulsorclipActiveJobId ??= null;
+function getQueue() {
+  if (!global.__pulsorclipQueue) {
+    global.__pulsorclipQueue = getStoredQueue();
+  }
+  return global.__pulsorclipQueue;
+}
+
+function getActiveJobId() {
+  if (global.__pulsorclipActiveJobId === undefined) {
+    global.__pulsorclipActiveJobId = null;
+  }
+  return global.__pulsorclipActiveJobId;
+}
+
+function setActiveJobId(id: string | null) {
+  global.__pulsorclipActiveJobId = id;
+}
 
 const INFO_TIMEOUT_MS = 60_000;
 const DOWNLOAD_TIMEOUT_MS = 12 * 60_000;
@@ -45,7 +63,7 @@ const DOWNLOAD_IDLE_TIMEOUT_MS = 90_000;
 const TRANSCODE_IDLE_TIMEOUT_MS = 120_000;
 
 function syncJobState() {
-  writeStoredJobs(Object.fromEntries(jobs), [...queue]);
+  writeStoredJobs(Object.fromEntries(getJobs()), [...getQueue()]);
 }
 
 function sanitizeFilename(input: string) {
@@ -351,9 +369,9 @@ function getAuthArgs() {
 }
 
 function updateQueuePositions() {
-  for (const job of jobs.values()) {
+  for (const job of getJobs().values()) {
     if (job.status === "queued") {
-      const index = queue.indexOf(job.id);
+      const index = getQueue().indexOf(job.id);
       job.queuePosition = index >= 0 ? index + 1 : 1;
     } else {
       job.queuePosition = 0;
@@ -466,10 +484,24 @@ async function downloadDirectFile(
   });
 
   const writer = createWriteStream(outputPath);
-  // Fix for Web Streams in Node pipeline
-  const stream = Readable.fromWeb ? Readable.fromWeb(response.body as any) : response.body;
-  // @ts-ignore
-  await pipeline(stream, writer);
+  
+  try {
+    // In Node 22+, pipeline natively supports Web Streams. 
+    // We use Readable.fromWeb if available for backward compatibility, 
+    // but we wrap the whole thing to catch potential ReferenceErrors (e.g. 'require') 
+    // that some polyfills might trigger.
+    if (Readable.fromWeb && response.body) {
+      const nodeStream = Readable.fromWeb(response.body as any);
+      // @ts-ignore
+      await pipeline(nodeStream, writer);
+    } else {
+      // @ts-ignore
+      await pipeline(response.body, writer);
+    }
+  } catch (err) {
+    writer.destroy();
+    throw err;
+  }
 
   if (contentLength > 0) {
     const stats = statSync(outputPath);
@@ -1184,7 +1216,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   }
 }
 export async function executeDownload(jobId: string) {
-  const job = jobs.get(jobId);
+  const job = getJobs().get(jobId);
 
   if (!job) {
     return;
@@ -1380,27 +1412,27 @@ export async function executeDownload(jobId: string) {
 }
 
 async function processQueue() {
-  if (global.__pulsorclipActiveJobId) {
+  if (getActiveJobId()) {
     return;
   }
 
-  const nextJobId = queue.shift();
+  const nextJobId = getQueue().shift();
 
   if (!nextJobId) {
     updateQueuePositions();
     return;
   }
 
-  global.__pulsorclipActiveJobId = nextJobId;
+  setActiveJobId(nextJobId);
   updateQueuePositions();
 
   try {
     await executeDownload(nextJobId);
   } finally {
-    global.__pulsorclipActiveJobId = null;
+    setActiveJobId(null);
     updateQueuePositions();
 
-    if (queue.length > 0) {
+    if (getQueue().length > 0) {
       void processQueue();
     }
   }
@@ -1423,7 +1455,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     status: "queued",
     progress: 0,
     progressLabel: "Queued",
-    queuePosition: queue.length + 1,
+    queuePosition: getQueue().length + 1,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     resolvedUrl: input.resolvedUrl,
@@ -1432,8 +1464,8 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     tags: input.tags,
   };
 
-  jobs.set(jobId, job);
-  queue.push(jobId);
+  getJobs().set(jobId, job);
+  getQueue().push(jobId);
   trackDownloadCreated(job.source);
   updateQueuePositions();
   logServer("info", "media.download.queued", {
@@ -1456,46 +1488,46 @@ export function getDownloadJob(jobId: string) {
 
   if (storedJob) {
     // Sync to memory
-    jobs.set(jobId, storedJob);
+    getJobs().set(jobId, storedJob);
     return storedJob;
   }
 
-  return jobs.get(jobId) || null;
+  return getJobs().get(jobId) || null;
 }
 
 export function getQueueSnapshot() {
-  const activeJobId = global.__pulsorclipActiveJobId || null;
-  const activeJob = activeJobId ? jobs.get(activeJobId) || null : null;
+  const activeJobId = getActiveJobId();
+  const activeJob = activeJobId ? getJobs().get(activeJobId) || null : null;
 
   return {
-    queuedJobIds: [...queue],
-    queuedCount: queue.length,
+    queuedJobIds: [...getQueue()],
+    queuedCount: getQueue().length,
     activeJobId,
     activeJob,
-    totalJobs: jobs.size,
-    errorJobs: [...jobs.values()].filter((job) => job.status === "error")
+    totalJobs: getJobs().size,
+    errorJobs: [...getJobs().values()].filter((job) => job.status === "error")
       .length,
-    completedJobs: [...jobs.values()].filter((job) => job.status === "done")
+    completedJobs: [...getJobs().values()].filter((job) => job.status === "done")
       .length,
   };
 }
 
 export function listDownloadJobs(source?: "web" | "bot") {
-  return [...jobs.values()]
+  return [...getJobs().values()]
     .filter((job) => !source || job.source === source)
     .sort((left, right) => right.createdAt - left.createdAt);
 }
 
 export function cancelDownloadJob(jobId: string) {
-  const job = jobs.get(jobId);
+  const job = getJobs().get(jobId);
 
   if (!job || job.status !== "queued") {
     return false;
   }
 
-  const index = queue.indexOf(jobId);
+  const index = getQueue().indexOf(jobId);
   if (index >= 0) {
-    queue.splice(index, 1);
+    getQueue().splice(index, 1);
   }
 
   job.status = "error";
@@ -1510,7 +1542,7 @@ export function cancelDownloadJob(jobId: string) {
 }
 
 export function getQueuePosition(jobId: string) {
-  const job = jobs.get(jobId);
+  const job = getJobs().get(jobId);
 
   if (!job || job.status !== "queued") {
     return 0;
@@ -1520,7 +1552,7 @@ export function getQueuePosition(jobId: string) {
 }
 
 export function requireCompletedJob(jobId: string) {
-  const job = jobs.get(jobId);
+  const job = getJobs().get(jobId);
 
   if (!job || job.status !== "done" || !job.filePath || !job.filename) {
     return null;
