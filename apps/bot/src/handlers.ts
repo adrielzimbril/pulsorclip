@@ -738,6 +738,7 @@ export function registerBotHandlers(bot: Telegraf) {
         title: jobTitle,
         source: "bot",
         resolvedUrl: choice.info.resolvedUrl,
+        thumbnail: choice.info.thumbnail,
       });
 
       pendingByChat.delete(chatId);

@@ -58,6 +58,7 @@ export type DownloadJob = {
   updatedAt: number;
   /** A direct media URL found during original analysis, used to bypass standard extractors. */
   resolvedUrl?: string | null;
+  thumbnail?: string | null;
 };
 
 export type DownloadRequestPayload = {
@@ -68,4 +69,5 @@ export type DownloadRequestPayload = {
   title?: string | null;
   source?: JobSource | null;
   resolvedUrl?: string | null;
+  thumbnail?: string | null;
 };

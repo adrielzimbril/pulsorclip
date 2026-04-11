@@ -12,4 +12,5 @@ export const downloadRequestSchema = z.object({
   title: z.string().trim().max(300).optional().default(""),
   source: z.enum(["web", "bot"]).optional().default("web"),
   resolvedUrl: z.string().url().trim().optional().nullable(),
+  thumbnail: z.string().trim().url().optional().nullable(),
 });

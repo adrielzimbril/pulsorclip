@@ -1091,6 +1091,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     resolvedUrl: input.resolvedUrl,
+    thumbnail: input.thumbnail,
   };
 
   jobs.set(jobId, job);

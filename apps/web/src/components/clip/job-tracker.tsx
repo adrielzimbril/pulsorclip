@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ProgressBar } from "./progress-bar";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale } from "@pulsorclip/core/shared";
-import { Check, Loader2, AlertCircle, Download } from "lucide-react";
+import { Check, Loader2, AlertCircle, Download, ArrowLeft, ExternalLink } from "lucide-react";
+import { externalLinks } from "@/lib/external-links";
 
 interface JobStatus {
   status: string;
@@ -15,6 +15,7 @@ interface JobStatus {
   filename: string | null;
   title?: string;
   platform?: string;
+  thumbnail?: string | null;
 }
 
 export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale }) {
@@ -55,27 +56,46 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
 
   if (loading && !error) {
     return (
-      <div className="flex flex-col items-center justify-center space-y-4 py-20 text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-foreground/50" />
-        <p className="text-muted-foreground">{t(locale, "botProcessing")}</p>
+      <div className="flex flex-col items-center justify-center space-y-6 py-32 text-center animate-pulse">
+        <div className="relative">
+          <div className="absolute inset-0 blur-3xl bg-primary/20 rounded-full" />
+          <Loader2 className="relative h-16 w-16 animate-spin text-primary" />
+        </div>
+        <p className="text-xl font-medium text-muted-foreground">{t(locale, "botProcessing")}</p>
       </div>
     );
   }
 
   if (error || (job && job.status === "failed")) {
     return (
-      <div className="flex flex-col items-center justify-center space-y-4 rounded-[32px] border border-line bg-background/50 py-16 text-center shadow-xl backdrop-blur-sm">
-        <div className="rounded-full bg-red-500/10 p-4 text-red-500">
-          <AlertCircle className="h-10 w-10" />
+      <div className="mx-auto max-w-lg overflow-hidden rounded-[32px] border border-red-500/20 bg-background/60 shadow-2xl backdrop-blur-xl">
+        <div className="flex flex-col items-center justify-center space-y-6 px-8 py-16 text-center">
+          <div className="rounded-full bg-red-500/10 p-5 text-red-500 shadow-inner">
+            <AlertCircle className="h-12 w-12" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-3xl font-black tracking-tight">{locale === "fr" ? "Échec de l'export" : "Export Failed"}</h2>
+            <p className="text-muted-foreground line-clamp-3">
+              {error || job?.error || (locale === "fr" ? "Une erreur inconnue est survenue" : "An unknown error occurred")}
+            </p>
+          </div>
+          <div className="flex flex-col w-full space-y-3">
+            <button 
+              onClick={() => window.location.href = "/"}
+              className="group flex items-center justify-center space-x-2 rounded-2xl bg-foreground px-8 py-4 font-bold text-background transition-all hover:scale-[1.02] active:scale-95"
+            >
+              <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
+              <span>{locale === "fr" ? "Recharger un lien" : "Reload a link"}</span>
+            </button>
+            <a 
+              href={externalLinks.telegramBot}
+              className="flex items-center justify-center space-x-2 rounded-2xl border border-line bg-background/50 px-8 py-4 font-bold transition-all hover:bg-background active:scale-95"
+            >
+              <ExternalLink className="h-5 w-5" />
+              <span>{locale === "fr" ? "Retour au Bot" : "Back to Bot"}</span>
+            </a>
+          </div>
         </div>
-        <h2 className="text-2xl font-bold">{locale === "fr" ? "Échec de l'export" : "Export Failed"}</h2>
-        <p className="max-w-md text-muted-foreground px-6">{error || job?.error || (locale === "fr" ? "Une erreur inconnue est survenue" : "An unknown error occurred")}</p>
-        <button 
-          onClick={() => window.location.href = "/"}
-          className="mt-4 flex items-center space-x-2 rounded-full bg-foreground px-8 py-3 font-medium text-background transition-transform active:scale-95"
-        >
-          <span>{locale === "fr" ? "Retour à l'accueil" : "Back to Home"}</span>
-        </button>
       </div>
     );
   }
@@ -86,71 +106,127 @@ export function JobTracker({ jobId, locale }: { jobId: string; locale: AppLocale
   const isQueued = job.status === "queued";
 
   return (
-    <div className="mx-auto max-w-2xl overflow-hidden rounded-[40px] border border-line bg-background shadow-2xl">
-      {/* Header */}
-      <div className="border-b border-line p-8 pb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-             <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isCompleted ? 'bg-green-500/10 text-green-500' : 'bg-foreground/10 text-foreground'}`}>
-                {isCompleted ? <Check className="h-6 w-6" /> : <Loader2 className="h-6 w-6 animate-spin" />}
-             </div>
-             <div>
-                <h1 className="text-xl font-bold line-clamp-1">{job.title || (locale === "fr" ? "Traitement du média" : "Processing Media")}</h1>
-                <p className="text-sm text-muted-foreground">ID: {jobId}</p>
+    <div className="mx-auto max-w-2xl overflow-hidden rounded-[40px] border border-line bg-background/40 shadow-2xl backdrop-blur-3xl transition-all duration-500">
+      {/* Media Preview Section */}
+      <div className="relative aspect-video w-full overflow-hidden bg-muted/20">
+        {job.thumbnail ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src={job.thumbnail} 
+              alt="" 
+              className="absolute inset-0 h-full w-full object-cover blur-2xl opacity-40 scale-110" 
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src={job.thumbnail} 
+              alt={job.title || "Preview"} 
+              className="relative h-full w-full object-contain transition-transform duration-700 hover:scale-105" 
+            />
+          </>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/10 to-transparent">
+             <div className="h-20 w-20 rounded-3xl bg-background/50 flex items-center justify-center shadow-2xl backdrop-blur-sm">
+                {isCompleted ? <Check className="h-10 w-10 text-green-500" /> : <Loader2 className="h-10 w-10 animate-spin text-primary" />}
              </div>
           </div>
-          <div className="rounded-full bg-surface-muted px-4 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        )}
+        
+        {/* Status Badge Over Image */}
+        <div className="absolute top-6 right-6">
+          <div className={`rounded-full border px-4 py-1.5 text-[10px] font-black uppercase tracking-widest backdrop-blur-md shadow-lg ${
+            isCompleted 
+              ? 'border-green-500/20 bg-green-500/10 text-green-500' 
+              : 'border-primary/20 bg-primary/10 text-primary'
+          }`}>
              {job.status}
           </div>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="p-8 pt-6 space-y-8">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-sm font-medium">
-            <span>{isCompleted ? (locale === "fr" ? "Prêt pour le téléchargement" : "Ready for download") : (isQueued ? (locale === "fr" ? `En file d'attente (Position: ${job.queuePosition})` : `In Queue (Position: ${job.queuePosition})`) : t(locale, "botProcessing"))}</span>
-            <span className="text-foreground">{Math.round(job.progress)}%</span>
+      {/* Info Section */}
+      <div className="p-10 pb-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black leading-tight tracking-tight line-clamp-2">
+              {job.title || (locale === "fr" ? "Traitement en cours..." : "Processing...")}
+            </h1>
+            <p className="text-sm font-mono text-muted-foreground/60">ID: {jobId}</p>
           </div>
-          <ProgressBar value={job.progress} />
-          {job.progressLabel && (
-            <p className="text-center text-xs font-mono text-muted-foreground">{job.progressLabel}</p>
+          {job.platform && (
+            <div className="rounded-xl border border-line bg-surface-muted px-3 py-1 text-xs font-bold uppercase text-muted-foreground">
+              {job.platform}
+            </div>
           )}
+        </div>
+      </div>
+
+      {/* Progress Section */}
+      <div className="px-10 py-6 space-y-10">
+        <div className="space-y-5">
+          <div className="flex items-end justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                 {isCompleted ? (locale === "fr" ? "Terminé" : "Completed") : (locale === "fr" ? "Progression" : "Progress")}
+              </span>
+              <p className="text-sm font-semibold opacity-80">
+                {isCompleted ? (locale === "fr" ? "Fichier prêt" : "File is ready") : (isQueued ? (locale === "fr" ? `Position #${job.queuePosition}` : `Position #${job.queuePosition}`) : job.progressLabel || (locale === "fr" ? "Préparation..." : "Preparing..."))}
+              </p>
+            </div>
+            <div className="text-3xl font-black italic tracking-tighter">
+               {Math.round(job.progress)}<span className="text-lg font-bold opacity-30">%</span>
+            </div>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-surface-muted shadow-inner">
+             <div 
+               className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-primary'}`}
+               style={{ width: `${job.progress}%` }}
+             />
+          </div>
         </div>
 
         {isCompleted && job.filename && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
-            <div className="flex flex-col space-y-3">
+          <div className="relative animate-in fade-in zoom-in-95 duration-700">
+             <div className="absolute -inset-4 rounded-[40px] bg-primary/10 blur-xl opacity-50" />
+             <div className="relative space-y-4">
               <a
                 href={`/api/file/${jobId}`}
                 download
-                className="flex w-full items-center justify-center space-x-3 rounded-[24px] bg-foreground py-5 text-lg font-bold text-background shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
+                className="flex w-full items-center justify-center space-x-3 rounded-[28px] bg-foreground py-6 text-xl font-black text-background shadow-2xl transition-all hover:scale-[1.01] active:scale-[0.98]"
               >
-                <Download className="h-6 w-6" />
-                <span>{locale === "fr" ? "Télécharger le fichier" : "Download File"}</span>
+                <Download className="h-7 w-7" />
+                <span>{locale === "fr" ? "TÉLÉCHARGER" : "DOWNLOAD"}</span>
               </a>
-              <p className="text-center text-sm text-muted-foreground">
-                {job.filename}
-              </p>
+              <div className="flex items-center justify-center space-x-2 text-xs font-mono text-muted-foreground/80">
+                <span className="block max-w-[80%] truncate overflow-hidden">{job.filename}</span>
+              </div>
             </div>
           </div>
         )}
 
         {!isCompleted && !isQueued && (
-            <div className="flex justify-center">
-                <p className="text-sm text-muted-foreground italic">
-                    {locale === "fr" ? "Veuillez ne pas quitter cette page..." : "Please keep this page open..."}
-                </p>
+            <div className="flex justify-center py-4">
+                <div className="flex items-center space-x-2 text-xs font-semibold text-muted-foreground animate-pulse">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span>{locale === "fr" ? "En attente du résultat final..." : "Waiting for results..."}</span>
+                </div>
             </div>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="bg-surface-muted/30 p-8 text-center border-t border-line">
-         <p className="text-sm text-muted-foreground">
-            {locale === "fr" 
-                ? "Vous pouvez aussi retrouver ce fichier sur le Bot Telegram" 
-                : "You can also find this file on the Telegram Bot"}
+      {/* Premium Footer with Back to Bot */}
+      <div className="mt-6 flex items-center justify-between border-t border-line bg-surface-muted/30 p-8">
+         <div className="flex space-x-4">
+            <a 
+              href={externalLinks.telegramBot}
+              className="flex items-center space-x-2 rounded-2xl bg-surface-muted px-6 py-3 text-sm font-black transition-all hover:bg-surface-muted/70 active:scale-95 border border-line"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span>TELEGRAM BOT</span>
+            </a>
+         </div>
+         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">
+            Powered by PulsorClip
          </p>
       </div>
     </div>
