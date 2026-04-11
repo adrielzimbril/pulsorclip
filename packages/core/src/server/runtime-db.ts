@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { appConfig } from "./config";
-import type { AppLocale, DownloadMode } from "../shared/types";
+import type { AppLocale, DownloadMode, DownloadJob } from "../shared/types";
 
 type CounterKind = "created" | "completed";
 

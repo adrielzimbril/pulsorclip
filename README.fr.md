@@ -6,14 +6,13 @@
 | :----------------------------------------: | :--------------------------------------: |
 | ![preview-light](preview/preview-light.png) | ![preview-dark](preview/preview-dark.png) |
 
-PulsorClip est un workspace self-hosted de telechargement et d export media par **Adriel Zimbril**.
+PulsorClip est un workspace self-hosted de téléchargement et d'export média par **Adriel Zimbril**.
 
-Prive par conception. Pratique par defaut.
-
-- Createur: `Adriel Zimbril`
-- Site: `https://www.adrielzimbril.com/`
-- GitHub: `https://github.com/adrielzimbril`
-- Depot: `https://github.com/adrielzimbril/pulsorclip`
+### 🚀 Statut du projet
+- 🌍 **Workspace Web :** ✅ 100% Fonctionnel
+- 🤖 **Bot Telegram :** ✅ 100% Fonctionnel
+- 🖥️ **Desktop (Native) :** 🏗️ En cours (Tauri)
+- 📱 **Mobile (Native) :** 🏗️ En cours (Capacitor)
 
 ## Ce Que C'Est
 
