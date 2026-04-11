@@ -156,8 +156,10 @@ function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusT
     `<b>Request #${choice.requestId}</b>`,
     statusText,
     escapeHTML(trimTitle(meta.title || "")),
-    `🔗 ${sourceLink}${trackLine}`,
-  ].join("\n");
+    meta.description ? `\n📝 ${escapeHTML(meta.description.substring(0, 200))}` : "",
+    meta.tags && meta.tags.length > 0 ? `\n🏷️ ${meta.tags.slice(0, 5).map((t) => `#${t.replace(/\s+/g, '_')}`).join(' ')}` : "",
+    `\n🔗 ${sourceLink}${trackLine}`,
+  ].filter(Boolean).join("\n");
 }
 
 async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "upload_document" | "upload_video" | "upload_voice" = "typing") {
@@ -183,7 +185,7 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
   }
 
   const extension = extname(file.filename).toLowerCase();
-  const finalCaption = `<b>Request #${job.source === "bot" ? (job as any).requestId || "?" : "?"}</b>\n${escapeHTML(title)}\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
+  const finalCaption = `<b>Request #${job.source === "bot" ? (job as any).requestId || "?" : "?"}</b>\n${escapeHTML(title)}${job.description ? `\n\n📝 ${escapeHTML(job.description.substring(0, 200))}` : ""}${job.tags && job.tags.length > 0 ? `\n\n🏷️ ${job.tags.slice(0, 5).map(t => "#"+t.replace(/\s+/g, '_')).join(' ')}` : ""}\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
   const options = { caption: finalCaption, parse_mode: "HTML" as const };
 
   if (extension === ".mp3" || extension === ".m4a") {
@@ -223,6 +225,8 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
       source: "bot",
       resolvedUrl: choice.info.resolvedUrl,
       thumbnail: choice.info.thumbnail,
+      description: choice.info.description,
+      tags: choice.info.tags,
     });
     
     // Attach requestId to job object (hacky but works since it's in-memory)
@@ -296,7 +300,7 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
         chunk.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}\n\n🔗 <a href="${choice.url}">Source</a>` : undefined,
+          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}${choice.info.description ? `\n\n📝 ${escapeHTML(choice.info.description.substring(0, 200))}` : ""}${choice.info.tags && choice.info.tags.length > 0 ? `\n\n🏷️ ${choice.info.tags.slice(0, 5).map(t => "#"+t.replace(/\s+/g, '_')).join(' ')}` : ""}\n\n🔗 <a href="${choice.url}">Source</a>` : undefined,
           parse_mode: "HTML",
         }))
       );

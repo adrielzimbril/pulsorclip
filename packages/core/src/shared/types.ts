@@ -46,6 +46,8 @@ export type MediaInfo = {
   /** A direct video URL found during scraping/analysis (e.g. tikwm play URL). Distinct from resolvedUrl which is audio. */
   resolvedVideoUrl?: string | null;
   postId?: string;
+  description?: string;
+  tags?: string[];
   /** Present when the URL resolves to a media playlist rather than a single item. */
   playlist?: {
     id?: string;
@@ -77,6 +79,8 @@ export type DownloadJob = {
   /** A direct media URL found during original analysis, used to bypass standard extractors. */
   resolvedUrl?: string | null;
   thumbnail?: string | null;
+  description?: string;
+  tags?: string[];
 };
 
 export type DownloadRequestPayload = {
@@ -88,4 +92,6 @@ export type DownloadRequestPayload = {
   source?: JobSource | null;
   resolvedUrl?: string | null;
   thumbnail?: string | null;
+  description?: string;
+  tags?: string[];
 };
