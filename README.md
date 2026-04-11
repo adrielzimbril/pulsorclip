@@ -1,14 +1,3 @@
----
-title: PulsorClip
-emoji: 🎬
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 10000
-dockerfile: docker/render.Dockerfile
-pinned: false
----
-
 # PulsorClip
 
 > 🌟 **Visual Showcase:** Check out the [PulsorClip Preview Gallery](preview/preview.md) to see the UI.
@@ -131,7 +120,16 @@ Important variables:
 
 ## Deployment
 
-Current default target: **Render free Web Service** with one Docker runtime for both web and bot.
+### Railway (Recommended)
+ 1. Connect this repository to a new Railway project.
+ 2. Railway will automatically detect the `railway.json` and use `docker/render.Dockerfile`.
+ 3. Set the following environment variables (see `.env.example`):
+    - `NEXT_PUBLIC_APP_URL`: Your Railway app URL.
+    - `TELEGRAM_BOT_TOKEN`: Your bot token.
+    - `PULSORCLIP_DEBUG_LOGS`: `true`.
+ 
+ ### Render
+ Current default target: **Render free Web Service** with one Docker runtime for both web and bot.
 
 Why this topology:
 
