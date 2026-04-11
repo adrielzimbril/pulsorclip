@@ -44,28 +44,37 @@ function formatDuration(value: number | null) {
 
 function helpMessage(locale: AppLocale, admin = false) {
   const shortcuts = [
-    "/language",
-    "/video <url> --format=mp4",
-    "/audio <url> --format=mp3",
+    "/video <url>",
+    "/audio <url>",
     "/mp4",
     "/mp3",
     "/formats",
     "/queue",
-    admin ? "/queuestatus, /status, /server, /health, /report, /daily" : null,
-  ].filter(Boolean);
+    "/language",
+  ];
 
-  return [
-    t(locale, "botHelpIntro"),
+  const lines = [
+    `<b>${escapeHTML(t(locale, "botHelpIntro"))}</b>`,
+    locale === "fr"
+      ? "Colle un lien, choisis video ou audio, puis je gere la file et je t envoie le resultat ici quand Telegram le permet."
+      : "Paste a link, choose video or audio, then I handle the queue and send the result here when Telegram allows it.",
     "",
-    t(locale, "botWelcome").split("\n")[0],
+    `<b>${locale === "fr" ? "Demarrage rapide" : "Quick start"}</b>`,
+    locale === "fr"
+      ? "1. Envoie une URL media\n2. Choisis le format\n3. Choisis la qualite\n4. Attends le fichier ou ouvre le suivi web"
+      : "1. Send a media URL\n2. Pick the format\n3. Pick the quality\n4. Wait for the file or open the web tracker",
     "",
-    t(locale, "botHelpShortcutsLine"),
-    ...shortcuts,
-    "",
-    t(locale, "botHelpGuidance"),
-  ]
-    .filter(Boolean)
-    .join("\n");
+    `<b>${escapeHTML(t(locale, "botHelpShortcutsLine"))}</b>`,
+    ...shortcuts.map((item) => `• <code>${escapeHTML(item)}</code>`),
+  ];
+
+  if (admin) {
+    lines.push("", `<b>${locale === "fr" ? "Commandes admin" : "Admin commands"}</b>`);
+    lines.push(...["/queuestatus", "/status", "/server", "/health", "/report", "/daily"].map((item) => `• <code>${escapeHTML(item)}</code>`));
+  }
+
+  lines.push("", t(locale, "botHelpGuidance"));
+  return lines.join("\n");
 }
 
 function promptForMode(locale: AppLocale, title?: string) {
@@ -76,13 +85,13 @@ function promptForMode(locale: AppLocale, title?: string) {
 function sendUrlPrompt(locale: AppLocale, mode: DownloadMode) {
   if (locale === "fr") {
     return mode === "video"
-      ? "Mode video enregistre.\n\nEtape suivante:\n1. envoie un lien media\n2. choisis le format et la qualite\n3. recois le fichier ici quand il est pret\n\nRaccourci possible: /video <url> --format=mp4"
-      : "Mode audio enregistre.\n\nEtape suivante:\n1. envoie un lien media\n2. choisis le format et la qualite\n3. recois le fichier ici quand il est pret\n\nRaccourci possible: /audio <url> --format=mp3";
+      ? "<b>Mode video active.</b>\nEnvoie un lien media.\n\nJe te proposerai ensuite le format puis la qualite."
+      : "<b>Mode audio active.</b>\nEnvoie un lien media.\n\nJe te proposerai ensuite le format puis la qualite.";
   }
 
   return mode === "video"
-    ? "Video mode saved.\n\nNext step:\n1. send one media link\n2. choose format and quality\n3. receive the file here when it is ready\n\nShortcut: /video <url> --format=mp4"
-    : "Audio mode saved.\n\nNext step:\n1. send one media link\n2. choose format and quality\n3. receive the file here when it is ready\n\nShortcut: /audio <url> --format=mp3";
+    ? "<b>Video mode enabled.</b>\nSend one media link.\n\nI will guide you through format and quality next."
+    : "<b>Audio mode enabled.</b>\nSend one media link.\n\nI will guide you through format and quality next.";
 }
 
 function parseCommandRequest(text: string, fallbackMode: DownloadMode) {
@@ -538,18 +547,18 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     if (info.platform === "tiktok") {
       await ctx.reply(`🖼️ TikTok Carousel: ${t(locale, "botProcessingShort")}`);
       
-      // 1. Send Images
+      const hasAudioSource = Boolean(
+        info.resolvedUrl ||
+        (info.audioOptions && info.audioOptions.length > 0),
+      );
+
+      if (hasAudioSource) {
+        void triggerAudioJob(bot, ctx, choice);
+      }
+
       await sendImagesGallery(ctx, choice);
-      
-      // 2. Trigger Audio if exists
-      const hasAudio = (info.audioOptions && info.audioOptions.length > 0);
-      const isMusicOnly = info.resolvedUrl && (!info.videoOptions || info.videoOptions.length === 0);
-      const isTikTok = info.platform === "tiktok";
-      
-      if (hasAudio || isMusicOnly || isTikTok) {
-        // Force audio download for TikTok carousels even if not explicitly in info
-        await triggerAudioJob(bot, ctx, choice);
-      } else {
+
+      if (!hasAudioSource) {
         void processNextInQueue(bot, ctx.from?.id, ctx);
       }
       
@@ -558,7 +567,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     }
 
     const countLine = `${info.images.length} image${info.images.length > 1 ? "s" : ""}`;
-    const refLink = `[Source](${url})`;
+    const refLink = `<a href="${url}">Source</a>`;
     const text = [
       `<b>Request #${requestId}</b>`,
       t(locale, "botImageCarousel"), 
@@ -625,7 +634,11 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
 }
 
 async function replyWelcome(ctx: any, locale: AppLocale) {
-  const intro = [statusMessage(locale), t(locale, "botWelcome"), "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
+  const welcome =
+    locale === "fr"
+      ? "<b>PulsorClip est pret.</b>\nEnvoie un lien media et je te guide etape par etape."
+      : "<b>PulsorClip is ready.</b>\nSend one media link and I will guide you step by step.";
+  const intro = [statusMessage(locale), welcome, "", helpMessage(locale, isAdmin(ctx.from?.id))].join("\n");
   await sendPresence(ctx, "typing");
   await ctx.reply(intro, { ...modeKeyboard(locale), parse_mode: "HTML" });
 }
@@ -841,7 +854,11 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(t(locale, "botFormats"), webKeyboard(locale));
+    const text =
+      locale === "fr"
+        ? "<b>Formats disponibles</b>\n🎬 Video : <code>MP4</code>, <code>WEBM</code>, <code>MKV</code>\n🎧 Audio : <code>MP3</code>, <code>M4A</code>"
+        : "<b>Available formats</b>\n🎬 Video: <code>MP4</code>, <code>WEBM</code>, <code>MKV</code>\n🎧 Audio: <code>MP3</code>, <code>M4A</code>";
+    await ctx.reply(text, { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("health", async (ctx) => {
@@ -885,7 +902,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (!request.url) {
       await sendPresence(ctx, "typing");
-      await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
+      await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
       return;
     }
 
@@ -901,7 +918,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (!request.url) {
       await sendPresence(ctx, "typing");
-      await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
+      await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
       return;
     }
 
@@ -914,7 +931,7 @@ export function registerBotHandlers(bot: Telegraf) {
     modeByChat.set(ctx.chat.id, "video");
     setUserMode(ctx.from?.id, "video");
     await sendPresence(ctx, "typing");
-    await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, webKeyboard(locale));
+    await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("mp3", async (ctx) => {
@@ -923,7 +940,7 @@ export function registerBotHandlers(bot: Telegraf) {
     modeByChat.set(ctx.chat.id, "audio");
     setUserMode(ctx.from?.id, "audio");
     await sendPresence(ctx, "typing");
-    await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, webKeyboard(locale));
+    await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.on("inline_query", async (ctx) => {
@@ -971,10 +988,14 @@ export function registerBotHandlers(bot: Telegraf) {
     rememberUser(ctx.from?.id);
     setUserLocale(ctx.from?.id, locale);
     await ctx.answerCbQuery(t(locale, "botLanguageSaved").split(".")[0]);
+    const welcome =
+      locale === "fr"
+        ? "<b>PulsorClip est pret.</b>\nEnvoie un lien media et je te guide etape par etape."
+        : "<b>PulsorClip is ready.</b>\nSend one media link and I will guide you step by step.";
     try {
-      await ctx.editMessageText([t(locale, "botLanguageSaved"), "", t(locale, "botWelcome")].join("\n"), modeKeyboard(locale));
+      await ctx.editMessageText([t(locale, "botLanguageSaved"), "", welcome].join("\n"), { ...modeKeyboard(locale), parse_mode: "HTML" });
     } catch {
-      await ctx.reply([t(locale, "botLanguageSaved"), "", t(locale, "botWelcome")].join("\n"), modeKeyboard(locale));
+      await ctx.reply([t(locale, "botLanguageSaved"), "", welcome].join("\n"), { ...modeKeyboard(locale), parse_mode: "HTML" });
     }
   });
 
@@ -1027,7 +1048,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (!choice) {
       await ctx.answerCbQuery(locale === "fr" ? "Mode enregistre" : "Mode saved");
-      await ctx.reply(sendUrlPrompt(locale, mode), webKeyboard(locale));
+      await ctx.reply(sendUrlPrompt(locale, mode), { ...webKeyboard(locale), parse_mode: "HTML" });
       return;
     }
 

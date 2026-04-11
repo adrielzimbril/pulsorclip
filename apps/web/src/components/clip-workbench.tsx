@@ -414,6 +414,7 @@ export function ClipWorkbench({
             progress: 0,
             progressLabel: t(locale, "inspectReady"),
             resolvedUrl: payload.resolvedUrl,
+            resolvedVideoUrl: payload.resolvedVideoUrl,
           }));
         } catch (error) {
           updateCard(card.id, (current) => ({
@@ -447,6 +448,10 @@ export function ClipWorkbench({
 
     const formatId = activeMode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
     const targetExt = activeMode === "video" ? card.videoExt : card.audioExt;
+    const directUrl =
+      activeMode === "video"
+        ? card.resolvedVideoUrl || null
+        : card.resolvedUrl || null;
 
     try {
       const response = await fetch("/api/download", {
@@ -461,7 +466,7 @@ export function ClipWorkbench({
           targetExt,
           title: card.title,
           source: "web",
-          resolvedUrl: card.resolvedUrl,
+          resolvedUrl: directUrl,
         }),
       });
 
