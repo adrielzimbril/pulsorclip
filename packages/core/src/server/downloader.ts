@@ -749,6 +749,25 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
         ]
       : [];
 
+    // Build video option from tikwm play/hdplay URL
+    const rawVideoUrl = mediaData.hdplay || mediaData.play || "";
+    let resolvedVideoUrl = "";
+    if (typeof rawVideoUrl === "string" && rawVideoUrl.startsWith("http")) {
+      resolvedVideoUrl = rawVideoUrl;
+    }
+
+    const videoOptions: MediaOption[] = resolvedVideoUrl
+      ? [
+          {
+            id: "tiktok-direct-video",
+            label: `${mediaData.title || "TikTok Video"} — Direct`,
+            ext: "mp4",
+            qualityLabel: mediaData.hdplay ? "HD" : "Best",
+            height: mediaData.height || undefined,
+          },
+        ]
+      : [];
+
     const result: MediaInfo = {
       title: mediaData.title || audioTitle || "TikTok Media",
       uploader: mediaData.author?.nickname || mediaData.author?.unique_id,
@@ -756,12 +775,14 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
       platform: "tiktok",
       thumbnail: mediaData.cover?.startsWith("//") ? `https:${mediaData.cover}` : mediaData.cover,
       images,
-      videoOptions: [],
+      videoOptions,
       audioOptions,
-      resolvedUrl: audioUrl, // Use the absolute audioUrl
+      resolvedUrl: audioUrl || undefined,       // audio direct URL
+      resolvedVideoUrl: resolvedVideoUrl || undefined, // video direct URL
     };
 
     return result;
+
   } catch (err) {
     logServer("error", "media.info.scrape.tiktok.failed", {
       url: urlForLogs(url),

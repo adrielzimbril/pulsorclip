@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       cover: info.thumbnail,
       postId: info.postId || "",
       audioUrl: info.resolvedUrl || "",
+      videoUrl: info.resolvedVideoUrl || "",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

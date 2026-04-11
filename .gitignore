@@ -31,6 +31,8 @@ docs/REDO-AUDIT.md
 yt-dlp.exe
 
 tests/
+test-*
+test_*
 
 HANDOFF.md
 

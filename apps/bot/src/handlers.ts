@@ -945,7 +945,10 @@ export function registerBotHandlers(bot: Telegraf) {
         targetExt,
         title: jobTitle,
         source: "bot",
-        resolvedUrl: choice.info.resolvedUrl,
+        // For video mode: prefer resolvedVideoUrl (tikwm direct), fall back to resolvedUrl
+        resolvedUrl: mode === "video"
+          ? (choice.info.resolvedVideoUrl || choice.info.resolvedUrl)
+          : choice.info.resolvedUrl,
         thumbnail: choice.info.thumbnail,
       });
 
