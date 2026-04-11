@@ -132,6 +132,17 @@ export function MediaCard({
             </div>
           )}
 
+          {/* Quick Preview Player for Direct Audio */}
+          {mode === "audio" && card.resolvedUrl && card.status !== "loading" && (
+            <div className="mt-5 overflow-hidden rounded-[20px] border border-line bg-background p-2">
+              <audio 
+                controls 
+                className="h-10 w-full"
+                src={`/api/stream?url=${encodeURIComponent(card.resolvedUrl)}`}
+              />
+            </div>
+          )}
+
           {card.status !== "loading" && (
             <>
               <div className="mt-5 flex flex-wrap gap-2">
@@ -206,8 +217,16 @@ export function MediaCard({
 
             <button
               className="btn-outline w-full sm:w-auto"
-              disabled={!canDownload}
-              onClick={onDownload}
+              disabled={!canDownload && !card.resolvedUrl}
+              onClick={() => {
+                if (card.resolvedUrl) {
+                  // Direct streaming download
+                  const filename = `${card.title || "media"}.${mode === "audio" ? "mp3" : "mp4"}`;
+                  window.location.href = `/api/stream?url=${encodeURIComponent(card.resolvedUrl)}&download=1&filename=${encodeURIComponent(filename)}`;
+                } else if (canDownload) {
+                  onDownload();
+                }
+              }}
               type="button"
             >
               {t(locale, "download")}

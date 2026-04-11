@@ -777,8 +777,7 @@ export function ClipWorkbench({
                 <div className="relative flex gap-2">
                   {tiktokCarousel.audioUrl && (
                     <a
-                      href={tiktokCarousel.audioUrl}
-                      download="tiktok-audio.mp3"
+                      href={`/api/stream?url=${encodeURIComponent(tiktokCarousel.audioUrl)}&download=1&filename=tiktok-audio.mp3`}
                       className="btn-outline px-4 py-2 text-xs"
                       target="_blank"
                       rel="noreferrer"
@@ -801,7 +800,7 @@ export function ClipWorkbench({
                         type="button"
                         disabled={selectedImages.size === 0 || isZipping}
                         onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-                        className="btn-primary h-full rounded-l-none border-l-[1px] border-l-white/20 px-2 flex items-center justify-center transition hover:bg-primary-hover"
+                        className="btn-primary h-full rounded-l-none border-l border-l-white/20 px-2 flex items-center justify-center transition hover:bg-primary-hover"
                         aria-label="Download options"
                       >
                         <svg className={`h-4 w-4 transition-transform ${showDownloadDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
