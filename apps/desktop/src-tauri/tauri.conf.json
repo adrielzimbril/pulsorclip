@@ -1,0 +1,62 @@
+{
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "http://localhost:3000",
+    "distDir": "../web/out"
+  },
+  "package": {
+    "productName": "PulsorClip",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "Utility",
+      "copyright": "2026 Adriel Zimbril",
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.pulsorclip.app",
+      "longDescription": "Premium self-hosted media download and export workspace.",
+      "resources": [],
+      "shortDescription": "Media Downloader",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampServer": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 800,
+        "resizable": true,
+        "title": "PulsorClip",
+        "width": 1000,
+        "center": true,
+        "decorations": true,
+        "transparent": false
+      }
+    ]
+  }
+}

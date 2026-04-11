@@ -1,0 +1,44 @@
+name: Windows Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web App
+        run: npm run build --workspace @pulsorclip/web
+
+      - name: Build Windows App (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: v__VERSION__
+          releaseName: "PulsorClip v__VERSION__"
+          releaseBody: "Automated Windows build of PulsorClip premium media downloader."
+          releaseDraft: true
+          prerelease: false
+          args: "--target x86_64-pc-windows-msvc"

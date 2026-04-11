@@ -1,0 +1,26 @@
+[package]
+name = "pulsorclip-desktop"
+version = "0.1.0"
+description = "Native Windows application for PulsorClip premium media downloader."
+authors = ["Adriel Zimbril"]
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.0.0", features = [] }
+
+[features]
+# default enables all features
+default = []
+
+[profile.release]
+panic = "abort" # Strip expensive panic message strings
+codegen-units = 1 # Optimize across all modules 
+lto = true # Enable Link Time Optimization
+opt-level = "s" # Optimize for binary size
+strip = true # Strip symbols from binary
