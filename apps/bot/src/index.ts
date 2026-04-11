@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { appConfig, logServer, ensureAppDirs } from "@pulsorclip/core/server";
+import { appConfig, logServer, ensureAppDirs, resolveRealBinaryPath } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { registerBotHandlers } from "./handlers";
 import { applyTelegramMetadata } from "./metadata";
@@ -54,6 +54,10 @@ async function bootstrap() {
     maintenanceMode: appConfig.telegramMaintenanceMode,
     botEnabled: appConfig.telegramBotEnabled,
     configuredUsername: appConfig.telegramBotUsername,
+    ytDlpBin: appConfig.ytDlpBin,
+    ytDlpReal: resolveRealBinaryPath(appConfig.ytDlpBin),
+    ffmpegBin: appConfig.ffmpegBin,
+    ffmpegReal: resolveRealBinaryPath(appConfig.ffmpegBin),
   });
   
   ensureAppDirs();

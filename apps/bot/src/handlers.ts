@@ -12,6 +12,7 @@ import {
   requireCompletedJob,
   trackBotUser,
   logServer,
+  cancelDownloadJob,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { type AppLocale, type DownloadMode, type MediaInfo } from "@pulsorclip/core/shared";
@@ -243,6 +244,24 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
 
     pendingByChat.delete(ctx.chat.id);
     
+    // Update active request with jobId for cancellation support
+    const userId = ctx.from?.id;
+    if (userId) {
+      const active = userActiveRequest.get(userId);
+      if (active && active.requestId === choice.requestId) {
+        userActiveRequest.set(userId, { ...active, jobId: job.id });
+      } else {
+        // Direct trigger without coming from formal queue shift
+        userActiveRequest.set(userId, {
+          url: choice.url,
+          mode: "audio",
+          requestId: choice.requestId,
+          info: choice.info,
+          jobId: job.id
+        });
+      }
+    }
+
     if (!choice.messageId && !silent) {
        await ctx.reply(`🎧 ${t(choice.locale, "botAudioLabel")}: ${t(choice.locale, "botProcessingShort")}`);
     }
@@ -285,6 +304,24 @@ async function triggerVideoJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
 
     pendingByChat.delete(ctx.chat.id);
     
+    // Update active request with jobId for cancellation support
+    const userId = ctx.from?.id;
+    if (userId) {
+      const active = userActiveRequest.get(userId);
+      if (active && active.requestId === choice.requestId) {
+        userActiveRequest.set(userId, { ...active, jobId: job.id });
+      } else {
+        // Direct trigger without coming from formal queue shift
+        userActiveRequest.set(userId, {
+          url: choice.url,
+          mode: "video",
+          requestId: choice.requestId,
+          info: choice.info,
+          jobId: job.id
+        });
+      }
+    }
+
     if (!choice.messageId && !silent) {
        await ctx.reply(`🎬 ${t(choice.locale, "botVideoLabel")}: ${t(choice.locale, "botProcessingShort")}`);
     }
@@ -544,15 +581,20 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
 
     if (job.status === "error") {
       await sendPresence(ctx, "typing");
-      const errorMsg = job.error || t(choice.locale, "botDownloadFailed");
+      const statusLine = choice.locale === "fr" 
+        ? `Requête #${choice.requestId} échouée et retirée de la file`
+        : `Request #${choice.requestId} failed and removed from queue`;
+
       await ctx.reply(
         [
-          `❌ Request #${choice.requestId}: ${errorMsg}`,
+          `❌ Oops... ${job.error || (choice.locale === "fr" ? "Échec du téléchargement" : "Download failed")}`,
+          `<b>${statusLine}</b>`,
+          "",
           escapeHTML(trimTitle(title)),
           `🔗 ${choice.url}`,
           choice.locale === "fr"
-            ? "Tu peux relancer ce fichier quand tu veux."
-            : "You can retry this file whenever you want.",
+            ? "\nTu peux réessayer ce lien plus tard."
+            : "\nYou can retry this link later.",
         ].join("\n"),
         { ...trackKeyboard(choice.locale, jobId), parse_mode: "HTML" },
       );
@@ -769,19 +811,30 @@ async function enqueuePlaylistRequests(bot: Telegraf, ctx: any, choice: PendingC
 }
 
 function userQueueKeyboard(userId: number, locale: AppLocale) {
+  const active = userActiveRequest.get(userId);
   const queue = userQueues.get(userId) || [];
-  if (queue.length === 0) {
-    return webKeyboard(locale);
+  
+  const buttons: any[][] = [];
+
+  // Active job cancellation
+  if (active && active.jobId) {
+    buttons.push([
+      { text: `🛑 Stop Active #${active.requestId}`, callback_data: `cancelactive:${active.jobId}` },
+    ]);
   }
+
+  // Queued jobs cancellation
+  if (queue.length > 0) {
+    buttons.push(...queue.slice(0, 8).map((request) => [
+      { text: `❌ Cancel #${request.requestId}`, callback_data: `uqcancel:${request.requestId}` },
+    ]));
+  }
+
+  buttons.push([{ text: "🌐 Open web", url: appConfig.baseUrl }]);
 
   return {
     reply_markup: {
-      inline_keyboard: [
-        ...queue.slice(0, 8).map((request) => [
-          { text: `❌ Cancel #${request.requestId}`, callback_data: `uqcancel:${request.requestId}` },
-        ]),
-        [{ text: "🌐 Open web", url: appConfig.baseUrl }],
-      ],
+      inline_keyboard: buttons,
     },
   };
 }
@@ -804,8 +857,8 @@ function userQueueMessage(userId: number, locale: AppLocale) {
     "",
     active
       ? locale === "fr"
-        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)}`
-        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)}`
+        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)}` + (active.jobId ? " (Traitement)" : " (Initialisation)")
+        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)}` + (active.jobId ? " (Processing)" : " (Initializing)")
       : locale === "fr"
         ? "▶️ En cours: aucun job actif"
         : "▶️ Active: no job processing right now",
@@ -1325,5 +1378,32 @@ export function registerBotHandlers(bot: Telegraf) {
     await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
 
     await sendImagesGallery(ctx, choice);
+  });
+
+  bot.action(/cancelactive:(.+)/, async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const jobId = ctx.match[1];
+    const locale = localeForTelegram(userId, ctx.from?.language_code);
+    
+    try {
+      const success = cancelDownloadJob(jobId);
+      if (success) {
+        await ctx.answerCbQuery(locale === "fr" ? "Job actif arrêté." : "Active job stopped.").catch(() => {});
+        // After cancellation, the job status will transition to error/cancelled,
+        // and trackJobInChat will naturally handle the exit and processNextInQueue.
+        
+        // Refresh the queue message if we were in the queue view
+        await ctx.editMessageText(userQueueMessage(userId, locale), {
+          ...userQueueKeyboard(userId, locale),
+        }).catch(() => {});
+      } else {
+        await ctx.answerCbQuery(locale === "fr" ? "Job non trouvé ou déjà fini." : "Job not found or already finished.").catch(() => {});
+      }
+    } catch (error) {
+      logServer("error", "bot.action.cancelactive.failed", { jobId, error: String(error) });
+      await ctx.answerCbQuery("Error stopping job.").catch(() => {});
+    }
   });
 }

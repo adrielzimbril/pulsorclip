@@ -15,6 +15,7 @@ export type QueuedRequest = {
   mode: DownloadMode;
   requestId: number;
   info?: MediaInfo;
+  jobId?: string;
 };
 
 export type ModeMap = Map<number, DownloadMode>;

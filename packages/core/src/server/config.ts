@@ -1,5 +1,30 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { execSync } from "node:child_process";
+
+export function resolveRealBinaryPath(bin: string): string {
+  if (!bin) return "not_configured";
+  
+  try {
+    // 1. If absolute, check exists and resolve symlinks
+    if (resolve(bin) === bin && existsSync(bin)) {
+      return realpathSync(bin);
+    }
+    
+    // 2. Try 'which' (Linux/macOS) or 'where' (Windows)
+    const cmd = process.platform === "win32" ? "where" : "which";
+    const result = execSync(`${cmd} ${bin}`, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const firstLine = result.split("\n")[0]?.trim();
+    
+    if (firstLine && existsSync(firstLine)) {
+       return realpathSync(firstLine);
+    }
+  } catch {
+    // Silently fall back
+  }
+  
+  return bin; // Fallback to the requested string
+}
 
 export function ensureAppDirs() {
   const dir = resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");

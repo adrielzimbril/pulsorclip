@@ -29,6 +29,14 @@ declare global {
   var __pulsorclipJobs: Map<string, DownloadJob> | undefined;
   var __pulsorclipQueue: string[] | undefined;
   var __pulsorclipActiveJobId: string | null | undefined;
+  var __pulsorclipActiveControllers: Map<string, AbortController> | undefined;
+}
+
+function getActiveControllers() {
+  if (!global.__pulsorclipActiveControllers) {
+    global.__pulsorclipActiveControllers = new Map<string, AbortController>();
+  }
+  return global.__pulsorclipActiveControllers;
 }
 
 function getJobs() {
@@ -413,6 +421,7 @@ async function convertAudio(
   job: DownloadJob,
   sourcePath: string,
   outputPath: string,
+  signal?: AbortSignal,
 ) {
   updateJobProgress(job, 92, `Encoding ${job.targetExt.toUpperCase()} audio`);
 
@@ -440,6 +449,7 @@ async function convertAudio(
       timeoutMs: TRANSCODE_TIMEOUT_MS,
       idleTimeoutMs: TRANSCODE_IDLE_TIMEOUT_MS,
       idleTimeoutMessage: `Audio conversion stalled for ${Math.round(TRANSCODE_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
+      signal,
     },
   );
 
@@ -452,6 +462,7 @@ async function downloadDirectFile(
   job: DownloadJob,
   url: string,
   outputPath: string,
+  signal?: AbortSignal,
 ) {
   updateJobProgress(job, 15, "Fetching high-speed media stream");
   logServer("info", "media.download.direct.started", { url: urlForLogs(url), outputPath });
@@ -467,7 +478,7 @@ async function downloadDirectFile(
     headers["Referer"] = "https://www.tiktok.com/";
   }
 
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers, signal });
 
   if (!response.ok) {
     throw new Error(`Direct download failed: ${response.status} ${response.statusText}`);
@@ -490,7 +501,7 @@ async function downloadDirectFile(
     // We avoid using Readable.fromWeb explicitly to bypass potential ReferenceErrors
     // in environments where it might be misconfigured or polyfilled.
     // @ts-ignore
-    await pipeline(response.body, writer);
+    await pipeline(response.body, writer, { signal });
   } catch (err) {
     writer.destroy();
     if (err instanceof Error && err.message.includes("require")) {
@@ -511,6 +522,7 @@ async function convertVideo(
   job: DownloadJob,
   sourcePath: string,
   outputPath: string,
+  signal?: AbortSignal,
 ) {
   updateJobProgress(job, 92, `Finalizing ${job.targetExt.toUpperCase()} video`);
 
@@ -566,6 +578,7 @@ async function convertVideo(
       timeoutMs: TRANSCODE_TIMEOUT_MS,
       idleTimeoutMs: TRANSCODE_IDLE_TIMEOUT_MS,
       idleTimeoutMessage: `Video conversion stalled for ${Math.round(TRANSCODE_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
+      signal,
     },
   );
 
@@ -1246,12 +1259,16 @@ export async function executeDownload(jobId: string) {
     isDirect,
   });
 
+  const controller = new AbortController();
+  getActiveControllers().set(jobId, controller);
+  const signal = controller.signal;
+
   try {
     if (isDirect) {
       updateJobProgress(job, 10, "Downloading direct media stream");
       const directExt = job.mode === "audio" ? "mp3" : "mp4";
       const directPath = join(tempDir, `source.${directExt}`);
-      await downloadDirectFile(job, jobUrl, directPath);
+      await downloadDirectFile(job, jobUrl, directPath, signal);
     } else {
       let sourceArgs: string[] = [];
 
@@ -1321,6 +1338,7 @@ export async function executeDownload(jobId: string) {
         idleTimeoutMessage: `Download stalled for ${Math.round(DOWNLOAD_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
         onStdoutLine: (line) => parseProgressLine(job, line),
         onStderrLine: (line) => parseProgressLine(job, line),
+        signal,
       });
 
       if (downloadResult.exitCode !== 0) {
@@ -1332,7 +1350,7 @@ export async function executeDownload(jobId: string) {
           platform: sourceProfile.platform,
           url: urlForLogs(job.url),
           exitCode: downloadResult.exitCode,
-          stderr: downloadResult.stderr.slice(-500), // Log more context for debugging
+          stderr: downloadResult.stderr.slice(-500),
         });
         return;
       }
@@ -1368,9 +1386,9 @@ export async function executeDownload(jobId: string) {
         finalExt,
       });
     } else if (job.mode === "audio") {
-      await convertAudio(job, sourceFile, outputPath);
+      await convertAudio(job, sourceFile, outputPath, signal);
     } else {
-      await convertVideo(job, sourceFile, outputPath);
+      await convertVideo(job, sourceFile, outputPath, signal);
     }
 
     const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
@@ -1391,22 +1409,29 @@ export async function executeDownload(jobId: string) {
       progressLabel: job.progressLabel,
     });
   } catch (error) {
-    job.status = "error";
-    job.error =
-      error instanceof Error ? error.message : "Unknown process failure";
+    if (error instanceof Error && error.message === "Aborted") {
+      job.status = "error";
+      job.error = "Cancelled by user during processing.";
+      job.progressLabel = "Cancelled";
+      logServer("info", "media.download.cancelled", { jobId: job.id });
+    } else {
+      job.status = "error";
+      job.error = error instanceof Error ? error.message : "Unknown process failure";
+      logServer("error", "media.download.failed", {
+        jobId: job.id,
+        platform: sourceProfile.platform,
+        url: urlForLogs(job.url),
+        message: job.error,
+      });
+    }
     job.updatedAt = Date.now();
     syncJobState();
-    logServer("error", "media.download.failed", {
-      jobId: job.id,
-      platform: sourceProfile.platform,
-      url: urlForLogs(job.url),
-      message: job.error,
-    });
   } finally {
+    getActiveControllers().delete(jobId);
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // Best-effort cleanup.
+      // Best-effort
     }
   }
 }
@@ -1428,6 +1453,18 @@ async function processQueue() {
 
   try {
     await executeDownload(nextJobId);
+  } catch (error) {
+    const job = getJobs().get(nextJobId);
+    if (job) {
+      job.status = "error";
+      job.error = error instanceof Error ? error.message : "Fatal download error";
+      job.updatedAt = Date.now();
+      syncJobState();
+    }
+    logServer("error", "media.queue.process.fatal", {
+      jobId: nextJobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
     setActiveJobId(null);
     updateQueuePositions();
@@ -1521,24 +1558,35 @@ export function listDownloadJobs(source?: "web" | "bot") {
 export function cancelDownloadJob(jobId: string) {
   const job = getJobs().get(jobId);
 
-  if (!job || job.status !== "queued") {
+  if (!job) {
     return false;
   }
 
-  const index = getQueue().indexOf(jobId);
-  if (index >= 0) {
-    getQueue().splice(index, 1);
+  if (job.status === "queued") {
+    const index = getQueue().indexOf(jobId);
+    if (index >= 0) {
+      getQueue().splice(index, 1);
+    }
+    job.status = "error";
+    job.error = "Cancelled by user before processing started.";
+    job.progress = 0;
+    job.progressLabel = "Cancelled";
+    job.queuePosition = 0;
+    job.updatedAt = Date.now();
+    updateQueuePositions();
+    syncJobState();
+    return true;
   }
 
-  job.status = "error";
-  job.error = "Cancelled by user before processing started.";
-  job.progress = 0;
-  job.progressLabel = "Cancelled";
-  job.queuePosition = 0;
-  job.updatedAt = Date.now();
-  updateQueuePositions();
-  syncJobState();
-  return true;
+  if (job.status === "downloading") {
+    const controller = getActiveControllers().get(jobId);
+    if (controller) {
+      controller.abort();
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function getQueuePosition(jobId: string) {

@@ -12,6 +12,7 @@ type RunCommandOptions = {
   idleTimeoutMessage?: string;
   onStdoutLine?: (line: string) => void;
   onStderrLine?: (line: string) => void;
+  signal?: AbortSignal;
 };
 
 function emitLines(
@@ -58,10 +59,29 @@ export async function runCommand(
   }
 
   return new Promise((resolve, reject) => {
+    if (options.signal?.aborted) {
+      return reject(new Error("Aborted"));
+    }
+
     const child = spawn(actualCommand, actualArgs, {
       stdio: ["ignore", "pipe", "pipe"],
       env: process.env,
     });
+
+    const cleanup = () => {
+      options.signal?.removeEventListener("abort", onAbort);
+    };
+
+    const onAbort = () => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      clearIdleTimer();
+      child.kill("SIGKILL");
+      reject(new Error("Aborted"));
+    };
+
+    options.signal?.addEventListener("abort", onAbort);
 
     let stdout = "";
     let stderr = "";
@@ -127,6 +147,7 @@ export async function runCommand(
       }
 
       finished = true;
+      cleanup();
       clearTimeout(timer);
       clearIdleTimer();
       reject(error);
@@ -138,6 +159,7 @@ export async function runCommand(
       }
 
       finished = true;
+      cleanup();
       clearTimeout(timer);
       clearIdleTimer();
 
