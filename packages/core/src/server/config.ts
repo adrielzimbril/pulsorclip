@@ -1,17 +1,16 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const rootDir = process.cwd();
-const downloadsDir = resolve(
-  /* turbopackIgnore: true */ rootDir,
-  process.env.PULSORCLIP_DOWNLOAD_DIR || join(rootDir, "downloads"),
-);
-
-mkdirSync(downloadsDir, { recursive: true });
+export function ensureAppDirs() {
+  const dir = resolve(process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
+  mkdirSync(dir, { recursive: true });
+}
 
 export const appConfig = {
   appName: "PulsorClip",
-  downloadsDir,
+  get downloadsDir() {
+    return resolve(process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
+  },
   debugLogs: process.env.PULSORCLIP_DEBUG_LOGS === "true",
   logFullUrls: process.env.PULSORCLIP_LOG_FULL_URLS === "true",
   ytDlpBin: process.env.YTDLP_BIN || "yt-dlp",

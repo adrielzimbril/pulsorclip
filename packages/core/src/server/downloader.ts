@@ -11,7 +11,7 @@ import {
 import { pipeline } from "node:stream/promises";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
-import { appConfig } from "./config";
+import { appConfig, ensureAppDirs } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
 import { getStoredJobs, getStoredQueue, writeStoredJobs } from "./runtime-db";
@@ -312,7 +312,12 @@ async function convertAudio(
   }
 }
 
-async function downloadDirectFile(url: string, outputPath: string) {
+async function downloadDirectFile(
+  job: DownloadJob,
+  url: string,
+  outputPath: string,
+) {
+  updateJobProgress(job, 15, "Fetching high-speed media stream");
   logServer("info", "media.download.direct.started", { url: urlForLogs(url), outputPath });
   const response = await fetch(url, {
     headers: {
@@ -899,7 +904,7 @@ async function executeDownload(jobId: string) {
   job.updatedAt = Date.now();
   syncJobState();
 
-  updateJobProgress(job, 2, "Connecting to source");
+  updateJobProgress(job, 5, "Preparing media extraction...");
   logServer("info", "media.download.started", {
     jobId: job.id,
     mode: job.mode,
@@ -916,7 +921,7 @@ async function executeDownload(jobId: string) {
       updateJobProgress(job, 10, "Downloading direct media stream");
       const directExt = job.mode === "audio" ? "mp3" : "mp4";
       const directPath = join(tempDir, `source.${directExt}`);
-      await downloadDirectFile(jobUrl, directPath);
+      await downloadDirectFile(job, jobUrl, directPath);
     } else {
       const sourceArgs = [
         ...getAuthArgs(),
@@ -1072,6 +1077,7 @@ async function processQueue() {
 }
 
 export function createDownloadJob(input: DownloadRequestPayload) {
+  ensureAppDirs();
   const mode = input.mode;
   const defaultExt = mode === "audio" ? "mp3" : "mp4";
   const jobId = randomUUID().replace(/-/g, "").slice(0, 12);

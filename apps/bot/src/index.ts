@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { appConfig, logServer } from "@pulsorclip/core/server";
+import { appConfig, logServer, ensureAppDirs } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import { registerBotHandlers } from "./handlers";
 import { applyTelegramMetadata } from "./metadata";
@@ -28,6 +28,8 @@ async function bootstrap() {
     botEnabled: appConfig.telegramBotEnabled,
     configuredUsername: appConfig.telegramBotUsername,
   });
+  
+  ensureAppDirs();
 
   try {
     await bot.telegram.deleteWebhook({ drop_pending_updates: false }).catch(() => undefined);

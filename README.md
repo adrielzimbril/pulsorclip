@@ -190,6 +190,3 @@ It is designed to explore media extraction concepts and self-hosting architectur
 
 - **User Responsibility:** Users are solely responsible for their actions and must ensure compliance with the terms of service of the target platforms and local copyright laws (DMCA, etc.).
 - **Notice:** This software is provided "as is", without warranty of any kind. The authors are not responsible for any legal consequences or liability arising from the use or misuse of this software.
-
-## Docs
-... (rest of the file remains as is)
