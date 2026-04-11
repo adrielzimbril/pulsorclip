@@ -294,6 +294,55 @@ function progressBar(progress: number) {
   return `${"█".repeat(filled)}${"░".repeat(total - filled)}`;
 }
 
+const funnyStages = {
+  PREPARING: [
+    "🎬 🍕 Ordering pizza for the server's rats...",
+    "🎬 🚀 Fueling the rocket...",
+    "🎬 ☕ Boiling digital water...",
+    "🎬 🍪 Hiding the cookie jar...",
+  ],
+  DOWNLOADING: [
+    "🎬 📦 Packing pixels...",
+    "🎬 🇵🇱 Searching for Polish cow...",
+    "🎬 🔧 Tightening digital screws...",
+    "🎬 🌌 Fetching from the cloud...",
+    "🎬 🥨 Twisting the pretzels...",
+    "🎬 🎸 Tuning the bass strings...",
+  ],
+  PROCESSING: [
+    "🎬 🧱 Polishing the raw data...",
+    "🎬 🧪 Distilling the essence of the video...",
+    "🎬 🍳 Cooking the frames to perfection...",
+    "🎬 🏎️ Overclocking the hamsters...",
+    "🎬 🧙‍♂️ Casting conversion spells...",
+  ],
+  FINALIZING: [
+    "🎬 🧼 Cleaning up the bytes...",
+    "🎬 🦆 Feeding the delivery ducks...",
+    "🎬 🦉 Consulting the nocturnal owl...",
+    "🎬 🍿 Getting the popcorn ready...",
+    "🎬 🏁 Sprinkling finishing dust...",
+  ],
+};
+
+function getFunnyStatus(jobId: string, progress: number, status: string) {
+  // 1. Determine Stage
+  let stage: keyof typeof funnyStages = "DOWNLOADING";
+  
+  if (status === "done" || progress >= 100) {
+    stage = "FINALIZING";
+  } else if (progress >= 90) {
+    stage = "PROCESSING";
+  } else if (progress < 10) {
+    stage = "PREPARING";
+  }
+
+  // 2. Stable Selection within stage
+  const messages = funnyStages[stage];
+  const seed = parseInt(jobId.slice(0, 2), 16) || 0;
+  return messages[seed % messages.length];
+}
+
 function renderJobUpdate(locale: AppLocale, jobId: string) {
   const job = getDownloadJob(jobId);
 
@@ -315,7 +364,7 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
   if (job.status === "downloading") {
     const webLink = `${appConfig.baseUrl}/track/${jobId}`;
     return [
-      locale === "fr" ? "⚙️ Préparation du média" : "⚙️ Preparing media",
+      getFunnyStatus(jobId, job.progress, job.status),
       `${progressBar(job.progress)} ${job.progress}%`,
       job.progressLabel || (locale === "fr" ? "Traitement en cours..." : "Processing..."),
       "",
@@ -324,7 +373,10 @@ function renderJobUpdate(locale: AppLocale, jobId: string) {
   }
 
   if (job.status === "done") {
-    return locale === "fr" ? "✅ Fichier pret. Envoi en cours." : "✅ File ready. Delivering now.";
+    return [
+      getFunnyStatus(jobId, 100, "done"),
+      locale === "fr" ? "✅ Fichier pret. Envoi en cours." : "✅ File ready. Delivering now.",
+    ].join("\n");
   }
 
   return job.error || t(locale, "botDownloadFailed");

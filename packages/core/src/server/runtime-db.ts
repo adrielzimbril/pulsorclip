@@ -1,7 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import Database from "better-sqlite3";
 import { appConfig } from "./config";
 import type { AppLocale, DownloadMode, DownloadJob } from "../shared/types";
+import { logServer } from "./logger";
 
 type CounterKind = "created" | "completed";
 
@@ -12,58 +14,116 @@ type BotUserPreferences = {
   lastSeenAt?: string;
 };
 
-type DailySummaryRow = {
-  botUsers: number[];
-  downloadsCreated: { web: number; bot: number };
-  downloadsCompleted: { web: number; bot: number };
-};
-
-type RuntimeStore = {
-  botUsers: Record<string, BotUserPreferences>;
-  daily: Record<string, DailySummaryRow>;
-  jobs: Record<string, DownloadJob>;
-  queue: string[];
-};
-
 const runtimeDir = join(appConfig.downloadsDir, ".runtime");
-const runtimeDbPath = join(runtimeDir, "pulsorclip-runtime.json");
+const sqliteDbPath = join(runtimeDir, "pulsorclip.db");
+const legacyDbPath = join(runtimeDir, "pulsorclip-runtime.json");
 
-function ensureStoreDir() {
-  mkdirSync(dirname(runtimeDbPath), { recursive: true });
-}
+// Ensure directory exists
+mkdirSync(runtimeDir, { recursive: true });
 
-function createEmptyStore(): RuntimeStore {
-  return {
-    botUsers: {},
-    daily: {},
-    jobs: {},
-    queue: [],
-  };
-}
+// Initialize Database
+const db = new Database(sqliteDbPath);
+db.pragma("journal_mode = WAL");
 
-function readStore(): RuntimeStore {
-  ensureStoreDir();
+// Migration / Schema Setup
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    preferences TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+  );
 
-  if (!existsSync(runtimeDbPath)) {
-    return createEmptyStore();
-  }
+  CREATE TABLE IF NOT EXISTS daily_stats (
+    date TEXT PRIMARY KEY,
+    bot_users TEXT NOT NULL DEFAULT '[]',
+    downloads_created_web INTEGER DEFAULT 0,
+    downloads_created_bot INTEGER DEFAULT 0,
+    downloads_completed_web INTEGER DEFAULT 0,
+    downloads_completed_bot INTEGER DEFAULT 0
+  );
 
+  CREATE TABLE IF NOT EXISTS jobs (
+    id TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS queue (
+    job_id TEXT PRIMARY KEY,
+    position INTEGER NOT NULL,
+    added_at TEXT NOT NULL
+  );
+`);
+
+// Legacy JSON Data Migration
+if (existsSync(legacyDbPath)) {
   try {
-    const parsed = JSON.parse(readFileSync(runtimeDbPath, "utf8")) as RuntimeStore;
-    return {
-      botUsers: parsed.botUsers || {},
-      daily: parsed.daily || {},
-      jobs: parsed.jobs || {},
-      queue: parsed.queue || [],
-    };
-  } catch {
-    return createEmptyStore();
+    const data = JSON.parse(readFileSync(legacyDbPath, "utf-8"));
+    
+    db.transaction(() => {
+      // Migrate users
+      if (data.botUsers) {
+        const stmt = db.prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)");
+        for (const [id, prefs] of Object.entries(data.botUsers)) {
+          stmt.run(id, JSON.stringify(prefs), (prefs as any).lastSeenAt || new Date().toISOString());
+        }
+      }
+
+      // Migrate jobs
+      if (data.jobs) {
+        const stmt = db.prepare("INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)");
+        for (const [id, job] of Object.entries(data.jobs)) {
+          stmt.run(id, JSON.stringify(job), new Date().toISOString());
+        }
+      }
+
+      // Migrate queue
+      if (data.queue && Array.isArray(data.queue)) {
+        const stmt = db.prepare("INSERT OR REPLACE INTO queue (job_id, position, added_at) VALUES (?, ?, ?)");
+        data.queue.forEach((jobId: string, index: number) => {
+          stmt.run(jobId, index, new Date().toISOString());
+        });
+      }
+
+      // Migrate daily stats
+      if (data.daily) {
+        const stmt = db.prepare(`
+          INSERT OR REPLACE INTO daily_stats 
+          (date, bot_users, downloads_created_web, downloads_created_bot, downloads_completed_web, downloads_completed_bot) 
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        for (const [date, row] of Object.entries(data.daily as any)) {
+          const r = row as any;
+          stmt.run(
+            date,
+            JSON.stringify(r.botUsers || []),
+            r.downloadsCreated?.web || 0,
+            r.downloadsCreated?.bot || 0,
+            r.downloadsCompleted?.web || 0,
+            r.downloadsCompleted?.bot || 0
+          );
+        }
+      }
+    })();
+
+    logServer("info", "db.migration.completed", { source: legacyDbPath });
+    // Backup legacy file
+    try {
+      const backupPath = `${legacyDbPath}.bak`;
+      if (!existsSync(backupPath)) {
+        writeFileSync(backupPath, readFileSync(legacyDbPath));
+        unlinkSync(legacyDbPath);
+      }
+    } catch {
+      // Ignore backup error
+    }
+  } catch (err) {
+    logServer("error", "db.migration.failed", { error: String(err) });
   }
 }
 
-function writeStore(store: RuntimeStore) {
-  ensureStoreDir();
-  writeFileSync(runtimeDbPath, JSON.stringify(store, null, 2), "utf8");
+function timestamp() {
+  return new Date().toISOString();
 }
 
 function utcDateKey(offsetDays = 0) {
@@ -72,148 +132,125 @@ function utcDateKey(offsetDays = 0) {
   return now.toISOString().slice(0, 10);
 }
 
-function timestamp() {
-  return new Date().toISOString();
+export function getRuntimeDbPath() {
+  return sqliteDbPath;
 }
 
-function ensureDailyRow(store: RuntimeStore, bucketDate: string) {
-  if (!store.daily[bucketDate]) {
-    store.daily[bucketDate] = {
-      botUsers: [],
+export function getStoredUserPreferences(userId?: number): BotUserPreferences {
+  if (!userId) return {};
+  const row = db.prepare("SELECT preferences FROM users WHERE id = ?").get(String(userId)) as { preferences: string } | undefined;
+  return row ? JSON.parse(row.preferences) : {};
+}
+
+export function setStoredUserLocale(userId: number | undefined, locale: AppLocale) {
+  if (!userId) return;
+  const id = String(userId);
+  const now = timestamp();
+  const current = getStoredUserPreferences(userId);
+  const updated = { ...current, locale, firstSeenAt: current.firstSeenAt || now, lastSeenAt: now };
+  db.prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)").run(id, JSON.stringify(updated), now);
+}
+
+export function setStoredUserMode(userId: number | undefined, mode: DownloadMode) {
+  if (!userId) return;
+  const id = String(userId);
+  const now = timestamp();
+  const current = getStoredUserPreferences(userId);
+  const updated = { ...current, mode, firstSeenAt: current.firstSeenAt || now, lastSeenAt: now };
+  db.prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)").run(id, JSON.stringify(updated), now);
+}
+
+export function trackStoredBotUser(userId?: number) {
+  if (!userId) return;
+  const id = String(userId);
+  const now = timestamp();
+  const date = utcDateKey();
+  
+  // Update user last seen
+  const current = getStoredUserPreferences(userId);
+  const updated = { ...current, firstSeenAt: current.firstSeenAt || now, lastSeenAt: now };
+  db.prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)").run(id, JSON.stringify(updated), now);
+
+  // Update daily stats users list
+  const row = db.prepare("SELECT bot_users FROM daily_stats WHERE date = ?").get(date) as { bot_users: string } | undefined;
+  let botUsers = row ? JSON.parse(row.bot_users) : [];
+  if (!botUsers.includes(userId)) {
+    botUsers.push(userId);
+    db.prepare("INSERT INTO daily_stats (date, bot_users) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET bot_users = ?")
+      .run(date, JSON.stringify(botUsers), JSON.stringify(botUsers));
+  }
+}
+
+export function incrementDailyCounter(source: "web" | "bot", kind: CounterKind) {
+  const date = utcDateKey();
+  const column = kind === "created" ? `downloads_created_${source}` : `downloads_completed_${source}`;
+  db.prepare(`
+    INSERT INTO daily_stats (date, ${column}) 
+    VALUES (?, 1) 
+    ON CONFLICT(date) DO UPDATE SET ${column} = ${column} + 1
+  `).run(date);
+}
+
+export function getStoredDailySummary(date = utcDateKey()) {
+  const row = db.prepare("SELECT * FROM daily_stats WHERE date = ?").get(date) as any;
+  if (!row) {
+    return {
+      date,
+      botUsers: 0,
       downloadsCreated: { web: 0, bot: 0 },
       downloadsCompleted: { web: 0, bot: 0 },
     };
   }
-
-  return store.daily[bucketDate];
-}
-
-export function getRuntimeDbPath() {
-  return runtimeDbPath;
-}
-
-export function getStoredUserPreferences(userId?: number): BotUserPreferences {
-  if (!userId) {
-    return {};
-  }
-
-  const store = readStore();
-  return store.botUsers[String(userId)] || {};
-}
-
-export function setStoredUserLocale(userId: number | undefined, locale: AppLocale) {
-  if (!userId) {
-    return;
-  }
-
-  const now = timestamp();
-  const key = String(userId);
-  const store = readStore();
-  const current = store.botUsers[key] || {};
-  store.botUsers[key] = {
-    ...current,
-    locale,
-    firstSeenAt: current.firstSeenAt || now,
-    lastSeenAt: now,
-  };
-  writeStore(store);
-}
-
-export function setStoredUserMode(userId: number | undefined, mode: DownloadMode) {
-  if (!userId) {
-    return;
-  }
-
-  const now = timestamp();
-  const key = String(userId);
-  const store = readStore();
-  const current = store.botUsers[key] || {};
-  store.botUsers[key] = {
-    ...current,
-    mode,
-    firstSeenAt: current.firstSeenAt || now,
-    lastSeenAt: now,
-  };
-  writeStore(store);
-}
-
-export function trackStoredBotUser(userId?: number) {
-  if (!userId) {
-    return;
-  }
-
-  const now = timestamp();
-  const key = String(userId);
-  const bucketDate = utcDateKey();
-  const store = readStore();
-  const current = store.botUsers[key] || {};
-
-  store.botUsers[key] = {
-    ...current,
-    firstSeenAt: current.firstSeenAt || now,
-    lastSeenAt: now,
-  };
-
-  const row = ensureDailyRow(store, bucketDate);
-  if (!row.botUsers.includes(userId)) {
-    row.botUsers.push(userId);
-  }
-
-  writeStore(store);
-}
-
-export function incrementDailyCounter(source: "web" | "bot", kind: CounterKind) {
-  const store = readStore();
-  const row = ensureDailyRow(store, utcDateKey());
-
-  if (kind === "created") {
-    row.downloadsCreated[source] += 1;
-  } else {
-    row.downloadsCompleted[source] += 1;
-  }
-
-  writeStore(store);
-}
-
-export function getStoredDailySummary(bucketDate = utcDateKey()) {
-  const store = readStore();
-  const row = ensureDailyRow(store, bucketDate);
-
   return {
-    date: bucketDate,
-    botUsers: row.botUsers.length,
-    downloadsCreated: { ...row.downloadsCreated },
-    downloadsCompleted: { ...row.downloadsCompleted },
+    date: row.date,
+    botUsers: JSON.parse(row.bot_users).length,
+    downloadsCreated: { web: row.downloads_created_web, bot: row.downloads_created_bot },
+    downloadsCompleted: { web: row.downloads_completed_web, bot: row.downloads_completed_bot },
   };
 }
 
-export function flushStoredDailySummary(bucketDate = utcDateKey(-1)) {
-  const store = readStore();
-  const row = ensureDailyRow(store, bucketDate);
-  const summary = {
-    date: bucketDate,
-    botUsers: row.botUsers.length,
-    downloadsCreated: { ...row.downloadsCreated },
-    downloadsCompleted: { ...row.downloadsCompleted },
-  };
-
-  delete store.daily[bucketDate];
-  writeStore(store);
-
+export function flushStoredDailySummary(date = utcDateKey(-1)) {
+  const summary = getStoredDailySummary(date);
+  db.prepare("DELETE FROM daily_stats WHERE date = ?").run(date);
   return summary;
 }
 
 export function getStoredJobs(): Record<string, DownloadJob> {
-  return readStore().jobs;
+  const rows = db.prepare("SELECT id, payload FROM jobs").all() as { id: string, payload: string }[];
+  const result: Record<string, DownloadJob> = {};
+  for (const row of rows) {
+    result[row.id] = JSON.parse(row.payload);
+  }
+  return result;
 }
 
 export function getStoredQueue(): string[] {
-  return readStore().queue;
+  const rows = db.prepare("SELECT job_id FROM queue ORDER BY position ASC").all() as { job_id: string }[];
+  return rows.map(r => r.job_id);
 }
 
-export function writeStoredJobs(jobs: Record<string, DownloadJob>, queue: string[]) {
-  const store = readStore();
-  store.jobs = jobs;
-  store.queue = queue;
-  writeStore(store);
+export function writeStoredJobs(jobsMap: Record<string, DownloadJob>, queueList: string[]) {
+  const now = timestamp();
+  db.transaction(() => {
+    // Delete jobs not in the map
+    const jobIds = Object.keys(jobsMap);
+    if (jobIds.length > 0) {
+      db.prepare(`DELETE FROM jobs WHERE id NOT IN (${jobIds.map(() => "?").join(",")})`).run(...jobIds);
+    } else {
+      db.prepare("DELETE FROM jobs").run();
+    }
+
+    // Insert or replace jobs
+    const insertJob = db.prepare("INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)");
+    for (const [id, job] of Object.entries(jobsMap)) {
+      insertJob.run(id, JSON.stringify(job), now);
+    }
+
+    // Update queue
+    db.prepare("DELETE FROM queue").run();
+    const insertQueue = db.prepare("INSERT INTO queue (job_id, position, added_at) VALUES (?, ?, ?)");
+    queueList.forEach((jobId, index) => {
+      insertQueue.run(jobId, index, now);
+    });
+  })();
 }

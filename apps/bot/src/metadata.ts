@@ -106,19 +106,34 @@ async function setCommands(
 }
 
 async function syncDescriptions(bot: Telegraf) {
+  // 1. Set Bot Name (Max 64 chars)
+  const botName = "Pulsor Clip - Media Downloader (TikTok, Instagram, YT & more)";
+  
+  await safeTelegramCall(bot, "setMyName", {
+    name: botName,
+  });
+  await safeTelegramCall(bot, "setMyName", {
+    language_code: "fr",
+    name: botName,
+  });
+
+  // 2. Set Descriptions with Dev Link
+  const descPrefix = "Dev: https://t.me/akaiokami_az\n\n";
+  
   await safeTelegramCall(bot, "setMyDescription", {
-    description: "Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.",
+    description: `${descPrefix}Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.`,
   });
   await safeTelegramCall(bot, "setMyDescription", {
     language_code: "fr",
-    description: "Envoie un lien media, choisis le format, puis recois le fichier prepare dans Telegram ou continue dans l app web si le fichier est trop lourd.",
+    description: `${descPrefix}Envoie un lien media, choisis le format, puis recois le fichier prepare dans Telegram ou continue dans l app web si le fichier est trop lourd.`,
   });
+
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "🎬 Download videos and audio in Telegram.",
+    short_description: "🎬 Download videos/audio. Dev: @akaiokami_az",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
     language_code: "fr",
-    short_description: "🎬 Telecharge videos et audio dans Telegram.",
+    short_description: "🎬 Telechargement videos/audio. Dev: @akaiokami_az",
   });
 
   const description = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
