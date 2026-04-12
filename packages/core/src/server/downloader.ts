@@ -15,7 +15,7 @@ import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig, ensureAppDirs } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
-import { getStoredJob, getStoredJobs, getStoredQueue, writeStoredJobs } from "./runtime-db";
+import { getStoredJob, getStoredJobs, getStoredQueue, writeStoredJob, writeStoredJobs } from "./runtime-db";
 import { getSourceProfile } from "./source-adapters";
 import type {
   DownloadJob,
@@ -70,8 +70,12 @@ const TRANSCODE_TIMEOUT_MS = 25 * 60_000;
 const DOWNLOAD_IDLE_TIMEOUT_MS = 90_000;
 const TRANSCODE_IDLE_TIMEOUT_MS = 120_000;
 
-function syncJobState() {
-  writeStoredJobs(Object.fromEntries(getJobs()), [...getQueue()]);
+function syncJobState(job?: DownloadJob) {
+  if (job) {
+    writeStoredJob(job);
+  } else {
+    writeStoredJobs(Object.fromEntries(getJobs()), [...getQueue()]);
+  }
 }
 
 function sanitizeFilename(input: string) {
@@ -304,7 +308,7 @@ function updateJobProgress(
   job.progress = Math.max(0, Math.min(100, Math.round(progress)));
   job.progressLabel = progressLabel;
   job.updatedAt = Date.now();
-  syncJobState();
+  syncJobState(job);
 }
 
 function parseProgressLine(job: DownloadJob, line: string) {
@@ -1119,6 +1123,12 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       ],
       INFO_TIMEOUT_MS,
     );
+    logServer("info", "media.info.fetch.middle.result", {
+      platform: sourceProfile.platform,
+      url: urlForLogs(url),
+      extractorArgs: sourceProfile.extractorArgs,
+      result
+    });
 
     if (result.exitCode !== 0) {
       if (sourceProfile.platform === "threads") {
@@ -1127,9 +1137,9 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       if (sourceProfile.platform === "tiktok") {
         return await scrapeTikTokCarousel(url);
       }
-      // if (sourceProfile.platform === "facebook") {
-      //   return await scrapeFacebookInfo(url);
-      // }
+      if (sourceProfile.platform === "facebook") {
+        return await scrapeFacebookInfo(url);
+      }
       throw new Error(simplifyError(result.stderr));
     }
 
@@ -1228,6 +1238,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     throw err;
   }
 }
+
 export async function executeDownload(jobId: string) {
   const job = getJobs().get(jobId);
 
@@ -1352,6 +1363,7 @@ export async function executeDownload(jobId: string) {
           exitCode: downloadResult.exitCode,
           stderr: downloadResult.stderr.slice(-500),
         });
+        updateJobProgress(job, 0, "❌ Error while processing");
         return;
       }
     }
@@ -1367,6 +1379,7 @@ export async function executeDownload(jobId: string) {
         platform: sourceProfile.platform,
         tempDir,
       });
+      updateJobProgress(job, 0, "❌ Error while processing");
       return;
     }
 
@@ -1393,13 +1406,18 @@ export async function executeDownload(jobId: string) {
 
     const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
 
+    const stats = statSync(outputPath);
+    job.fileSize = stats.size;
+    job.fileSizeLabel = (stats.size / (1024 * 1024)).toFixed(2) + " MB";
+
+    updateJobProgress(job, 98, "😫 Nearly ready for download");
     job.status = "done";
     job.progress = 100;
     job.progressLabel = "Ready for download";
     job.filePath = outputPath;
     job.filename = `${safeTitle}.${finalExt}`;
     job.updatedAt = Date.now();
-    syncJobState();
+    syncJobState(job);
     trackDownloadCompleted(job.source);
     logServer("info", "media.download.completed", {
       jobId: job.id,
@@ -1414,6 +1432,7 @@ export async function executeDownload(jobId: string) {
       job.error = "Cancelled by user during processing.";
       job.progressLabel = "Cancelled";
       logServer("info", "media.download.cancelled", { jobId: job.id });
+      updateJobProgress(job, 0, "❌ Cancelled");
     } else {
       job.status = "error";
       job.error = error instanceof Error ? error.message : "Unknown process failure";
@@ -1423,9 +1442,11 @@ export async function executeDownload(jobId: string) {
         url: urlForLogs(job.url),
         message: job.error,
       });
+      updateJobProgress(job, 0, "❌ Error while processing");
     }
     job.updatedAt = Date.now();
-    syncJobState();
+    updateJobProgress(job, 0, "❌ Error occurred during processing");
+    syncJobState(job);
   } finally {
     getActiveControllers().delete(jobId);
     try {

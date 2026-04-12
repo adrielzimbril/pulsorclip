@@ -246,6 +246,12 @@ export function getStoredQueue(): string[] {
   return rows.map(r => r.job_id);
 }
 
+export function writeStoredJob(job: DownloadJob) {
+  const now = timestamp();
+  getDb().prepare("INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)")
+    .run(job.id, JSON.stringify(job), now);
+}
+
 export function writeStoredJobs(jobsMap: Record<string, DownloadJob>, queueList: string[]) {
   const now = timestamp();
   getDb().transaction(() => {

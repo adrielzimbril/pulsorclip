@@ -22,5 +22,6 @@ export async function GET(
     queuePosition: job.queuePosition || 0,
     error: job.error || null,
     filename: job.filename || null,
+    job: job,
   });
 }

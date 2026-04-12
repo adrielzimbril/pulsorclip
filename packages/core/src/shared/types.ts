@@ -81,6 +81,8 @@ export type DownloadJob = {
   thumbnail?: string | null;
   description?: string;
   tags?: string[];
+  fileSize?: number;
+  fileSizeLabel?: string;
 };
 
 export type DownloadRequestPayload = {
