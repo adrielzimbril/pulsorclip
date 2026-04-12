@@ -4,6 +4,7 @@ import {
   copyFileSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -15,7 +16,17 @@ import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig, ensureAppDirs } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
-import { getStoredJob, getStoredJobs, getStoredQueue, writeStoredJob, writeStoredJobs, writeStoredQueue } from "./runtime-db";
+import {
+  getStoredJob,
+  getStoredJobs,
+  getStoredQueue,
+  writeStoredJob,
+  writeStoredJobs,
+  writeStoredQueue,
+  getStoredThumbnail,
+  setStoredThumbnail,
+  deleteStoredThumbnail,
+} from "./runtime-db";
 import { getSourceProfile } from "./source-adapters";
 import type {
   DownloadJob,
@@ -41,7 +52,9 @@ function getActiveControllers() {
 
 function getJobs() {
   if (!global.__pulsorclipJobs) {
-    global.__pulsorclipJobs = new Map<string, DownloadJob>(Object.entries(getStoredJobs()));
+    global.__pulsorclipJobs = new Map<string, DownloadJob>(
+      Object.entries(getStoredJobs()),
+    );
   }
   return global.__pulsorclipJobs;
 }
@@ -111,15 +124,34 @@ function normalizeUrl(url: string | null | undefined): string | undefined {
 
 function normalizeMediaInfo(info: MediaInfo): MediaInfo {
   // Enrich generic titles if we have uploader info
-  const genericTitles = ["facebook post", "instagram post", "tiktok video", "tiktok audio", "threads post", "twitter post", "x post"];
+  const genericTitles = [
+    "facebook post",
+    "instagram post",
+    "tiktok video",
+    "tiktok audio",
+    "threads post",
+    "twitter post",
+    "x post",
+  ];
   const titleLower = info.title?.toLowerCase().trim();
-  
+
   let finalTitle = info.title;
   if (info.title && genericTitles.includes(titleLower) && info.uploader) {
     const uploaderLower = info.uploader.toLowerCase();
-    const isPlatformName = ["facebook", "instagram", "tiktok", "threads", "twitter", "x"].includes(uploaderLower);
-    
-    if (uploaderLower !== titleLower && !uploaderLower.includes("generic") && !isPlatformName) {
+    const isPlatformName = [
+      "facebook",
+      "instagram",
+      "tiktok",
+      "threads",
+      "twitter",
+      "x",
+    ].includes(uploaderLower);
+
+    if (
+      uploaderLower !== titleLower &&
+      !uploaderLower.includes("generic") &&
+      !isPlatformName
+    ) {
       finalTitle = `${info.title} by ${info.uploader}`;
     }
   }
@@ -128,9 +160,13 @@ function normalizeMediaInfo(info: MediaInfo): MediaInfo {
     ...info,
     title: finalTitle,
     thumbnail: normalizeUrl(info.thumbnail) || "",
-    images: info.images?.map((u) => normalizeUrl(u)).filter((u): u is string => !!u),
+    images: info.images
+      ?.map((u) => normalizeUrl(u))
+      .filter((u): u is string => !!u),
     resolvedUrl: normalizeUrl(info.resolvedUrl),
-    resolvedVideoUrl: info.resolvedVideoUrl ? normalizeUrl(info.resolvedVideoUrl) : normalizeUrl(info.resolvedUrl),
+    resolvedVideoUrl: info.resolvedVideoUrl
+      ? normalizeUrl(info.resolvedVideoUrl)
+      : normalizeUrl(info.resolvedUrl),
     playlist: info.playlist
       ? {
           ...info.playlist,
@@ -165,14 +201,20 @@ function isYoutubePlaylistUrl(rawUrl: string) {
   }
 }
 
-function resolvePlaylistEntryUrl(entry: Record<string, unknown>, playlistUrl: string) {
+function resolvePlaylistEntryUrl(
+  entry: Record<string, unknown>,
+  playlistUrl: string,
+) {
   const directUrl = typeof entry.url === "string" ? entry.url : null;
 
   if (directUrl?.startsWith("http")) {
     return directUrl;
   }
 
-  if (typeof entry.webpage_url === "string" && entry.webpage_url.startsWith("http")) {
+  if (
+    typeof entry.webpage_url === "string" &&
+    entry.webpage_url.startsWith("http")
+  ) {
     return entry.webpage_url;
   }
 
@@ -194,58 +236,70 @@ function resolvePlaylistEntryUrl(entry: Record<string, unknown>, playlistUrl: st
   return null;
 }
 
-function extractPlaylistEntries(parsed: Record<string, unknown>, playlistUrl: string): PlaylistEntry[] {
+function extractPlaylistEntries(
+  parsed: Record<string, unknown>,
+  playlistUrl: string,
+): PlaylistEntry[] {
   if (parsed._type !== "playlist" || !Array.isArray(parsed.entries)) {
     return [];
   }
 
-  const entries = (parsed.entries as Record<string, unknown>[])
-    .map<PlaylistEntry | null>((entry, index) => {
-      const url = resolvePlaylistEntryUrl(entry, playlistUrl);
+  const entries = (
+    parsed.entries as Record<string, unknown>[]
+  ).map<PlaylistEntry | null>((entry, index) => {
+    const url = resolvePlaylistEntryUrl(entry, playlistUrl);
 
-      if (!url) {
-        return null;
-      }
+    if (!url) {
+      return null;
+    }
 
-      return {
-        id:
-          (typeof entry.id === "string" && entry.id) ||
-          `${index + 1}`,
-        url,
-        title: decodeHtmlEntities(
-          typeof entry.title === "string" && entry.title.trim()
-            ? entry.title
-            : `Item ${index + 1}`,
-        ),
-        thumbnail: normalizeUrl(typeof entry.thumbnail === "string" ? entry.thumbnail : undefined),
-        duration: typeof entry.duration === "number" ? entry.duration : null,
-        uploader:
-          typeof entry.uploader === "string" && entry.uploader.trim()
-            ? decodeHtmlEntities(entry.uploader)
-            : undefined,
-      };
-    });
+    return {
+      id: (typeof entry.id === "string" && entry.id) || `${index + 1}`,
+      url,
+      title: decodeHtmlEntities(
+        typeof entry.title === "string" && entry.title.trim()
+          ? entry.title
+          : `Item ${index + 1}`,
+      ),
+      thumbnail: normalizeUrl(
+        typeof entry.thumbnail === "string" ? entry.thumbnail : undefined,
+      ),
+      duration: typeof entry.duration === "number" ? entry.duration : null,
+      uploader:
+        typeof entry.uploader === "string" && entry.uploader.trim()
+          ? decodeHtmlEntities(entry.uploader)
+          : undefined,
+    };
+  });
 
   return entries.filter((entry): entry is PlaylistEntry => entry !== null);
 }
 
 function simplifyError(raw: string) {
-  const lines = raw.trim().split(/\r?\n/).filter(line => {
-    const l = line.trim();
-    if (!l) return false;
-    // Filter out FFmpeg progress noise to reveal the actual error
-    if (l.includes("frame=") && l.includes("fps=")) return false;
-    if (l.startsWith("size=") && l.includes("time=")) return false;
-    if (l.startsWith("video:") && l.includes("audio:") && l.includes("muxing overhead")) return false;
-    if (l.startsWith("cpb: bitrate")) return false;
-    if (l.includes("encoder :")) return false;
-    if (l.includes("Metadata:") || l.includes("Stream #")) return false; // Filter meta blocks
-    if (l.includes("built with")) return false; // Filter ffmpeg header
-    if (l.startsWith("Configuration:")) return false;
-    if (l.startsWith("libav")) return false;
-    if (l.includes("Press [q] to stop")) return false;
-    return true;
-  });
+  const lines = raw
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => {
+      const l = line.trim();
+      if (!l) return false;
+      // Filter out FFmpeg progress noise to reveal the actual error
+      if (l.includes("frame=") && l.includes("fps=")) return false;
+      if (l.startsWith("size=") && l.includes("time=")) return false;
+      if (
+        l.startsWith("video:") &&
+        l.includes("audio:") &&
+        l.includes("muxing overhead")
+      )
+        return false;
+      if (l.startsWith("cpb: bitrate")) return false;
+      if (l.includes("encoder :")) return false;
+      if (l.includes("Metadata:") || l.includes("Stream #")) return false; // Filter meta blocks
+      if (l.includes("built with")) return false; // Filter ffmpeg header
+      if (l.startsWith("Configuration:")) return false;
+      if (l.startsWith("libav")) return false;
+      if (l.includes("Press [q] to stop")) return false;
+      return true;
+    });
 
   // Search all lines (not just last) for known error patterns
   const allText = lines.join(" ");
@@ -262,15 +316,26 @@ function simplifyError(raw: string) {
 
   const lastLine = lines.at(-1)!;
 
-  if (lower.includes("sign in to confirm you are not a bot") || lower.includes("login required")) {
+  if (
+    lower.includes("sign in to confirm you are not a bot") ||
+    lower.includes("login required")
+  ) {
     return "Authentication required. You must set YTDLP_COOKIES_BASE64 to download from this platform (especially for Stories).";
   }
 
-  if (lower.includes("this story is no longer available") || lower.includes("story_unavailable")) {
+  if (
+    lower.includes("this story is no longer available") ||
+    lower.includes("story_unavailable")
+  ) {
     return "This story is no longer available or has expired.";
   }
 
-  if (lower.includes("private") && (lower.includes("story") || lower.includes("instagram") || lower.includes("facebook"))) {
+  if (
+    lower.includes("private") &&
+    (lower.includes("story") ||
+      lower.includes("instagram") ||
+      lower.includes("facebook"))
+  ) {
     return "This is a private story. You must provide valid cookies from an account that follows this user.";
   }
 
@@ -337,7 +402,9 @@ function simplifyError(raw: string) {
   }
 
   // Generic fallback: prioritize the last meaningful line, but include raw snippet if it looks like a system error
-  return lastLine.length > 3 ? lastLine : `Media extraction/processing failed. Ensure your binaries (ffmpeg/yt-dlp) are up to date and accessible.`;
+  return lastLine.length > 3
+    ? lastLine
+    : `Media extraction/processing failed. Ensure your binaries (ffmpeg/yt-dlp) are up to date and accessible.`;
 }
 
 function updateJobProgress(
@@ -466,7 +533,8 @@ async function convertAudio(
   sourcePath: string,
   outputPath: string,
   signal?: AbortSignal,
-) {const codecArgs =
+) {
+  const codecArgs =
     job.targetExt === "mp3"
       ? ["-vn", "-c:a", "libmp3lame", "-b:a", "192k"]
       : ["-vn", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"];
@@ -497,14 +565,20 @@ async function convertAudio(
       signal,
       onStderrLine: (line) => {
         if (line.includes("time=") || line.includes("bitrate=")) {
-          logServer("debug", "ffmpeg.audio.progress", { jobId: job.id, line: line.trim() });
+          logServer("debug", "ffmpeg.audio.progress", {
+            jobId: job.id,
+            line: line.trim(),
+          });
         }
       },
     },
   );
 
   if (result.exitCode !== 0) {
-    console.error(`[CRITICAL] FFmpeg audio conversion failed for job ${job.id}. Stderr:`, result.stderr);
+    console.error(
+      `[CRITICAL] FFmpeg audio conversion failed for job ${job.id}. Stderr:`,
+      result.stderr,
+    );
     throw new Error(simplifyError(result.stderr));
   }
 }
@@ -516,10 +590,14 @@ async function downloadDirectFile(
   signal?: AbortSignal,
 ) {
   updateJobProgress(job, 15, "Fetching high-speed media stream");
-  logServer("info", "media.download.direct.started", { url: urlForLogs(url), outputPath });
+  logServer("info", "media.download.direct.started", {
+    url: urlForLogs(url),
+    outputPath,
+  });
   const headers: Record<string, string> = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "*/*",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept: "*/*",
     "Accept-Language": "en-US,en;q=0.9",
   };
 
@@ -532,7 +610,9 @@ async function downloadDirectFile(
   const response = await fetch(url, { headers, signal });
 
   if (!response.ok) {
-    throw new Error(`Direct download failed: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Direct download failed: ${response.status} ${response.statusText}`,
+    );
   }
 
   const contentLength = Number(response.headers.get("content-length"));
@@ -540,13 +620,13 @@ async function downloadDirectFile(
     throw new Error("Direct download failed: Response body is empty");
   }
 
-  logServer("info", "media.download.direct.stream", { 
-    url: urlForLogs(url), 
-    contentLength: contentLength || "unknown" 
+  logServer("info", "media.download.direct.stream", {
+    url: urlForLogs(url),
+    contentLength: contentLength || "unknown",
   });
 
   const writer = createWriteStream(outputPath);
-  
+
   try {
     // In Node 22, pipeline natively supports Web Streams (ReadableStream).
     // We avoid using Readable.fromWeb explicitly to bypass potential ReferenceErrors
@@ -556,7 +636,9 @@ async function downloadDirectFile(
   } catch (err) {
     writer.destroy();
     if (err instanceof Error && err.message.includes("require")) {
-       throw new Error(`Direct download stream failure: Node runtime error (${err.message}). Check ESM/CJS compatibility.`);
+      throw new Error(
+        `Direct download stream failure: Node runtime error (${err.message}). Check ESM/CJS compatibility.`,
+      );
     }
     throw err;
   }
@@ -564,7 +646,9 @@ async function downloadDirectFile(
   if (contentLength > 0) {
     const stats = statSync(outputPath);
     if (stats.size < contentLength) {
-      throw new Error(`Direct download truncated: expected ${contentLength} bytes, got ${stats.size} bytes`);
+      throw new Error(
+        `Direct download truncated: expected ${contentLength} bytes, got ${stats.size} bytes`,
+      );
     }
   }
 }
@@ -574,7 +658,8 @@ async function convertVideo(
   sourcePath: string,
   outputPath: string,
   signal?: AbortSignal,
-) {const codecArgs =
+) {
+  const codecArgs =
     job.targetExt === "mp4"
       ? [
           "-c:v",
@@ -633,14 +718,20 @@ async function convertVideo(
       signal,
       onStderrLine: (line) => {
         if (line.includes("frame=") || line.includes("fps=")) {
-          logServer("debug", "ffmpeg.video.progress", { jobId: job.id, line: line.trim() });
+          logServer("debug", "ffmpeg.video.progress", {
+            jobId: job.id,
+            line: line.trim(),
+          });
         }
       },
     },
   );
 
   if (result.exitCode !== 0) {
-    console.error(`[CRITICAL] FFmpeg video conversion failed for job ${job.id}. Stderr:`, result.stderr);
+    console.error(
+      `[CRITICAL] FFmpeg video conversion failed for job ${job.id}. Stderr:`,
+      result.stderr,
+    );
     throw new Error(simplifyError(result.stderr));
   }
 }
@@ -753,9 +844,13 @@ function pickAudioOptions(rawInfo: Record<string, unknown>) {
       abr: entry.abr,
       qualityLabel: entry.qualityLabel,
     }));
-  
+
   // High-priority fallback for TikTok standard videos to ensure Audio button appears
-  if (audioOptions.length === 0 && rawInfo.webpage_url && (rawInfo.webpage_url as string).includes("tiktok.com")) {
+  if (
+    audioOptions.length === 0 &&
+    rawInfo.webpage_url &&
+    (rawInfo.webpage_url as string).includes("tiktok.com")
+  ) {
     audioOptions.push({
       id: "bestaudio",
       label: "Best Audio",
@@ -806,14 +901,17 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     const videoVersionsMatch = html.match(/"video_versions":\s*(\[.*?\])/i);
     if (videoVersionsMatch) {
       try {
-        const versions = JSON.parse(videoVersionsMatch[1]
-          .replace(/\\u0025/g, "%")
-          .replace(/\\\//g, "/")
-          .replace(/&amp;/g, "&")
+        const versions = JSON.parse(
+          videoVersionsMatch[1]
+            .replace(/\\u0025/g, "%")
+            .replace(/\\\//g, "/")
+            .replace(/&amp;/g, "&"),
         );
         if (Array.isArray(versions) && versions.length > 0) {
           // Sort by width/height if available, otherwise pick the first one which is usually higher quality than the thumbnail
-          const sorted = versions.sort((a, b) => (b.width || 0) - (a.width || 0));
+          const sorted = versions.sort(
+            (a, b) => (b.width || 0) - (a.width || 0),
+          );
           resolvedUrl = sorted[0].url;
         }
       } catch (e) {
@@ -822,7 +920,7 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     }
 
     if (!resolvedUrl) {
-      const jsonMatch = 
+      const jsonMatch =
         html.match(/"video_url":\s*"([^"]+)"/i) ||
         html.match(/"video":\s*\{\s*"url":\s*"([^"]+)"/i);
       if (jsonMatch) {
@@ -837,9 +935,13 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     if (!resolvedUrl) {
       const videoMatch =
         html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
-        html.match(/<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i) ||
+        html.match(
+          /<meta\s+name="twitter:player:stream"\s+content="([^"]+)"/i,
+        ) ||
         html.match(/<meta\s+property="og:video:url"\s+content="([^"]+)"/i) ||
-        html.match(/<meta\s+property="og:video:secure_url"\s+content="([^"]+)"/i) ||
+        html.match(
+          /<meta\s+property="og:video:secure_url"\s+content="([^"]+)"/i,
+        ) ||
         html.match(/<video[^>]+src="([^"]+)"/i);
       if (videoMatch) {
         resolvedUrl = videoMatch[1].replace(/&amp;/g, "&");
@@ -849,20 +951,30 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
     // 3. Try to find images and videos for carousel support
     const images: string[] = [];
     const videoMatches: string[] = [];
-    
+
     // image_versions2 candidates
-    const imageMatches = html.matchAll(/"image_versions2":\s*\{\s*"candidates":\s*\[\s*\{\s*"url":\s*"([^"]+)"/gi);
+    const imageMatches = html.matchAll(
+      /"image_versions2":\s*\{\s*"candidates":\s*\[\s*\{\s*"url":\s*"([^"]+)"/gi,
+    );
     for (const match of imageMatches) {
-      const imgUrl = match[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/").replace(/&amp;/g, "&");
+      const imgUrl = match[1]
+        .replace(/\\u0025/g, "%")
+        .replace(/\\\//g, "/")
+        .replace(/&amp;/g, "&");
       if (!imgUrl.includes("/profiles/") && !images.includes(imgUrl)) {
         images.push(imgUrl);
       }
     }
 
     // video_versions candidates (for carousels)
-    const carouselVideoMatches = html.matchAll(/"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/gi);
+    const carouselVideoMatches = html.matchAll(
+      /"video_versions":\s*\[\s*\{\s*"type":\s*\d+,\s*"url":\s*"([^"]+)"/gi,
+    );
     for (const match of carouselVideoMatches) {
-      const vidUrl = match[1].replace(/\\u0025/g, "%").replace(/\\\//g, "/").replace(/&amp;/g, "&");
+      const vidUrl = match[1]
+        .replace(/\\u0025/g, "%")
+        .replace(/\\\//g, "/")
+        .replace(/&amp;/g, "&");
       if (!videoMatches.includes(vidUrl)) {
         videoMatches.push(vidUrl);
       }
@@ -870,10 +982,11 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 
     // Primary media logic
     const primaryVideo = resolvedUrl || videoMatches[0];
-    
-    // Heuristic: If we found a video, and it's not clearly a large carousel, 
+
+    // Heuristic: If we found a video, and it's not clearly a large carousel,
     // filter out the images to avoid thumbnail-confusion in the bot
-    const finalImages = (primaryVideo && images.length <= 2) ? [] : images.slice(0, 10);
+    const finalImages =
+      primaryVideo && images.length <= 2 ? [] : images.slice(0, 10);
     const finalVideo = primaryVideo;
 
     const thumbnailMatch =
@@ -928,10 +1041,13 @@ export async function scrapeThreadsInfo(url: string): Promise<MediaInfo> {
 export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
   // Clean TikTok URL to remove tracking parameters and ensure canonical format
   let cleanUrl = url.split("?")[0];
-  if (cleanUrl.includes("vt.tiktok.com") || cleanUrl.includes("vm.tiktok.com")) {
-     // For short URLs, cleaning ? is enough as they redirect anyway.
+  if (
+    cleanUrl.includes("vt.tiktok.com") ||
+    cleanUrl.includes("vm.tiktok.com")
+  ) {
+    // For short URLs, cleaning ? is enough as they redirect anyway.
   }
-  
+
   logServer("info", "media.info.scrape.tiktok.carousel.started", {
     url: urlForLogs(cleanUrl),
   });
@@ -960,7 +1076,9 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
     let images: string[] = [];
 
     if (Array.isArray(mediaData.images) && mediaData.images.length > 0) {
-      images = mediaData.images.map((u: any) => (typeof u === "string" && u.startsWith("//") ? `https:${u}` : u));
+      images = mediaData.images.map((u: any) =>
+        typeof u === "string" && u.startsWith("//") ? `https:${u}` : u,
+      );
     } else if (mediaData.image_post_info?.images) {
       images = mediaData.image_post_info.images
         .map((img: any) => img.display_image?.url_list?.[0])
@@ -970,17 +1088,20 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
 
     // If it's a video-only post, images will be empty, which is fine for enrichment fallback
 
-    const audioUrlCandidate = mediaData.music || mediaData.music_info?.play || "";
+    const audioUrlCandidate =
+      mediaData.music || mediaData.music_info?.play || "";
     let audioUrl = "";
     if (typeof audioUrlCandidate === "string" && audioUrlCandidate.length > 0) {
-      audioUrl = audioUrlCandidate.startsWith("//") ? `https:${audioUrlCandidate}` : audioUrlCandidate;
+      audioUrl = audioUrlCandidate.startsWith("//")
+        ? `https:${audioUrlCandidate}`
+        : audioUrlCandidate;
       if (!audioUrl.startsWith("http")) audioUrl = "";
     }
 
     const musicAuthor = mediaData.music_info?.author || "";
     const musicTitle = mediaData.music_info?.title || "";
     let audioTitle = "TikTok Audio";
-    
+
     if (musicAuthor && musicTitle) {
       audioTitle = `${musicAuthor} - ${musicTitle}`;
     } else if (musicTitle || musicAuthor) {
@@ -1028,16 +1149,17 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
       uploader: mediaData.author?.nickname || mediaData.author?.unique_id,
       duration: mediaData.duration,
       platform: "tiktok",
-      thumbnail: mediaData.cover?.startsWith("//") ? `https:${mediaData.cover}` : mediaData.cover,
+      thumbnail: mediaData.cover?.startsWith("//")
+        ? `https:${mediaData.cover}`
+        : mediaData.cover,
       images,
       videoOptions,
       audioOptions,
-      resolvedUrl: audioUrl || undefined,       // audio direct URL
+      resolvedUrl: audioUrl || undefined, // audio direct URL
       resolvedVideoUrl: resolvedVideoUrl || undefined, // video direct URL
     };
 
     return result;
-
   } catch (err) {
     logServer("error", "media.info.scrape.tiktok.failed", {
       url: urlForLogs(url),
@@ -1090,12 +1212,15 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
 
     const html = await response.text();
 
-    const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i) || 
-                       html.match(/<meta name="twitter:title" content="([^"]+)"/i);
-    const thumbnailMatch = html.match(/<meta property="og:image" content="([^"]+)"/i) || 
-                           html.match(/<meta name="twitter:image" content="([^"]+)"/i);
-    const descriptionMatch = html.match(/<meta property="og:description" content="([^"]+)"/i) || 
-                             html.match(/<meta name="twitter:description" content="([^"]+)"/i);
+    const titleMatch =
+      html.match(/<meta property="og:title" content="([^"]+)"/i) ||
+      html.match(/<meta name="twitter:title" content="([^"]+)"/i);
+    const thumbnailMatch =
+      html.match(/<meta property="og:image" content="([^"]+)"/i) ||
+      html.match(/<meta name="twitter:image" content="([^"]+)"/i);
+    const descriptionMatch =
+      html.match(/<meta property="og:description" content="([^"]+)"/i) ||
+      html.match(/<meta name="twitter:description" content="([^"]+)"/i);
 
     const title = decodeHtmlEntities(titleMatch ? titleMatch[1] : "");
     const thumbnail = thumbnailMatch
@@ -1113,10 +1238,7 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
     const matches = html.match(imgRegex);
     if (matches) {
       matches.forEach((m) => {
-        const u = m
-          .replace(/"/g, "")
-          .replace(/\\/g, "")
-          .replace(/&amp;/g, "&");
+        const u = m.replace(/"/g, "").replace(/\\/g, "").replace(/&amp;/g, "&");
         // Filter out common UI icons/tracking pixels by checking for known dimensions or patterns
         if (
           !images.includes(u) &&
@@ -1130,16 +1252,24 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
 
     const videoOptions: MediaOption[] = [];
     const fbVideoPatterns = [
-      { id: "fb-hd", label: "High Quality (HD)", regex: /"(?:hd_src|browser_native_hd_url)":"([^"]+)"/i },
-      { id: "fb-sd", label: "Standard Quality (SD)", regex: /"(?:sd_src|browser_native_sd_url)":"([^"]+)"/i },
-      { id: "fb-video", label: "Video", regex: /"video_url":"([^"]+)"/i }
+      {
+        id: "fb-hd",
+        label: "High Quality (HD)",
+        regex: /"(?:hd_src|browser_native_hd_url)":"([^"]+)"/i,
+      },
+      {
+        id: "fb-sd",
+        label: "Standard Quality (SD)",
+        regex: /"(?:sd_src|browser_native_sd_url)":"([^"]+)"/i,
+      },
+      { id: "fb-video", label: "Video", regex: /"video_url":"([^"]+)"/i },
     ];
 
-    fbVideoPatterns.forEach(pattern => {
+    fbVideoPatterns.forEach((pattern) => {
       const match = html.match(pattern.regex);
       if (match) {
         const videoUrl = match[1].replace(/\\/g, "").replace(/&amp;/g, "&");
-        if (!videoOptions.find(o => o.url === videoUrl)) {
+        if (!videoOptions.find((o) => o.url === videoUrl)) {
           videoOptions.push({
             id: pattern.id,
             label: pattern.label,
@@ -1184,31 +1314,42 @@ async function scrapeInstagramInfo(url: string): Promise<MediaInfo> {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
       },
     });
 
     const html = await response.text();
 
-    const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i) || 
-                       html.match(/<meta property="og:description" content="([^"]+)"/i);
-    const thumbnailMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
-    
+    const titleMatch =
+      html.match(/<meta property="og:title" content="([^"]+)"/i) ||
+      html.match(/<meta property="og:description" content="([^"]+)"/i);
+    const thumbnailMatch = html.match(
+      /<meta property="og:image" content="([^"]+)"/i,
+    );
+
     // Extract account/uploader from title which is often "Profile Name (@handle) • Instagram photos and videos"
     let uploader = "Instagram";
-    const authorMatch = html.match(/<meta property="og:title" content="([^"]+) on Instagram/i) || 
-                        html.match(/content="([^"]+) \(@[^)]+\) • Instagram/i);
+    const authorMatch =
+      html.match(/<meta property="og:title" content="([^"]+) on Instagram/i) ||
+      html.match(/content="([^"]+) \(@[^)]+\) • Instagram/i);
     if (authorMatch) {
       uploader = authorMatch[1].trim();
     }
 
     const title = titleMatch ? decodeHtmlEntities(titleMatch[1]) : "";
-    const thumbnail = thumbnailMatch ? thumbnailMatch[1].replace(/&amp;/g, "&") : "";
+    const thumbnail = thumbnailMatch
+      ? thumbnailMatch[1].replace(/&amp;/g, "&")
+      : "";
 
     const videoOptions: MediaOption[] = [];
-    const igVideoMatch = html.match(/"video_url":"([^"]+)"/i) || html.match(/<meta property="og:video" content="([^"]+)"/i);
+    const igVideoMatch =
+      html.match(/"video_url":"([^"]+)"/i) ||
+      html.match(/<meta property="og:video" content="([^"]+)"/i);
     if (igVideoMatch) {
-      const videoUrl = igVideoMatch[1].replace(/\\/g, "").replace(/&amp;/g, "&");
+      const videoUrl = igVideoMatch[1]
+        .replace(/\\/g, "")
+        .replace(/&amp;/g, "&");
       videoOptions.push({
         id: "instagram-video",
         label: "Video",
@@ -1238,12 +1379,37 @@ async function scrapeInstagramInfo(url: string): Promise<MediaInfo> {
 
 /**
  * Fetches a remote image and returns it as a buffer.
+ * Saves the thumbnail to temps/thumbnails folder for tracking and caching.
  * Used for proxying thumbnails to Telegram when direct hotlinking is blocked.
  */
-export async function fetchThumbnailBuffer(url: string): Promise<Buffer | null> {
+export async function fetchThumbnailBuffer(
+  url: string,
+): Promise<Buffer | null> {
   if (!url || !url.startsWith("http")) return null;
 
   try {
+    // Check if thumbnail is already cached in database
+    const cached = getStoredThumbnail(url);
+    if (cached) {
+      try {
+        const buffer = readFileSync(cached.file_path);
+        logServer("info", "thumbnail.cache.hit", {
+          url: urlForLogs(url),
+          filePath: cached.file_path,
+        });
+        return buffer;
+      } catch (err) {
+        logServer("warn", "thumbnail.cache.read.failed", {
+          url: urlForLogs(url),
+          filePath: cached.file_path,
+          error: String(err),
+        });
+        // Cache file missing, delete from database and proceed to fetch
+        deleteStoredThumbnail(url);
+      }
+    }
+
+    // Fetch the thumbnail
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
@@ -1259,9 +1425,45 @@ export async function fetchThumbnailBuffer(url: string): Promise<Buffer | null> 
 
     if (!response.ok) return null;
     const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Save to temps/thumbnails folder
+    try {
+      const ext = extname(url) || ".jpg";
+      const filename = `${randomUUID()}${ext}`;
+      const filePath = join(appConfig.thumbnailsDir, filename);
+
+      // Ensure directory exists
+      mkdirSync(appConfig.thumbnailsDir, { recursive: true });
+
+      // Write file
+      writeFileSync(filePath, buffer);
+
+      // Get content type from response or default to jpeg
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+
+      // Track in database
+      setStoredThumbnail(url, filePath, contentType, buffer.length);
+
+      logServer("info", "thumbnail.saved", {
+        url: urlForLogs(url),
+        filePath,
+        size: buffer.length,
+      });
+    } catch (saveErr) {
+      logServer("warn", "thumbnail.save.failed", {
+        url: urlForLogs(url),
+        error: String(saveErr),
+      });
+      // Don't fail the request if saving fails, just return the buffer
+    }
+
+    return buffer;
   } catch (err) {
-    logServer("error", "thumbnail.fetch.failed", { url: urlForLogs(url), error: String(err) });
+    logServer("error", "thumbnail.fetch.failed", {
+      url: urlForLogs(url),
+      error: String(err),
+    });
     return null;
   }
 }
@@ -1297,7 +1499,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       platform: sourceProfile.platform,
       url: urlForLogs(url),
       extractorArgs: sourceProfile.extractorArgs,
-      result
+      result,
     });
 
     if (result.exitCode !== 0) {
@@ -1317,7 +1519,11 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     const playlistEntries = extractPlaylistEntries(parsed, url);
 
     let images: string[] | undefined;
-    if (parsed._type === "playlist" && Array.isArray(parsed.entries) && playlistEntries.length === 0) {
+    if (
+      parsed._type === "playlist" &&
+      Array.isArray(parsed.entries) &&
+      playlistEntries.length === 0
+    ) {
       const extracted = (parsed.entries as Record<string, unknown>[])
         .flatMap((entry) => {
           if (
@@ -1359,7 +1565,8 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       extractorNote: sourceProfile.note,
       width: typeof parsed.width === "number" ? parsed.width : undefined,
       height: typeof parsed.height === "number" ? parsed.height : undefined,
-      description: typeof parsed.description === "string" ? parsed.description : undefined,
+      description:
+        typeof parsed.description === "string" ? parsed.description : undefined,
       tags: Array.isArray(parsed.tags) ? parsed.tags : undefined,
       videoOptions,
       audioOptions,
@@ -1373,7 +1580,10 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
                   ? parsed.title
                   : "Playlist",
               ),
-              count: typeof parsed.playlist_count === "number" ? parsed.playlist_count : undefined,
+              count:
+                typeof parsed.playlist_count === "number"
+                  ? parsed.playlist_count
+                  : undefined,
               entries: playlistEntries,
             }
           : undefined,
@@ -1386,23 +1596,40 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       try {
         if (sourceProfile.platform === "facebook") {
           const enriched = await scrapeFacebookInfo(url);
-          if (enriched.title && !genericTitles.includes(enriched.title.toLowerCase())) mediaInfo.title = enriched.title;
-          if (enriched.uploader && enriched.uploader !== "Facebook") mediaInfo.uploader = enriched.uploader;
-          if (enriched.images && (!mediaInfo.images || mediaInfo.images.length === 0)) mediaInfo.images = enriched.images;
+          if (
+            enriched.title &&
+            !genericTitles.includes(enriched.title.toLowerCase())
+          )
+            mediaInfo.title = enriched.title;
+          if (enriched.uploader && enriched.uploader !== "Facebook")
+            mediaInfo.uploader = enriched.uploader;
+          if (
+            enriched.images &&
+            (!mediaInfo.images || mediaInfo.images.length === 0)
+          )
+            mediaInfo.images = enriched.images;
         } else if (sourceProfile.platform === "instagram") {
           const enriched = await scrapeInstagramInfo(url);
-          if (enriched.title && !genericTitles.includes(enriched.title.toLowerCase())) mediaInfo.title = enriched.title;
-          if (enriched.uploader && enriched.uploader !== "Instagram") mediaInfo.uploader = enriched.uploader;
-          if (enriched.thumbnail && !mediaInfo.thumbnail) mediaInfo.thumbnail = enriched.thumbnail;
+          if (
+            enriched.title &&
+            !genericTitles.includes(enriched.title.toLowerCase())
+          )
+            mediaInfo.title = enriched.title;
+          if (enriched.uploader && enriched.uploader !== "Instagram")
+            mediaInfo.uploader = enriched.uploader;
+          if (enriched.thumbnail && !mediaInfo.thumbnail)
+            mediaInfo.thumbnail = enriched.thumbnail;
         }
       } catch {
         // Enrichment failed, keep original info
       }
     }
 
-
     // TikTok Enrichment Fallback: If no audioOptions, try to find the audio via Tikwm
-    if (sourceProfile.platform === "tiktok" && mediaInfo.audioOptions.length === 0) {
+    if (
+      sourceProfile.platform === "tiktok" &&
+      mediaInfo.audioOptions.length === 0
+    ) {
       try {
         const carouselInfo = await scrapeTikTokCarousel(url);
         if (carouselInfo.audioOptions.length > 0) {
@@ -1555,10 +1782,13 @@ export async function executeDownload(jobId: string) {
           exitCode: downloadResult.exitCode,
           stderr: downloadResult.stderr.slice(-2000),
         });
-        
+
         // Log to console for direct visibility in VPS logs
-        console.error(`[CRITICAL] yt-dlp failed for job ${job.id}. Stderr:`, downloadResult.stderr);
-        
+        console.error(
+          `[CRITICAL] yt-dlp failed for job ${job.id}. Stderr:`,
+          downloadResult.stderr,
+        );
+
         updateJobProgress(job, 0, "❌ Error while processing");
         return;
       }
@@ -1595,17 +1825,49 @@ export async function executeDownload(jobId: string) {
         finalExt,
       });
     } else if (job.mode === "audio") {
-      updateJobProgress(job, 90, `Please wait, encoding ${job.targetExt.toUpperCase()} audio`);
-      logServer("info", "media.convert.started", { mediaType: "audio", jobId: job.id, outputPath });
+      updateJobProgress(
+        job,
+        90,
+        `Please wait, encoding ${job.targetExt.toUpperCase()} audio`,
+      );
+      logServer("info", "media.convert.started", {
+        mediaType: "audio",
+        jobId: job.id,
+        outputPath,
+      });
       await convertAudio(job, sourceFile, outputPath, signal);
-      logServer("info", "media.convert.success", { mediaType: "audio", jobId: job.id, outputPath });
-      updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} audio is ready`);
+      logServer("info", "media.convert.success", {
+        mediaType: "audio",
+        jobId: job.id,
+        outputPath,
+      });
+      updateJobProgress(
+        job,
+        96,
+        `Wait a little bit, ${job.targetExt.toUpperCase()} audio is ready`,
+      );
     } else {
-      updateJobProgress(job, 90, `Please wait, finalizing ${job.targetExt.toUpperCase()} video`);
-      logServer("info", "media.convert.started", { mediaType: "video", jobId: job.id, outputPath });
+      updateJobProgress(
+        job,
+        90,
+        `Please wait, finalizing ${job.targetExt.toUpperCase()} video`,
+      );
+      logServer("info", "media.convert.started", {
+        mediaType: "video",
+        jobId: job.id,
+        outputPath,
+      });
       await convertVideo(job, sourceFile, outputPath, signal);
-      logServer("info", "media.convert.success", { mediaType: "video", jobId: job.id, outputPath });
-      updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`);
+      logServer("info", "media.convert.success", {
+        mediaType: "video",
+        jobId: job.id,
+        outputPath,
+      });
+      updateJobProgress(
+        job,
+        96,
+        `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`,
+      );
     }
 
     const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
@@ -1617,7 +1879,10 @@ export async function executeDownload(jobId: string) {
       job.fileSize = stats.size;
       job.fileSizeLabel = (stats.size / (1024 * 1024)).toFixed(2) + " MB";
     } catch (e) {
-      logServer("error", "media.stats.failed", { jobId: job.id, error: String(e) });
+      logServer("error", "media.stats.failed", {
+        jobId: job.id,
+        error: String(e),
+      });
     }
 
     updateJobProgress(job, 98, "😫 Nearly ready for download");
@@ -1646,7 +1911,8 @@ export async function executeDownload(jobId: string) {
       updateJobProgress(job, 0, "❌ Cancelled");
     } else {
       job.status = "error";
-      job.error = error instanceof Error ? error.message : "Unknown process failure";
+      job.error =
+        error instanceof Error ? error.message : "Unknown process failure";
       logServer("error", "media.download.failed", {
         jobId: job.id,
         platform: sourceProfile.platform,
@@ -1689,7 +1955,8 @@ async function processQueue() {
     const job = getJobs().get(nextJobId);
     if (job) {
       job.status = "error";
-      job.error = error instanceof Error ? error.message : "Fatal download error";
+      job.error =
+        error instanceof Error ? error.message : "Fatal download error";
       job.updatedAt = Date.now();
       syncJobState();
     }
@@ -1776,8 +2043,9 @@ export function getQueueSnapshot() {
     totalJobs: getJobs().size,
     errorJobs: [...getJobs().values()].filter((job) => job.status === "error")
       .length,
-    completedJobs: [...getJobs().values()].filter((job) => job.status === "done")
-      .length,
+    completedJobs: [...getJobs().values()].filter(
+      (job) => job.status === "done",
+    ).length,
   };
 }
 

@@ -3,7 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { t } from "@pulsorclip/core/i18n";
-import type { AppLocale, DownloadMode, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
+import type {
+  AppLocale,
+  DownloadMode,
+  AudioContainer,
+  VideoContainer,
+} from "@pulsorclip/core/shared";
 import { Play, Eye } from "lucide-react";
 import type { ClipCard, CardStatus } from "./types";
 
@@ -81,8 +86,16 @@ const funnyStatusLines = {
   },
 } as const;
 
-function getFunnyStatus(locale: AppLocale, seedSource: string, status: CardStatus, progress: number) {
-  const seed = [...seedSource].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+function getFunnyStatus(
+  locale: AppLocale,
+  seedSource: string,
+  status: CardStatus,
+  progress: number,
+) {
+  const seed = [...seedSource].reduce(
+    (sum, char) => sum + char.charCodeAt(0),
+    0,
+  );
 
   if (status === "queued") {
     const lines = funnyStatusLines[locale].queued;
@@ -117,8 +130,10 @@ export function MediaCard({
   onSelectContainer: (container: VideoContainer | AudioContainer) => void;
   onPreview?: (src: string, title: string) => void;
 }) {
-  const selectedOptions = mode === "video" ? card.videoOptions : card.audioOptions;
-  const activeFormatId = mode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
+  const selectedOptions =
+    mode === "video" ? card.videoOptions : card.audioOptions;
+  const activeFormatId =
+    mode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
   const activeContainer = mode === "video" ? card.videoExt : card.audioExt;
   const canPrepare = card.status === "ready" || card.status === "error";
   const canDownload = card.status === "done" && !!card.jobId;
@@ -126,23 +141,42 @@ export function MediaCard({
     card.progressLabel ||
     (card.status === "done"
       ? t(locale, "statusReadyMessage")
-      : getFunnyStatus(locale, card.jobId || card.id, card.status, card.progress));
+      : getFunnyStatus(
+          locale,
+          card.jobId || card.id,
+          card.status,
+          card.progress,
+        ));
 
-  const hasVideoPreview = !!(card.resolvedVideoUrl || card.resolvedUrl) && mode === "video";
+  const hasVideoPreview =
+    !!(card.resolvedVideoUrl || card.resolvedUrl) && mode === "video";
 
   const displayTitle = React.useMemo(() => {
     if (card.status === "loading") return null;
     if (!card.title) return t(locale, "inspecting");
-    
+
     // Improve generic titles (e.g. "Facebook Post" -> "Facebook Post by [Uploader]")
-    const genericPlatforms = ["facebook", "tiktok", "instagram", "threads", "twitter", "x"];
+    const genericPlatforms = [
+      "facebook",
+      "tiktok",
+      "instagram",
+      "threads",
+      "twitter",
+      "x",
+    ];
     const titleLower = card.title.toLowerCase();
-    const isGeneric = genericPlatforms.some(p => titleLower.includes(p) && card.title.length < 25);
-    
-    if (isGeneric && card.uploader && card.uploader.toLowerCase() !== card.title.toLowerCase()) {
+    const isGeneric = genericPlatforms.some(
+      (p) => titleLower.includes(p) && card.title.length < 25,
+    );
+
+    if (
+      isGeneric &&
+      card.uploader &&
+      card.uploader.toLowerCase() !== card.title.toLowerCase()
+    ) {
       return `${card.title} by ${card.uploader}`;
     }
-    
+
     return card.title;
   }, [card.title, card.uploader, card.status, locale]);
 
@@ -160,11 +194,20 @@ export function MediaCard({
           ) : card.thumbnail && mode === "video" ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt={displayTitle || "Media thumbnail"} className="h-56 w-full object-cover transition duration-500 group-hover/thumb:scale-105" src={proxiedThumbnail!} />
-              
+              <img
+                alt={displayTitle || "Media thumbnail"}
+                className="h-full w-full object-cover transition duration-500 group-hover/thumb:scale-105"
+                src={proxiedThumbnail!}
+              />
+
               {hasVideoPreview && onPreview && (
-                <button 
-                  onClick={() => onPreview(card.resolvedVideoUrl || card.resolvedUrl || "", card.title)}
+                <button
+                  onClick={() =>
+                    onPreview(
+                      card.resolvedVideoUrl || card.resolvedUrl || "",
+                      card.title,
+                    )
+                  }
                   className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-300 group-hover/thumb:opacity-100"
                 >
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/90 text-background shadow-xl backdrop-blur-sm transition duration-300 hover:scale-110">
@@ -175,7 +218,9 @@ export function MediaCard({
             </>
           ) : (
             <div className="flex h-56 items-center justify-center bg-surface-muted text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-              {mode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
+              {mode === "video"
+                ? t(locale, "modeVideo")
+                : t(locale, "modeAudio")}
             </div>
           )}
         </div>
@@ -199,42 +244,56 @@ export function MediaCard({
                   </>
                 ) : (
                   <>
-                    <span>{t(locale, "sourceLabel")}: {card.uploader || "-"}</span>
-                    <span>{t(locale, "durationLabel")}: {formatDuration(card.duration)}</span>
-                    <span>{t(locale, "formatLabel")}: {activeContainer.toUpperCase()}</span>
+                    <span>
+                      {t(locale, "sourceLabel")}: {card.uploader || "-"}
+                    </span>
+                    <span>
+                      {t(locale, "durationLabel")}:{" "}
+                      {formatDuration(card.duration)}
+                    </span>
+                    <span>
+                      {t(locale, "formatLabel")}:{" "}
+                      {activeContainer.toUpperCase()}
+                    </span>
                   </>
                 )}
               </div>
             </div>
-            <span className="badge">
-              {labelForStatus(locale, card.status)}
-            </span>
+            <span className="badge">{labelForStatus(locale, card.status)}</span>
           </div>
 
-          {(card.status === "queued" || card.status === "downloading" || card.status === "done") && (
+          {(card.status === "queued" ||
+            card.status === "downloading" ||
+            card.status === "done") && (
             <div className="mt-5 rounded-[16px] border border-line bg-surface-muted p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
+                <p className="text-sm font-semibold">
+                  {t(locale, "patienceTitle")}
+                </p>
                 <span className="text-sm font-medium text-accent">
                   {card.status === "queued" && card.queuePosition
-                    ? t(locale, "queuePositionValue").replace("{position}", String(card.queuePosition))
+                    ? t(locale, "queuePositionValue").replace(
+                        "{position}",
+                        String(card.queuePosition),
+                      )
                     : `${card.progress}%`}
                 </span>
               </div>
               <div className="h-1 rounded-full bg-line overflow-hidden">
-                <div className="progress-bar-accent" style={{ width: `${card.progress}%` }} />
+                <div
+                  className="progress-bar-accent"
+                  style={{ width: `${card.progress}%` }}
+                />
               </div>
-              <p className="mt-3 text-sm text-muted">
-                {waitingLine}
-              </p>
+              <p className="mt-3 text-sm text-muted">{waitingLine}</p>
             </div>
           )}
 
           {/* Quick Preview Player for Direct Audio (Common in TikTok carousels/videos) */}
           {card.resolvedUrl && card.status !== "loading" && (
             <div className="mt-5 overflow-hidden rounded-[20px] border border-line bg-background p-2">
-              <audio 
-                controls 
+              <audio
+                controls
                 className="h-10 w-full"
                 src={`/api/stream?url=${encodeURIComponent(card.resolvedUrl)}`}
               />
@@ -244,12 +303,12 @@ export function MediaCard({
           {card.status !== "loading" && (
             <>
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="badge">
-                  {t(locale, "qualityLabel")}
-                </span>
+                <span className="badge">{t(locale, "qualityLabel")}</span>
                 <button
                   className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
-                    activeFormatId === null ? "border-accent bg-accent text-background" : "border-line text-muted hover:border-foreground hover:text-foreground"
+                    activeFormatId === null
+                      ? "border-accent bg-accent text-background"
+                      : "border-line text-muted hover:border-foreground hover:text-foreground"
                   }`}
                   onClick={() => onSelectFormat(null)}
                   type="button"
@@ -259,7 +318,9 @@ export function MediaCard({
                 {selectedOptions.slice(0, 8).map((option) => (
                   <button
                     className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
-                      activeFormatId === option.id ? "border-accent bg-accent text-background" : "border-line text-muted hover:border-foreground hover:text-foreground"
+                      activeFormatId === option.id
+                        ? "border-accent bg-accent text-background"
+                        : "border-line text-muted hover:border-foreground hover:text-foreground"
                     }`}
                     key={option.id}
                     onClick={() => onSelectFormat(option.id)}
@@ -271,10 +332,19 @@ export function MediaCard({
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <span className="text-sm text-muted">{t(locale, mode === "video" ? "videoContainer" : "audioContainer")}</span>
+                <span className="text-sm text-muted">
+                  {t(
+                    locale,
+                    mode === "video" ? "videoContainer" : "audioContainer",
+                  )}
+                </span>
                 <select
                   className="rounded-full border border-line bg-background px-4 py-3 text-sm"
-                  onChange={(event) => onSelectContainer(event.target.value as VideoContainer | AudioContainer)}
+                  onChange={(event) =>
+                    onSelectContainer(
+                      event.target.value as VideoContainer | AudioContainer,
+                    )
+                  }
                   value={activeContainer}
                 >
                   {mode === "video" ? (
@@ -297,7 +367,10 @@ export function MediaCard({
           {(card.status === "info-error" || card.status === "error") && (
             <div className="mt-4 rounded-[20px] border border-red-200 bg-red-50 px-4 py-3 text-sm leading-7 text-danger dark:border-red-950/50 dark:bg-red-950/30">
               <p>{explainError(locale, card.error)}</p>
-              <Link className="mt-2 inline-flex text-sm font-semibold underline underline-offset-4" href="/faq#error-ytdlp-bot-check">
+              <Link
+                className="mt-2 inline-flex text-sm font-semibold underline underline-offset-4"
+                href="/faq#error-ytdlp-bot-check"
+              >
                 Open FAQ for fixes
               </Link>
             </div>
@@ -310,13 +383,22 @@ export function MediaCard({
               onClick={onPrepare}
               type="button"
             >
-              {card.status === "error" ? t(locale, "retry") : card.status === "done" ? t(locale, "statusDone") : t(locale, "prepareDownload")}
+              {card.status === "error"
+                ? t(locale, "retry")
+                : card.status === "done"
+                  ? t(locale, "statusDone")
+                  : t(locale, "prepareDownload")}
             </button>
 
             {hasVideoPreview && onPreview && (
               <button
                 className="btn-outline flex items-center justify-center gap-2 w-full sm:w-auto"
-                onClick={() => onPreview(card.resolvedVideoUrl || card.resolvedUrl || "", card.title)}
+                onClick={() =>
+                  onPreview(
+                    card.resolvedVideoUrl || card.resolvedUrl || "",
+                    card.title,
+                  )
+                }
                 type="button"
               >
                 <Eye className="h-4 w-4" />
@@ -343,7 +425,9 @@ export function MediaCard({
           </div>
 
           <p className="mt-3 text-sm leading-7 text-muted">
-            {canDownload ? t(locale, "manualDownloadHint") : t(locale, "patienceBody")}
+            {canDownload
+              ? t(locale, "manualDownloadHint")
+              : t(locale, "patienceBody")}
           </p>
         </div>
       </div>

@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { appConfig } from "./config";
@@ -26,7 +32,7 @@ let _db: Database.Database | null = null;
  */
 function getDb() {
   if (_db) return _db;
-  
+
   // Ensure directory exists
   mkdirSync(runtimeDir, { recursive: true });
 
@@ -68,25 +74,43 @@ function getDb() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS thumbnails (
+      url TEXT PRIMARY KEY,
+      file_path TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      last_accessed_at TEXT NOT NULL,
+      access_count INTEGER DEFAULT 0
+    );
   `);
 
   // Legacy JSON Data Migration
   if (existsSync(legacyDbPath)) {
     try {
       const data = JSON.parse(readFileSync(legacyDbPath, "utf-8"));
-      
+
       _db.transaction(() => {
         // Migrate users
         if (data.botUsers) {
-          const stmt = _db!.prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)");
+          const stmt = _db!.prepare(
+            "INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)",
+          );
           for (const [id, prefs] of Object.entries(data.botUsers)) {
-            stmt.run(id, JSON.stringify(prefs), (prefs as any).lastSeenAt || new Date().toISOString());
+            stmt.run(
+              id,
+              JSON.stringify(prefs),
+              (prefs as any).lastSeenAt || new Date().toISOString(),
+            );
           }
         }
 
         // Migrate jobs
         if (data.jobs) {
-          const stmt = _db!.prepare("INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)");
+          const stmt = _db!.prepare(
+            "INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)",
+          );
           for (const [id, job] of Object.entries(data.jobs)) {
             stmt.run(id, JSON.stringify(job), new Date().toISOString());
           }
@@ -94,7 +118,9 @@ function getDb() {
 
         // Migrate queue
         if (data.queue && Array.isArray(data.queue)) {
-          const stmt = _db!.prepare("INSERT OR REPLACE INTO queue (job_id, position, added_at) VALUES (?, ?, ?)");
+          const stmt = _db!.prepare(
+            "INSERT OR REPLACE INTO queue (job_id, position, added_at) VALUES (?, ?, ?)",
+          );
           data.queue.forEach((jobId: string, index: number) => {
             stmt.run(jobId, index, new Date().toISOString());
           });
@@ -115,7 +141,7 @@ function getDb() {
               r.downloadsCreated?.web || 0,
               r.downloadsCreated?.bot || 0,
               r.downloadsCompleted?.web || 0,
-              r.downloadsCompleted?.bot || 0
+              r.downloadsCompleted?.bot || 0,
             );
           }
         }
@@ -156,26 +182,52 @@ export function getRuntimeDbPath() {
 
 export function getStoredUserPreferences(userId?: number): BotUserPreferences {
   if (!userId) return {};
-  const row = getDb().prepare("SELECT preferences FROM users WHERE id = ?").get(String(userId)) as { preferences: string } | undefined;
+  const row = getDb()
+    .prepare("SELECT preferences FROM users WHERE id = ?")
+    .get(String(userId)) as { preferences: string } | undefined;
   return row ? JSON.parse(row.preferences) : {};
 }
 
-export function setStoredUserLocale(userId: number | undefined, locale: AppLocale) {
+export function setStoredUserLocale(
+  userId: number | undefined,
+  locale: AppLocale,
+) {
   if (!userId) return;
   const id = String(userId);
   const now = timestamp();
   const current = getStoredUserPreferences(userId);
-  const updated = { ...current, locale, firstSeenAt: current.firstSeenAt || now, lastSeenAt: now };
-  getDb().prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)").run(id, JSON.stringify(updated), now);
+  const updated = {
+    ...current,
+    locale,
+    firstSeenAt: current.firstSeenAt || now,
+    lastSeenAt: now,
+  };
+  getDb()
+    .prepare(
+      "INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)",
+    )
+    .run(id, JSON.stringify(updated), now);
 }
 
-export function setStoredUserMode(userId: number | undefined, mode: DownloadMode) {
+export function setStoredUserMode(
+  userId: number | undefined,
+  mode: DownloadMode,
+) {
   if (!userId) return;
   const id = String(userId);
   const now = timestamp();
   const current = getStoredUserPreferences(userId);
-  const updated = { ...current, mode, firstSeenAt: current.firstSeenAt || now, lastSeenAt: now };
-  getDb().prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)").run(id, JSON.stringify(updated), now);
+  const updated = {
+    ...current,
+    mode,
+    firstSeenAt: current.firstSeenAt || now,
+    lastSeenAt: now,
+  };
+  getDb()
+    .prepare(
+      "INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)",
+    )
+    .run(id, JSON.stringify(updated), now);
 }
 
 export function trackStoredBotUser(userId?: number) {
@@ -183,34 +235,59 @@ export function trackStoredBotUser(userId?: number) {
   const id = String(userId);
   const now = timestamp();
   const date = utcDateKey();
-  
+
   // Update user last seen
   const current = getStoredUserPreferences(userId);
-  const updated = { ...current, firstSeenAt: current.firstSeenAt || now, lastSeenAt: now };
-  getDb().prepare("INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)").run(id, JSON.stringify(updated), now);
+  const updated = {
+    ...current,
+    firstSeenAt: current.firstSeenAt || now,
+    lastSeenAt: now,
+  };
+  getDb()
+    .prepare(
+      "INSERT OR REPLACE INTO users (id, preferences, last_seen_at) VALUES (?, ?, ?)",
+    )
+    .run(id, JSON.stringify(updated), now);
 
   // Update daily stats users list
-  const row = getDb().prepare("SELECT bot_users FROM daily_stats WHERE date = ?").get(date) as { bot_users: string } | undefined;
+  const row = getDb()
+    .prepare("SELECT bot_users FROM daily_stats WHERE date = ?")
+    .get(date) as { bot_users: string } | undefined;
   let botUsers = row ? JSON.parse(row.bot_users) : [];
   if (!botUsers.includes(userId)) {
     botUsers.push(userId);
-    getDb().prepare("INSERT INTO daily_stats (date, bot_users) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET bot_users = ?")
+    getDb()
+      .prepare(
+        "INSERT INTO daily_stats (date, bot_users) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET bot_users = ?",
+      )
       .run(date, JSON.stringify(botUsers), JSON.stringify(botUsers));
   }
 }
 
-export function incrementDailyCounter(source: "web" | "bot", kind: CounterKind) {
+export function incrementDailyCounter(
+  source: "web" | "bot",
+  kind: CounterKind,
+) {
   const date = utcDateKey();
-  const column = kind === "created" ? `downloads_created_${source}` : `downloads_completed_${source}`;
-  getDb().prepare(`
+  const column =
+    kind === "created"
+      ? `downloads_created_${source}`
+      : `downloads_completed_${source}`;
+  getDb()
+    .prepare(
+      `
     INSERT INTO daily_stats (date, ${column}) 
     VALUES (?, 1) 
     ON CONFLICT(date) DO UPDATE SET ${column} = ${column} + 1
-  `).run(date);
+  `,
+    )
+    .run(date);
 }
 
 export function getStoredDailySummary(date = utcDateKey()) {
-  const row = getDb().prepare("SELECT * FROM daily_stats WHERE date = ?").get(date) as any;
+  const row = getDb()
+    .prepare("SELECT * FROM daily_stats WHERE date = ?")
+    .get(date) as any;
   if (!row) {
     return {
       date,
@@ -222,8 +299,14 @@ export function getStoredDailySummary(date = utcDateKey()) {
   return {
     date: row.date,
     botUsers: JSON.parse(row.bot_users).length,
-    downloadsCreated: { web: row.downloads_created_web, bot: row.downloads_created_bot },
-    downloadsCompleted: { web: row.downloads_completed_web, bot: row.downloads_completed_bot },
+    downloadsCreated: {
+      web: row.downloads_created_web,
+      bot: row.downloads_created_bot,
+    },
+    downloadsCompleted: {
+      web: row.downloads_completed_web,
+      bot: row.downloads_completed_bot,
+    },
   };
 }
 
@@ -234,12 +317,17 @@ export function flushStoredDailySummary(date = utcDateKey(-1)) {
 }
 
 export function getAllStoredUserIds(): number[] {
-  const rows = getDb().prepare("SELECT id FROM users").all() as { id: string }[];
-  return rows.map(r => Number(r.id));
+  const rows = getDb().prepare("SELECT id FROM users").all() as {
+    id: string;
+  }[];
+  return rows.map((r) => Number(r.id));
 }
 
 export function getStoredJobs(): Record<string, DownloadJob> {
-  const rows = getDb().prepare("SELECT id, payload FROM jobs").all() as { id: string, payload: string }[];
+  const rows = getDb().prepare("SELECT id, payload FROM jobs").all() as {
+    id: string;
+    payload: string;
+  }[];
   const result: Record<string, DownloadJob> = {};
   for (const row of rows) {
     result[row.id] = JSON.parse(row.payload);
@@ -248,18 +336,25 @@ export function getStoredJobs(): Record<string, DownloadJob> {
 }
 
 export function getStoredJob(jobId: string): DownloadJob | null {
-  const row = getDb().prepare("SELECT payload FROM jobs WHERE id = ?").get(jobId) as { payload: string } | undefined;
+  const row = getDb()
+    .prepare("SELECT payload FROM jobs WHERE id = ?")
+    .get(jobId) as { payload: string } | undefined;
   return row ? JSON.parse(row.payload) : null;
 }
 
 export function getStoredQueue(): string[] {
-  const rows = getDb().prepare("SELECT job_id FROM queue ORDER BY position ASC").all() as { job_id: string }[];
-  return rows.map(r => r.job_id);
+  const rows = getDb()
+    .prepare("SELECT job_id FROM queue ORDER BY position ASC")
+    .all() as { job_id: string }[];
+  return rows.map((r) => r.job_id);
 }
 
 export function writeStoredJob(job: DownloadJob) {
   const now = timestamp();
-  getDb().prepare("INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)")
+  getDb()
+    .prepare(
+      "INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)",
+    )
     .run(job.id, JSON.stringify(job), now);
 }
 
@@ -267,33 +362,46 @@ export function writeStoredQueue(queueList: string[]) {
   const now = timestamp();
   getDb().transaction(() => {
     getDb().prepare("DELETE FROM queue").run();
-    const insertQueue = getDb().prepare("INSERT INTO queue (job_id, position, added_at) VALUES (?, ?, ?)");
+    const insertQueue = getDb().prepare(
+      "INSERT INTO queue (job_id, position, added_at) VALUES (?, ?, ?)",
+    );
     queueList.forEach((jobId, index) => {
       insertQueue.run(jobId, index, now);
     });
   })();
 }
 
-export function writeStoredJobs(jobsMap: Record<string, DownloadJob>, queueList: string[]) {
+export function writeStoredJobs(
+  jobsMap: Record<string, DownloadJob>,
+  queueList: string[],
+) {
   const now = timestamp();
   getDb().transaction(() => {
     // Delete jobs not in the map
     const jobIds = Object.keys(jobsMap);
     if (jobIds.length > 0) {
-      getDb().prepare(`DELETE FROM jobs WHERE id NOT IN (${jobIds.map(() => "?").join(",")})`).run(...jobIds);
+      getDb()
+        .prepare(
+          `DELETE FROM jobs WHERE id NOT IN (${jobIds.map(() => "?").join(",")})`,
+        )
+        .run(...jobIds);
     } else {
       getDb().prepare("DELETE FROM jobs").run();
     }
 
     // Insert or replace jobs
-    const insertJob = getDb().prepare("INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)");
+    const insertJob = getDb().prepare(
+      "INSERT OR REPLACE INTO jobs (id, payload, updated_at) VALUES (?, ?, ?)",
+    );
     for (const [id, job] of Object.entries(jobsMap)) {
       insertJob.run(id, JSON.stringify(job), now);
     }
 
     // Update queue
     getDb().prepare("DELETE FROM queue").run();
-    const insertQueue = getDb().prepare("INSERT INTO queue (job_id, position, added_at) VALUES (?, ?, ?)");
+    const insertQueue = getDb().prepare(
+      "INSERT INTO queue (job_id, position, added_at) VALUES (?, ?, ?)",
+    );
     queueList.forEach((jobId, index) => {
       insertQueue.run(jobId, index, now);
     });
@@ -301,10 +409,67 @@ export function writeStoredJobs(jobsMap: Record<string, DownloadJob>, queueList:
 }
 
 export function getStoredMetadata(key: string): string | null {
-  const row = getDb().prepare("SELECT value FROM metadata WHERE key = ?").get(key) as { value: string } | undefined;
+  const row = getDb()
+    .prepare("SELECT value FROM metadata WHERE key = ?")
+    .get(key) as { value: string } | undefined;
   return row ? row.value : null;
 }
 
 export function setStoredMetadata(key: string, value: string) {
-  getDb().prepare("INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)").run(key, value);
+  getDb()
+    .prepare("INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)")
+    .run(key, value);
+}
+
+type ThumbnailRecord = {
+  url: string;
+  file_path: string;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+  last_accessed_at: string;
+  access_count: number;
+};
+
+export function getStoredThumbnail(url: string): ThumbnailRecord | null {
+  const row = getDb()
+    .prepare("SELECT * FROM thumbnails WHERE url = ?")
+    .get(url) as ThumbnailRecord | undefined;
+  if (row) {
+    // Update access tracking
+    const now = timestamp();
+    getDb()
+      .prepare(
+        "UPDATE thumbnails SET last_accessed_at = ?, access_count = access_count + 1 WHERE url = ?",
+      )
+      .run(now, url);
+  }
+  return row || null;
+}
+
+export function setStoredThumbnail(
+  url: string,
+  filePath: string,
+  contentType: string,
+  fileSize: number,
+) {
+  const now = timestamp();
+  getDb()
+    .prepare(
+      `
+    INSERT OR REPLACE INTO thumbnails (url, file_path, content_type, file_size, created_at, last_accessed_at, access_count)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
+  `,
+    )
+    .run(url, filePath, contentType, fileSize, now, now);
+}
+
+export function getAllStoredThumbnails(): ThumbnailRecord[] {
+  return getDb()
+    .prepare("SELECT * FROM thumbnails ORDER BY created_at DESC")
+    .all() as ThumbnailRecord[];
+}
+
+export function deleteStoredThumbnail(url: string) {
+  getDb().prepare("DELETE FROM thumbnails WHERE url = ?").run(url);
 }
