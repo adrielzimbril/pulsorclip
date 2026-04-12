@@ -12,7 +12,7 @@ export default async function TrackPage({
   const { jobId } = await params;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background selection:bg-foreground/10">
+    <div className="mx-auto flex min-h-screen w-full flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:max-w-[1320px] lg:px-8" id="top">
       <SiteHeader locale={locale} />
       
       <main className="mx-auto flex w-full max-w-[1320px] flex-1 flex-col gap-4 px-2 pt-6 pb-2 sm:gap-6 sm:px-4 sm:pt-14 sm:pb-4 lg:px-8">

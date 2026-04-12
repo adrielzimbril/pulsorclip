@@ -84,7 +84,7 @@ export default async function FaqPage() {
   const content = faqContent[locale];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1120px] flex-col gap-8 px-4 py-5 sm:px-6 lg:px-8" id="top">
+    <main className="mx-auto flex min-h-screen w-full flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:max-w-[1320px] lg:px-8" id="top">
       <SiteHeader locale={locale} />
       <section className="rounded-[32px] border border-line bg-surface p-6 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">FAQ</p>

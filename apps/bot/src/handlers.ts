@@ -139,15 +139,18 @@ function adminHelpMessage(locale: AppLocale) {
 
 function supportMessage(locale: AppLocale) {
   const isFr = locale === "fr";
+  const contact = `@${appConfig.telegramAdminHandle}`;
+  
   return [
     `<b>${t(locale, "botSupportTitle")}</b>`,
     "",
     t(locale, "botSupportBody"),
     "",
-    t(locale, "botSupportContact"),
+    `👤 <b>${isFr ? "Opérateur" : "Operator"} :</b> ${contact}`,
     t(locale, "botSupportLinks"),
     "",
-    `⚖️ <a href="${appConfig.baseUrl}/privacy">${isFr ? "Confidentialité & Mentions Légales" : "Privacy & Legal Terms"}</a>`,
+    `⚖️ <a href="${appConfig.baseUrl}/privacy">${isFr ? "Confidentialité" : "Privacy Policy"}</a>`,
+    `🚩 <a href="${appConfig.baseUrl}/dmca">${isFr ? "Mentions DMCA" : "DMCA Policy"}</a>`,
     "",
     `<i>${t(locale, "educationalDisclaimer")}</i>`,
   ].join("\n");
@@ -1421,7 +1424,7 @@ export function registerBotHandlers(bot: Telegraf) {
     rememberUser(userId);
 
     await sendPresence(ctx, "typing");
-    const healthText = await getServerHealthText(isUserAdmin);
+    const healthText = await getServerHealthText(locale, isUserAdmin);
     await ctx.reply(healthText, { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
@@ -1433,7 +1436,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(await getServerHealthText(true), { ...webKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(await getServerHealthText(locale, true), { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("users", async (ctx) => {
@@ -1476,15 +1479,15 @@ export function registerBotHandlers(bot: Telegraf) {
     const personalMessage = userQueueMessage(userId, locale);
 
     if (isAdmin(ctx.from?.id)) {
-      const serverSnapshot = await getQueueSnapshotText();
+      const serverSnapshot = await getQueueSnapshotText(locale);
       await ctx.reply(
         [personalMessage, "", serverSnapshot].join("\n"),
-        userQueueKeyboard(userId, locale),
+        { ...userQueueKeyboard(userId, locale), parse_mode: "HTML" }
       );
       return;
     }
 
-    await ctx.reply(personalMessage, userQueueKeyboard(userId, locale));
+    await ctx.reply(personalMessage, { ...userQueueKeyboard(userId, locale), parse_mode: "HTML" });
   });
 
   bot.command("queuestatus", async (ctx) => {
@@ -1495,7 +1498,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(await getQueueSnapshotText(), webKeyboard(locale));
+    await ctx.reply(await getQueueSnapshotText(locale), { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("formats", async (ctx) => {
@@ -1516,7 +1519,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
-    await sendHealthSnapshot(bot);
+    await sendHealthSnapshot(bot, locale);
     await ctx.reply(t(locale, "botHealthSent"));
   });
 
@@ -1527,7 +1530,7 @@ export function registerBotHandlers(bot: Telegraf) {
 
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(getCurrentDailySummaryText());
+    await ctx.reply(getCurrentDailySummaryText(), { parse_mode: "HTML" });
   });
 
   bot.command("daily", async (ctx) => {
@@ -1558,16 +1561,29 @@ export function registerBotHandlers(bot: Telegraf) {
 
     rememberUser(userId);
     const locale = localeForTelegram(userId, ctx.from?.language_code);
-    const text = ctx.message.text.split(/\s+/).slice(1).join(" ").trim();
+    
+    // Support both direct text and captions
+    const text = (ctx.message.text || ctx.message.caption || "").split(/\s+/).slice(1).join(" ").trim();
     const replyTo = ctx.message.reply_to_message;
+    
+    // Detect if the message itself is a media message (e.g. photo with /broadcast caption)
+    const hasMedia = !!(ctx.message as any).photo || !!(ctx.message as any).video || !!(ctx.message as any).document || !!(ctx.message as any).audio || !!(ctx.message as any).animation;
 
-    if (!text && !replyTo) {
+    if (!text && !replyTo && !hasMedia) {
       await ctx.reply(t(locale, "botBroadcastUsage"), { parse_mode: "HTML" });
       return;
     }
 
-    const userIds = getAllStoredUserIds();
-    const statusMsg = await ctx.reply(t(locale, "botBroadcastStarted", { count: userIds.length }));
+    // Exclude sender from target list
+    const userIds = getAllStoredUserIds().filter(uid => uid !== userId);
+    
+    if (userIds.length === 0) {
+      await ctx.reply("No other users to broadcast to.");
+      return;
+    }
+
+    const header = t(locale, "botBroadcastStarted", { count: userIds.length });
+    const statusMsg = await ctx.reply(`${header}\n\n⏳ Progression : 0/${userIds.length}`);
 
     let success = 0;
     let failed = 0;
@@ -1576,9 +1592,13 @@ export function registerBotHandlers(bot: Telegraf) {
       const uid = userIds[i];
       try {
         if (replyTo) {
-          // copyMessage is superior as it replicates any media object + caption
+          // copyMessage replicates any media object + caption from the replied message
           await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
+        } else if (hasMedia) {
+          // copyMessage replicates the current media message + caption
+          await bot.telegram.copyMessage(uid, ctx.chat.id, ctx.message.message_id);
         } else {
+          // Just a text message
           await bot.telegram.sendMessage(uid, text);
         }
         success++;
@@ -1593,7 +1613,7 @@ export function registerBotHandlers(bot: Telegraf) {
           ctx.chat.id,
           statusMsg.message_id,
           undefined,
-          `${t(locale, "botBroadcastStarted", { count: userIds.length })}\n\n⏳ Progression : ${i + 1}/${userIds.length}`
+          `${header}\n\n⏳ Progression : ${i + 1}/${userIds.length}\n✅ ${success} | ❌ ${failed}`
         ).catch(() => {});
       }
 

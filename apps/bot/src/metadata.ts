@@ -44,19 +44,17 @@ async function safeTelegramCall<T = unknown>(
 
 const publicEnglishBaseCommands: BotCommand[] = [
   { command: "start", description: "🚀 Start the guided PulsorClip flow" },
-  { command: "language", description: "🌐 Choose the bot language" },
-  { command: "help", description: "🧭 Show commands and examples" },
+  { command: "language", description: "🌐 Choose your preferred language" },
+  { command: "help", description: "🧭 Show commands and usage examples" },
   { command: "video", description: "🎬 Download video from a URL" },
   { command: "audio", description: "🎧 Download audio from a URL" },
-  { command: "mp4", description: "📦 Save video mode, then send a URL" },
-  { command: "mp3", description: "🎵 Save audio mode, then send a URL" },
-  { command: "formats", description: "🧱 List supported download formats" },
+  { command: "track", description: "🔍 Track a specific job status" },
   { command: "support", description: "🤝 Get help or contact the operator" },
 ];
 
 const publicEnglishCommands: BotCommand[] = [
   ...publicEnglishBaseCommands,
-  { command: "queue", description: "📦 Show your queue and cancel waiting items" },
+  { command: "queue", description: "📦 View your active jobs and queue" },
 ];
 
 const publicFrenchBaseCommands: BotCommand[] = [
@@ -65,39 +63,35 @@ const publicFrenchBaseCommands: BotCommand[] = [
   { command: "help", description: "🧭 Afficher les commandes et exemples" },
   { command: "video", description: "🎬 Télécharger une vidéo depuis une URL" },
   { command: "audio", description: "🎧 Télécharger un audio depuis une URL" },
-  { command: "mp4", description: "📦 Mémoriser le mode vidéo puis envoyer une URL" },
-  { command: "mp3", description: "🎵 Mémoriser le mode audio puis envoyer une URL" },
-  { command: "formats", description: "🧱 Lister les formats pris en charge" },
+  { command: "track", description: "🔍 Suivre l'état d'une tâche spécifique" },
   { command: "support", description: "🤝 Obtenir de l'aide ou contacter l'opérateur" },
 ];
 
 const publicFrenchCommands: BotCommand[] = [
   ...publicFrenchBaseCommands,
-  { command: "queue", description: "📦 Voir ta file et annuler les éléments en attente" },
+  { command: "queue", description: "📦 Voir tes tâches et ta file d'attente" },
 ];
 
 const adminEnglishCommands: BotCommand[] = [
   ...publicEnglishCommands,
-  { command: "queuestatus", description: "🗂️ Show the server queue snapshot" },
-  { command: "status", description: "🟢 Check live bot and web counters" },
-  { command: "server", description: "🖥️ Show full server diagnostics" },
-  { command: "health", description: "🩺 Send a health snapshot to admins" },
-  { command: "report", description: "📊 Show the current daily report" },
-  { command: "daily", description: "🗓️ Send the daily summary now" },
-  { command: "broadcast", description: "📢 Send a broadcast message to all users" },
-  { command: "users", description: "👥 Show total unique user statistics" },
+  { command: "queuestatus", description: "🗂️ Server Queue Snapshot" },
+  { command: "status", description: "🟢 Bot & Web Live Counters" },
+  { command: "server", description: "🖥️ Detailed Server Diagnostics" },
+  { command: "health", description: "🩺 Send Health Snapshot to Admins" },
+  { command: "report", description: "📊 Current Daily Statistics" },
+  { command: "broadcast", description: "📢 Message All Bot Users" },
+  { command: "users", description: "👥 User Base Statistics" },
 ];
 
 const adminFrenchCommands: BotCommand[] = [
   ...publicFrenchCommands,
-  { command: "queuestatus", description: "🗂️ Voir l’état de la file serveur" },
-  { command: "status", description: "🟢 Voir les compteurs live bot et web" },
-  { command: "server", description: "🖥️ Voir le diagnostic serveur complet" },
-  { command: "health", description: "🩺 Envoyer un point santé aux admins" },
-  { command: "report", description: "📊 Voir le rapport journalier courant" },
-  { command: "daily", description: "🗓️ Envoyer le récap journalier maintenant" },
-  { command: "broadcast", description: "📢 Diffuser un message à tous les utilisateurs" },
-  { command: "users", description: "👥 Voir les statistiques des utilisateurs uniques" },
+  { command: "queuestatus", description: "🗂️ État de la file serveur" },
+  { command: "status", description: "🟢 Compteurs Live Bot & Web" },
+  { command: "server", description: "🖥️ Diagnostic Serveur Détaillé" },
+  { command: "health", description: "🩺 Point Santé aux Admins" },
+  { command: "report", description: "📊 Statistiques Journalières" },
+  { command: "broadcast", description: "📢 Message à tous les utilisateurs" },
+  { command: "users", description: "👥 Statistiques des Utilisateurs" },
 ];
 
 async function setCommands(
@@ -106,13 +100,11 @@ async function setCommands(
   scope: CommandScope,
   languageCode?: string,
 ) {
-  // Removed redundant deleteMyCommands. setMyCommands overwrites them.
   await safeTelegramCall(bot, "setMyCommands", {
     commands,
     scope,
     ...(languageCode ? { language_code: languageCode } : {}),
   });
-
 
   const current = await safeTelegramCall<BotCommand[]>(bot, "getMyCommands", {
     scope,
@@ -128,63 +120,55 @@ async function setCommands(
 }
 
 async function syncDescriptions(bot: Telegraf) {
-  const botName = "Pulsor Clip - Media Downloader (TikTok, Instagram, YT & more)";
-  const descPrefix = "Dev: https://t.me/akaiokami_az\n\n";
-  const privacyLine = `\n\n⚖️ Privacy Policy: ${appConfig.baseUrl}/privacy`;
+  const botName = "PulsorClip | Media Downloader";
+  const url = appConfig.baseUrl;
+  
+  const descPrefixEn = "🚀 PulsorClip: Professional Media Extraction Tool\n\n";
+  const descPrefixFr = "🚀 PulsorClip : Outil Professionnel d'Extraction Média\n\n";
+  
+  const bodyEn = "Send any media link (TikTok, Instagram, YouTube, etc.), choose your format, and receive the file directly in Telegram. Fast, reliable, and privacy-focused.";
+  const bodyFr = "Envoyez n'importe quel lien média (TikTok, Instagram, YouTube, etc.), choisissez votre format et recevez le fichier directement dans Telegram. Rapide, fiable et respectueux de la vie privée.";
+
+  const linksEn = `\n\n⚖️ Privacy: ${url}/privacy\n🚩 DMCA: ${url}/dmca\n👨‍💻 Dev: @${appConfig.telegramAdminHandle}`;
+  const linksFr = `\n\n⚖️ Vie Privée : ${url}/privacy\n🚩 DMCA : ${url}/dmca\n👨‍💻 Développeur : @${appConfig.telegramAdminHandle}`;
 
   logServer("info", "bot.metadata.descriptions.sync.started", {
     botName,
   });
 
+  // Set Names
   await safeTelegramCall(bot, "setMyName", { name: botName });
-  await safeTelegramCall(bot, "setMyName", {
-    language_code: "fr",
-    name: botName,
-  });
+  await safeTelegramCall(bot, "setMyName", { language_code: "fr", name: botName });
 
+  // Set Descriptions (About section)
   await safeTelegramCall(bot, "setMyDescription", {
-    description: `${descPrefix}Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app if it's too large.${privacyLine}`,
+    description: `${descPrefixEn}${bodyEn}${linksEn}`,
   });
   await safeTelegramCall(bot, "setMyDescription", {
     language_code: "fr",
-    description: `${descPrefix}Envoie un lien média, choisis le format, puis reçois le fichier préparé dans Telegram ou continue dans l'app web si le fichier est trop lourd.${privacyLine}`,
+    description: `${descPrefixFr}${bodyFr}${linksFr}`,
   });
 
+  // Set Short Descriptions (What can this bot do?)
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "🎬 Download video and audio - TikTok, IG, YT & more. Dev: @akaiokami_az",
+    short_description: "🎬 Download high-quality video and audio from TikTok, IG, YT & more. Powered by PulsorClip.",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
     language_code: "fr",
-    short_description: "🎬 Téléchargement vidéo et audio - TikTok, IG, YT & plus. Dev: @akaiokami_az",
+    short_description: "🎬 Téléchargez vidéos et audios HD depuis TikTok, IG, YT & plus. Propulsé par PulsorClip.",
   });
 
   const descriptionDefault = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
-  const descriptionFr = await safeTelegramCall<{ description: string }>(bot, "getMyDescription", {
-    language_code: "fr",
-  });
-  const shortDescriptionDefault = await safeTelegramCall<{ short_description: string }>(bot, "getMyShortDescription");
-  const shortDescriptionFr = await safeTelegramCall<{ short_description: string }>(bot, "getMyShortDescription", {
-    language_code: "fr",
-  });
-  const nameDefault = await safeTelegramCall<{ name: string }>(bot, "getMyName");
-  const nameFr = await safeTelegramCall<{ name: string }>(bot, "getMyName", {
-    language_code: "fr",
-  });
-
+  const descriptionFr = await safeTelegramCall<{ description: string }>(bot, "getMyDescription", { language_code: "fr" });
+  
   logServer("info", "bot.metadata.descriptions.snapshot", {
-    nameDefault: nameDefault?.name || "MISSING",
-    nameFr: nameFr?.name || "MISSING",
     descriptionDefault: descriptionDefault?.description || "MISSING",
     descriptionFr: descriptionFr?.description || "MISSING",
-    shortDescriptionDefault: shortDescriptionDefault?.short_description || "MISSING",
-    shortDescriptionFr: shortDescriptionFr?.short_description || "MISSING",
   });
 
-  // Basic validation to ensure we're not flying blind
-  if (!nameDefault?.name || !descriptionDefault?.description) {
-    throw new Error("Critical bot metadata verification failed: Default name or description is empty after sync.");
+  if (!descriptionDefault?.description) {
+    throw new Error("Critical bot metadata verification failed: Default description is empty after sync.");
   }
-
 }
 
 export async function applyTelegramMetadata(bot: Telegraf) {
@@ -195,7 +179,6 @@ export async function applyTelegramMetadata(bot: Telegraf) {
 
   try {
     // 1. Set global commands
-    logServer("info", "bot.metadata.sync.commands.global");
     await setCommands(bot, publicEnglishCommands, { type: "default" });
     await setCommands(bot, publicFrenchCommands, { type: "default" }, "fr");
     await setCommands(bot, publicEnglishCommands, { type: "all_private_chats" });
@@ -203,31 +186,24 @@ export async function applyTelegramMetadata(bot: Telegraf) {
 
     // 2. Set admin commands
     for (const adminId of appConfig.telegramAdminIds) {
-      logServer("info", "bot.metadata.sync.commands.admin", { adminId });
       await setCommands(bot, adminEnglishCommands, { type: "chat", chat_id: adminId });
       await setCommands(bot, adminFrenchCommands, { type: "chat", chat_id: adminId }, "fr");
     }
 
     // 3. Sync descriptions (About/Bio)
-    logServer("info", "bot.metadata.sync.descriptions");
     await syncDescriptions(bot);
 
     // 4. Set Menu Button
-    logServer("info", "bot.metadata.sync.menu_button");
     await safeTelegramCall(bot, "setChatMenuButton", {
       menu_button: { type: "commands" },
     });
 
-    logServer("info", "bot.metadata.sync.privacy_policy", {
-      url: `${appConfig.baseUrl}/privacy`,
-    });
+    // 5. Privacy Policy Link
     await safeTelegramCall(bot, "setMyPrivacyPolicyUrl", {
       url: `${appConfig.baseUrl}/privacy`,
     });
 
-    logServer("info", "bot.metadata.sync.success", {
-      timestamp: new Date().toISOString(),
-    });
+    logServer("info", "bot.metadata.sync.success");
   } catch (err) {
     logServer("error", "bot.metadata.sync.fatal", {
       error: String(err),
