@@ -101,12 +101,14 @@ function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDi
     `🧩 Interfaces:`,
     snapshot.network.interfaces
       .map(i =>
-        `• ${i.interface}: ${i.details
-          ?.filter(d => !d.internal)
-          .map(d => d.address)
-          .join(", ")}`
+        `🌐 <b>${i.interface}</b>\n` +
+        (i.details[0].mac ? `   • MAC: <code>${i.details[0].mac}</code>\n` : "") +
+        i.details
+          .filter(d => !d.internal)
+          .map(d => `   • IP: <code>${d.address}</code>`)
+          .join("\n")
       )
-      .join("\n"),
+      .join("\n\n"),
     "",
 
     `📡 <b>Connections</b>`,

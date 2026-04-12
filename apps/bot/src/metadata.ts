@@ -1,5 +1,6 @@
 import { Telegraf } from "telegraf";
 import { appConfig, logServer } from "@pulsorclip/core/server";
+import fs from "fs";
 
 type BotCommand = {
   command: string;
@@ -15,10 +16,11 @@ async function safeTelegramCall<T = unknown>(
   bot: Telegraf,
   method: string,
   payload?: Record<string, unknown>,
+  disablePayloadLogging?: boolean,
 ): Promise<T> {
   logServer("info", "bot.metadata.call.started", {
     method,
-    payload,
+    ...(disablePayloadLogging ? {} : { payload }),
   });
 
   try {
@@ -26,14 +28,14 @@ async function safeTelegramCall<T = unknown>(
 
     logServer("info", "bot.metadata.call.ok", {
       method,
-      payload,
+      ...(disablePayloadLogging ? {} : { payload }),
     });
     return result as T;
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);
     logServer("error", "bot.metadata.call.failed", {
       method,
-      payload,
+      ...(disablePayloadLogging ? {} : { payload }),
       reason: details,
     });
     // Throwing ensures runBootstrapStep catches the failure and stops the sequence
@@ -225,14 +227,16 @@ export async function applyTelegramMetadata(bot: Telegraf) {
       }
 
       const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const urlBuffer = Buffer.from(arrayBuffer);
+
+      const buffer = fs.readFileSync("./src/assets/icon.png");
       
       await safeTelegramCall(bot, "setMyProfilePhoto", {
         photo: {
           source: buffer,
           filename: "icon.png",
         },  
-      });
+      }, false);
     } catch (err) {
       logServer("info", "bot.metadata.profile_picture.sync.failed", { error: String(err) });
     }
