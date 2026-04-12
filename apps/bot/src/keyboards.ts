@@ -10,7 +10,24 @@ export function webKeyboard(locale: AppLocale) {
 
 export function trackKeyboard(locale: AppLocale, jobId: string) {
   return Markup.inlineKeyboard([
-    [Markup.button.url(t(locale, "botOpenWeb"), `${appConfig.baseUrl}/track/${jobId}`)],
+    [
+      Markup.button.url(
+        `📊 ${t(locale, "botOpenWeb")}`,
+        `${appConfig.baseUrl}/track/${jobId}`,
+      ),
+    ],
+  ]);
+}
+
+export function trackAndCancelKeyboard(locale: AppLocale, jobId: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.url(
+        `📊 ${t(locale, "botOpenWeb")}`,
+        `${appConfig.baseUrl}/track/${jobId}`,
+      ),
+      Markup.button.callback(`🛑 ${t(locale, "botCancel")}`, `cancelactive:${jobId}`),
+    ],
   ]);
 }
 

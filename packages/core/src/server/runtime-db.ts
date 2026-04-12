@@ -228,6 +228,11 @@ export function flushStoredDailySummary(date = utcDateKey(-1)) {
   return summary;
 }
 
+export function getAllStoredUserIds(): number[] {
+  const rows = getDb().prepare("SELECT id FROM users").all() as { id: string }[];
+  return rows.map(r => Number(r.id));
+}
+
 export function getStoredJobs(): Record<string, DownloadJob> {
   const rows = getDb().prepare("SELECT id, payload FROM jobs").all() as { id: string, payload: string }[];
   const result: Record<string, DownloadJob> = {};

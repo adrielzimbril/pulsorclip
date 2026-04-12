@@ -15,6 +15,7 @@ import {
   trackBotUser,
   logServer,
   cancelDownloadJob,
+  getAllStoredUserIds,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import {
@@ -87,6 +88,8 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/formats",
     "/queue",
     "/language",
+    "/support",
+    ...(admin ? ["/broadcast", "/server", "/status", "/report"] : []),
   ];
 
   const lines = [
@@ -95,7 +98,7 @@ function helpMessage(locale: AppLocale, admin = false) {
       ? "Colle un lien, choisis video ou audio, puis je gere la file et je t envoie le resultat ici quand Telegram le permet."
       : "Paste a link, choose video or audio, then I handle the queue and send the result here when Telegram allows it.",
     "",
-    `<b>${locale === "fr" ? "Demarrage rapide" : "Quick start"}</b>`,
+    `<b>${locale === "fr" ? "Commandes" : "Commands"}</b>`,
     locale === "fr"
       ? "1. Envoie une URL media\n2. Choisis le format\n3. Choisis la qualite\n4. Attends le fichier ou ouvre le suivi web"
       : "1. Send a media URL\n2. Pick the format\n3. Pick the quality\n4. Wait for the file or open the web tracker",
@@ -142,6 +145,18 @@ function adminHelpMessage(locale: AppLocale) {
     "• /health",
     "• /report",
     "• /daily",
+    "• /broadcast",
+  ].join("\n");
+}
+
+function supportMessage(locale: AppLocale) {
+  return [
+    `<b>${t(locale, "botSupportTitle")}</b>`,
+    "",
+    t(locale, "botSupportBody"),
+    "",
+    t(locale, "botSupportContact"),
+    t(locale, "botSupportLinks"),
   ].join("\n");
 }
 
@@ -900,7 +915,13 @@ async function trackJobInChat(
 
     const nextText = serverJobUpdate(choice.locale, jobId);
     if (!silent && nextText !== lastText) {
-      await editChoiceMessage(bot, ctx.chat.id, choice, nextText, trackKeyboard(choice.locale, jobId).reply_markup);
+      await editChoiceMessage(
+        bot,
+        ctx.chat.id,
+        choice,
+        nextText,
+        trackAndCancelKeyboard(choice.locale, jobId).reply_markup,
+      );
       lastText = nextText;
     }
 
@@ -1242,17 +1263,23 @@ function userQueueKeyboard(userId: number, locale: AppLocale) {
     ]);
   }
 
-  // Queued jobs cancellation
+  // Queued jobs cancellation & tracking
   if (queue.length > 0) {
     buttons.push(
-      ...queue
-        .slice(0, 8)
-        .map((request) => [
+      ...queue.slice(0, 8).map((request) => {
+        const row = [
           {
             text: `❌ Cancel #${request.requestId}`,
             callback_data: `uqcancel:${request.requestId}`,
           },
-        ]),
+        ];
+
+        // If the queued item has a jobId (it's already on the server but waiting), add track button
+        // Note: QueuedRequest doesn't currently store jobId, but if we add it, we can use it here.
+        // For now, we use the link-based tracking in the message text.
+
+        return row;
+      }),
     );
   }
 
@@ -1501,6 +1528,56 @@ export function registerBotHandlers(bot: Telegraf) {
     rememberUser(ctx.from?.id);
     await sendDailySnapshot(bot);
     await ctx.reply(t(locale, "botReportSent"));
+  });
+
+  bot.command("support", async (ctx) => {
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
+    await ctx.reply(supportMessage(locale), {
+      parse_mode: "HTML",
+      ...webKeyboard(locale),
+    });
+  });
+
+  bot.command("broadcast", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!isAdmin(userId)) return;
+
+    rememberUser(userId);
+    const locale = localeForTelegram(userId, ctx.from?.language_code);
+    const text = ctx.message.text.split(/\s+/).slice(1).join(" ").trim();
+    const replyTo = ctx.message.reply_to_message;
+
+    if (!text && !replyTo) {
+      await ctx.reply(t(locale, "botBroadcastUsage"));
+      return;
+    }
+
+    const userIds = getAllStoredUserIds();
+    await ctx.reply(t(locale, "botBroadcastStarted", { count: userIds.length }));
+
+    let success = 0;
+    let failed = 0;
+
+    for (const uid of userIds) {
+      try {
+        if (replyTo) {
+          await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
+        } else {
+          await bot.telegram.sendMessage(uid, text);
+        }
+        success++;
+        // Rate limiting: 30 messages per second is the limit for bots
+        // We go a bit slower to be safe
+        await new Promise((r) => setTimeout(r, 50));
+      } catch (err) {
+        failed++;
+        logServer("warn", "bot.broadcast.failed", { uid, error: String(err) });
+      }
+    }
+
+    await ctx.reply(t(locale, "botBroadcastCompleted", { success, failed }));
   });
 
   bot.command("video", async (ctx) => {

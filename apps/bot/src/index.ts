@@ -18,7 +18,12 @@ if (!botToken) {
 }
 
 const bot = new Telegraf(botToken, {
-  handlerTimeout: 600000, // 10 minutes to allow for large file uploads on slow connections
+  handlerTimeout: 900000, // 15 minutes to allow for large file uploads on slow connections
+});
+
+logServer("info", "bot.init.admins", {
+  adminIds: appConfig.telegramAdminIds,
+  count: appConfig.telegramAdminIds.length,
 });
 
 registerBotHandlers(bot);

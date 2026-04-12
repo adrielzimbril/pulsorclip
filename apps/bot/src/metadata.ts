@@ -51,6 +51,7 @@ const publicEnglishBaseCommands: BotCommand[] = [
   { command: "mp4", description: "📦 Save video mode, then send a URL" },
   { command: "mp3", description: "🎵 Save audio mode, then send a URL" },
   { command: "formats", description: "🧱 List supported download formats" },
+  { command: "support", description: "🤝 Get help or contact the operator" },
 ];
 
 const publicEnglishCommands: BotCommand[] = [
@@ -67,6 +68,7 @@ const publicFrenchBaseCommands: BotCommand[] = [
   { command: "mp4", description: "📦 Mémoriser le mode vidéo puis envoyer une URL" },
   { command: "mp3", description: "🎵 Mémoriser le mode audio puis envoyer une URL" },
   { command: "formats", description: "🧱 Lister les formats pris en charge" },
+  { command: "support", description: "🤝 Obtenir de l'aide ou contacter l'opérateur" },
 ];
 
 const publicFrenchCommands: BotCommand[] = [
@@ -82,6 +84,7 @@ const adminEnglishCommands: BotCommand[] = [
   { command: "health", description: "🩺 Send a health snapshot to admins" },
   { command: "report", description: "📊 Show the current daily report" },
   { command: "daily", description: "🗓️ Send the daily summary now" },
+  { command: "broadcast", description: "📢 Send a broadcast message to all users" },
 ];
 
 const adminFrenchCommands: BotCommand[] = [
@@ -92,6 +95,7 @@ const adminFrenchCommands: BotCommand[] = [
   { command: "health", description: "🩺 Envoyer un point santé aux admins" },
   { command: "report", description: "📊 Voir le rapport journalier courant" },
   { command: "daily", description: "🗓️ Envoyer le récap journalier maintenant" },
+  { command: "broadcast", description: "📢 Diffuser un message à tous les utilisateurs" },
 ];
 
 async function setCommands(
@@ -183,6 +187,7 @@ async function syncDescriptions(bot: Telegraf) {
 export async function applyTelegramMetadata(bot: Telegraf) {
   logServer("info", "bot.metadata.apply.started", {
     adminCount: appConfig.telegramAdminIds.length,
+    adminIds: appConfig.telegramAdminIds,
   });
 
   await setCommands(bot, publicEnglishCommands, { type: "default" });
