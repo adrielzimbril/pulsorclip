@@ -123,8 +123,8 @@ async function syncDescriptions(bot: Telegraf) {
   const botName = "PulsorClip - Media Downloader (TikTok, Instagram, YT & more)";
   const url = appConfig.baseUrl;
   
-  const descPrefixEn = "🚀 PulsorClip: Professional Media Extraction Tool\n\n";
-  const descPrefixFr = "🚀 PulsorClip : Outil Professionnel d'Extraction Média\n\n";
+  const descPrefixEn = "🚀 PulsorClip: Download video and audio from TikTok, IG, YT & +1000 more. Powered by PulsorClip.\n\n";
+  const descPrefixFr = "🚀 PulsorClip : Téléchargez vidéos et audios depuis TikTok, IG, YT & +1000 autres. Propulsé par PulsorClip.\n\n";
   
   const bodyEn = "Send any media link (TikTok, Instagram, YouTube, etc.), choose your format, and receive the file directly in Telegram. Fast, reliable, and privacy-focused.";
   const bodyFr = "Envoyez n'importe quel lien média (TikTok, Instagram, YouTube, etc.), choisissez votre format et recevez le fichier directement dans Telegram. Rapide, fiable et respectueux de la privacy policy.";
@@ -151,11 +151,11 @@ async function syncDescriptions(bot: Telegraf) {
 
   // Set Short Descriptions (What can this bot do?)
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "🎬 Download high-quality video and audio from TikTok, IG, YT & more. Powered by PulsorClip.",
+    short_description: `🎬 Download video and audio (TikTok, IG, YT & +1000). Dev @${appConfig.telegramAdminHandle}`,
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
     language_code: "fr",
-    short_description: "🎬 Téléchargez vidéos et audios HD depuis TikTok, IG, YT & plus. Propulsé par PulsorClip.",
+    short_description: `🎬 Téléchargez vidéos et audios (TikTok, IG, YT & +1000). Dev @${appConfig.telegramAdminHandle}`,
   });
 
   const descriptionDefault = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
@@ -190,18 +190,30 @@ export async function applyTelegramMetadata(bot: Telegraf) {
       await setCommands(bot, adminFrenchCommands, { type: "chat", chat_id: adminId }, "fr");
     }
 
-    // 3. Sync descriptions (About/Bio)
-    await syncDescriptions(bot);
+    // 3. Sync descriptions (About/Bio) - Non-fatal
+    try {
+      await syncDescriptions(bot);
+    } catch (err) {
+      logServer("warn", "bot.metadata.descriptions.sync.failed", { error: String(err) });
+    }
 
-    // 4. Set Menu Button
-    await safeTelegramCall(bot, "setChatMenuButton", {
-      menu_button: { type: "commands" },
-    });
+    // 4. Set Menu Button - Non-fatal
+    try {
+      await safeTelegramCall(bot, "setChatMenuButton", {
+        menu_button: { type: "commands" },
+      });
+    } catch (err) {
+      logServer("warn", "bot.metadata.menu_button.sync.failed", { error: String(err) });
+    }
 
-    // 5. Privacy Policy Link
-    await safeTelegramCall(bot, "setMyPrivacyPolicyUrl", {
-      url: `${appConfig.baseUrl}/privacy`,
-    });
+    // 5. Privacy Policy Link - Non-fatal
+    try {
+      await safeTelegramCall(bot, "setMyPrivacyPolicyUrl", {
+        url: `${appConfig.baseUrl}/privacy`,
+      });
+    } catch (err) {
+      logServer("info", "bot.metadata.privacy_policy.sync.failed", { error: String(err) });
+    }
 
     logServer("info", "bot.metadata.sync.success");
   } catch (err) {

@@ -42,16 +42,26 @@ export function logServer(level: LogLevel, event: string, payload?: Record<strin
   const line = JSON.stringify(entry);
 
   if (level === "error") {
-    console.error(line);
+    console.error("🛑 ERROR: " + line);
     return;
   }
 
   if (level === "warn") {
-    console.warn(line);
+    console.warn("⚠️ WARN: " + line);
     return;
   }
 
-  console.log(line);
+  if (level === "debug") {
+    console.debug("🔍 DEBUG: " + line);
+    return;
+  }
+
+  if (level === "info") {
+    console.info("ℹ️ INFO: " + line);
+    return;
+  }
+
+  console.log("📄 LOG: " + line);
 }
 
 export function urlForLogs(rawUrl: string) {
