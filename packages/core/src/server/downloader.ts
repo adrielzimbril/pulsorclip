@@ -1406,11 +1406,11 @@ export async function executeDownload(jobId: string) {
         finalExt,
       });
     } else if (job.mode === "audio") {
-      updateJobProgress(job, 92, `Please wait, encoding ${job.targetExt.toUpperCase()} audio`);
+      updateJobProgress(job, 90, `Please wait, encoding ${job.targetExt.toUpperCase()} audio`);
       await convertAudio(job, sourceFile, outputPath, signal);
       updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} audio is ready`);
     } else {
-      updateJobProgress(job, 92, `Please wait, finalizing ${job.targetExt.toUpperCase()} video`);
+      updateJobProgress(job, 90, `Please wait, finalizing ${job.targetExt.toUpperCase()} video`);
       await convertVideo(job, sourceFile, outputPath, signal);
       updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`);
     }
