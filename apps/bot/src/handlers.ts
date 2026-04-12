@@ -304,6 +304,8 @@ async function sendDeliveredMedia(
 ) {
   const job = getDownloadJob(jobId);
   const file = requireCompletedJob(jobId);
+  logServer("info", "media.download.sending.start", { jobId, filePath: file?.filePath, filename: file?.filename });
+  console.log("media.download.sending.info", { job, file });
 
   if (!job || !file?.filePath || !file.filename) {
     await bot.telegram.sendMessage(
@@ -311,6 +313,7 @@ async function sendDeliveredMedia(
       t(locale, "botDownloadFailed"),
       trackKeyboard(locale, jobId),
     );
+    logServer("error", "media.download.sending.failed", { reason: "No job or file", jobId, filePath: file?.filePath, filename: file?.filename });
     return;
   }
 
@@ -320,6 +323,7 @@ async function sendDeliveredMedia(
       t(locale, "botTooLarge"),
       trackKeyboard(locale, jobId),
     );
+    logServer("error", "media.download.sending.failed", { reason: "File too large", jobId, filePath: file?.filePath, filename: file?.filename });
     return;
   }
 
@@ -333,6 +337,7 @@ async function sendDeliveredMedia(
       : ""
   }\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
   const options = { caption: finalCaption, parse_mode: "HTML" as const };
+  logServer("info", "media.download.sending.info", { options });
 
   try {
     if (extension === ".mp3" || extension === ".m4a") {
@@ -341,6 +346,7 @@ async function sendDeliveredMedia(
         { source: createReadStream(file.filePath), filename: file.filename },
         options,
       );
+      logServer("info", "media.download.sending.success", { mediaType: "audio", jobId, filePath: file?.filePath, filename: file?.filename });
       return;
     }
 
@@ -350,23 +356,34 @@ async function sendDeliveredMedia(
         { source: createReadStream(file.filePath) },
         options,
       );
+      logServer("info", "media.download.sending.success", { mediaType: "photo", jobId, filePath: file?.filePath, filename: file?.filename });
       return;
     }
 
-    try {
-      await bot.telegram.sendVideo(
-        chatId,
-        { source: createReadStream(file.filePath), filename: file.filename },
-        { ...options, supports_streaming: true },
-      );
-    } catch (err) {
-      console.error("Bot video delivery failed, falling back to document:", err);
-      // Fallback to document, also wrapped in try-catch to prevent crash
+    async function sendDocument(filePath: string, filename: string) {
       await bot.telegram.sendDocument(
         chatId,
-        { source: createReadStream(file.filePath), filename: file.filename },
+        { source: createReadStream(filePath), filename },
         options,
       );
+      logServer("info", "media.download.sending.success", { mediaType: "document", jobId, filePath: file?.filePath, filename: file?.filename });
+    }
+
+    try {
+      if (extension === ".mp4" || extension === ".webm" || extension === ".mkv") {
+        await bot.telegram.sendVideo(
+          chatId,
+          { source: createReadStream(file.filePath), filename: file.filename },
+          { ...options, supports_streaming: true },
+        );
+      } else {
+        await sendDocument(file.filePath, file.filename);
+      }
+      logServer("info", "media.download.sending.success", { mediaType: "video", jobId, filePath: file?.filePath, filename: file?.filename });
+    } catch (err) {
+      logServer("error", "media.download.sending.failed", { mediaType: "video", jobId, filePath: file?.filePath, filename: file?.filename, error: err });
+      // Fallback to document, also wrapped in try-catch to prevent crash
+      await sendDocument(file.filePath, file.filename);
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -920,11 +937,14 @@ async function trackJobInChat(
     }
 
     if (job.status === "done") {
+      logServer("info", "media.download.delivery.sendPresence", { jobId });
       await sendPresence(ctx, "upload_document");
       try {
+        logServer("info", "media.download.delivery.start", { jobId });
         await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
+        logServer("info", "media.download.delivery.success", { jobId });
       } catch (err) {
-        console.error(`[CRITICAL] Final delivery failed for job ${jobId}:`, err);
+        logServer("error", "media.download.delivery.failed", { jobId, error: err });
         // Error is already reported to user inside sendDeliveredMedia
       }
       void processNextInQueue(bot, ctx.from?.id, ctx);

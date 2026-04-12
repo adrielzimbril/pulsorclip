@@ -1596,11 +1596,15 @@ export async function executeDownload(jobId: string) {
       });
     } else if (job.mode === "audio") {
       updateJobProgress(job, 90, `Please wait, encoding ${job.targetExt.toUpperCase()} audio`);
+      logServer("info", "media.convert.started", { mediaType: "audio", jobId: job.id, outputPath });
       await convertAudio(job, sourceFile, outputPath, signal);
+      logServer("info", "media.convert.success", { mediaType: "audio", jobId: job.id, outputPath });
       updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} audio is ready`);
     } else {
       updateJobProgress(job, 90, `Please wait, finalizing ${job.targetExt.toUpperCase()} video`);
+      logServer("info", "media.convert.started", { mediaType: "video", jobId: job.id, outputPath });
       await convertVideo(job, sourceFile, outputPath, signal);
+      logServer("info", "media.convert.success", { mediaType: "video", jobId: job.id, outputPath });
       updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`);
     }
 
