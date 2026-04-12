@@ -105,6 +105,7 @@ export function MediaCard({
   onDownload,
   onSelectFormat,
   onSelectContainer,
+  onPreview,
 }: {
   locale: AppLocale;
   card: ClipCard;

@@ -50,7 +50,7 @@ export function VideoPlayerModal({ isOpen, onClose, src, title }: VideoPlayerMod
             <div className="aspect-video w-full bg-black">
               <Video
                 src={`/api/stream?url=${encodeURIComponent(src)}`}
-                autoplay
+                autoPlay
                 controls
               >
                 <VideoSkin />

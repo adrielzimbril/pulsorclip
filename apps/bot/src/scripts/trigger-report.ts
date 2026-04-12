@@ -2,14 +2,15 @@ import { Telegraf } from "telegraf";
 import { appConfig, logServer } from "@pulsorclip/core/server";
 import { sendDailySnapshot } from "../monitoring";
 
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
-
-if (!botToken) {
-  console.error("Missing TELEGRAM_BOT_TOKEN");
-  process.exit(1);
-}
-
 async function trigger() {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    console.error("Missing TELEGRAM_BOT_TOKEN");
+    process.exit(1);
+    return;
+  }
+
   logServer("info", "cron.external.report.triggered", {
     message: "🚀 External cron trigger for daily report started"
   });
