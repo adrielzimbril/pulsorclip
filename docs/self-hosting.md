@@ -6,14 +6,14 @@ PulsorClip is designed to be easily deployed on various platforms. Below are spe
 
 | Platform | Deployment Method | One-Click Support | Logo |
 | :--- | :--- | :---: | :---: |
-| **Railway** | Templates / Docker | ✅ | ![Railway](https://raw.githubusercontent.com/railwayapp/brand-assets/main/logo/logo-dark.png) |
-| **Render** | `render.yaml` / Docker | ✅ | ![Render](https://cdn.worldvectorlogo.com/logos/render-1.svg) |
-| **Cloudron** | `CloudronManifest.json` | ✅ | ![Cloudron](https://www.cloudron.io/img/logo.png) |
-| **CapRover** | `captain-definition` | ✅ | ![CapRover](https://caprover.com/img/logo.png) |
-| **Coolify** | `docker-compose.yml` | ✅ | ![Coolify](https://coolify.io/favicon.png) |
-| **Dokploy** | `docker-compose.yml` | ✅ | ![Dokploy](https://dokploy.com/favicon.png) |
-| **Hostinger** | `docker-compose.yml` | ✅ | ![Hostinger](https://www.hostinger.com/favicon.ico) |
-| **HuggingFace**| Docker Spaces | ✅ | ![HF](https://huggingface.co/front/assets/huggingface_logo-noborder.svg) |
+| **Railway** | Templates / Docker | ✅ | <img src="./assets/logos/railway.svg" height="24" /> |
+| **Render** | `render.yaml` / Docker | ✅ | <img src="./assets/logos/render.png" height="24" /> |
+| **Cloudron** | `CloudronManifest.json` | ✅ | <img src="./assets/logos/cloudron.png" height="24" /> |
+| **CapRover** | `captain-definition` | ✅ | <img src="./assets/logos/caprover.png" height="24" /> |
+| **Coolify** | `docker-compose.yml` | ✅ | <img src="./assets/logos/coolify.svg" height="24" /> |
+| **Dokploy** | `docker-compose.yml` | ✅ | <img src="./assets/logos/dokploy.svg" height="24" /> |
+| **Hostinger** | `docker-compose.yml` | ✅ | <img src="./assets/logos/hostinger.ico" height="24" /> |
+| **HuggingFace**| Docker Spaces | ✅ | <img src="./assets/logos/huggingface.svg" height="24" /> |
 
 ---
 

@@ -125,14 +125,14 @@ Important variables:
 
 | Platform | Deployment Method | One-Click | Status | Logo |
 | :--- | :--- | :---: | :--- | :---: |
-| **Railway** | `railway.json` | ✅ | Stable | ![Railway](https://raw.githubusercontent.com/railwayapp/brand-assets/main/logo/logo-dark.png) |
-| **Render** | `render.yaml` | ✅ | Stable | ![Render](https://cdn.worldvectorlogo.com/logos/render-1.svg) |
-| **Cloudron** | `CloudronManifest.json` | ✅ | New | ![Cloudron](https://www.cloudron.io/img/logo.png) |
-| **CapRover** | `captain-definition` | ✅ | New | ![CapRover](https://caprover.com/img/logo.png) |
-| **Coolify** | `docker-compose.yml` | ✅ | Stable | ![Coolify](https://coolify.io/favicon.png) |
-| **Dokploy** | `docker-compose.yml` | ✅ | Stable | ![Dokploy](https://dokploy.com/favicon.png) |
-| **Hostinger** | `docker-compose.yml` | ✅ | Stable | ![Hostinger](https://www.hostinger.com/favicon.ico) |
-| **HuggingFace**| Docker Spaces | ✅ | Stable | ![HF](https://huggingface.co/front/assets/huggingface_logo-noborder.svg) |
+| **Railway** | `railway.json` | ✅ | Stable | <img src="docs/assets/logos/railway.svg" height="24" /> |
+| **Render** | `render.yaml` | ✅ | Stable | <img src="docs/assets/logos/render.png" height="24" /> |
+| **Cloudron** | `CloudronManifest.json` | ✅ | New | <img src="docs/assets/logos/cloudron.png" height="24" /> |
+| **CapRover** | `captain-definition` | ✅ | New | <img src="docs/assets/logos/caprover.png" height="24" /> |
+| **Coolify** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/coolify.svg" height="24" /> |
+| **Dokploy** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/dokploy.svg" height="24" /> |
+| **Hostinger** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/hostinger.ico" height="24" /> |
+| **HuggingFace**| Docker Spaces | ✅ | Stable | <img src="docs/assets/logos/huggingface.svg" height="24" /> |
 
 ---
 
