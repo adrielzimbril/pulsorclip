@@ -17,16 +17,49 @@ import {
   cancelDownloadJob,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
-import { type AppLocale, type DownloadMode, type MediaInfo } from "@pulsorclip/core/shared";
-import { qualityKeyboard, languageKeyboard, modeKeyboard, webKeyboard, extensionKeyboard, trackKeyboard } from "./keyboards";
-import { getCurrentDailySummaryText, getQueueSnapshotText, getServerHealthText, sendDailySnapshot, sendHealthSnapshot } from "./monitoring";
+import {
+  type AppLocale,
+  type DownloadMode,
+  type MediaInfo,
+} from "@pulsorclip/core/shared";
+import {
+  qualityKeyboard,
+  languageKeyboard,
+  modeKeyboard,
+  webKeyboard,
+  extensionKeyboard,
+  trackKeyboard,
+} from "./keyboards";
+import {
+  getCurrentDailySummaryText,
+  getQueueSnapshotText,
+  getServerHealthText,
+  sendDailySnapshot,
+  sendHealthSnapshot,
+} from "./monitoring";
 import { getUserPreferences, setUserLocale, setUserMode } from "./preferences";
-import { modeByChat, pendingByChat, userActiveRequest, userQueues, userProcessing, userRequestCounter } from "./state";
+import {
+  modeByChat,
+  pendingByChat,
+  userActiveRequest,
+  userQueues,
+  userProcessing,
+  userRequestCounter,
+} from "./state";
 import type { PendingChoice, QueuedRequest } from "./types";
-import { firstHttpUrl, isAdmin, localeForTelegram, shouldGateForMaintenance, shouldGateForPublicAccess, escapeHTML } from "./utils";
+import {
+  firstHttpUrl,
+  isAdmin,
+  localeForTelegram,
+  shouldGateForMaintenance,
+  shouldGateForPublicAccess,
+  escapeHTML,
+} from "./utils";
 
 function statusMessage(locale: AppLocale) {
-  return appConfig.telegramMaintenanceMode ? t(locale, "botStatusMaintenance") : t(locale, "botStatusReady");
+  return appConfig.telegramMaintenanceMode
+    ? t(locale, "botStatusMaintenance")
+    : t(locale, "botStatusReady");
 }
 
 function formatDuration(value: number | null) {
@@ -72,8 +105,20 @@ function helpMessage(locale: AppLocale, admin = false) {
   ];
 
   if (admin) {
-    lines.push("", `<b>${locale === "fr" ? "Commandes admin" : "Admin commands"}</b>`);
-    lines.push(...["/queuestatus", "/status", "/server", "/health", "/report", "/daily"].map((item) => `• ${escapeHTML(item)}`));
+    lines.push(
+      "",
+      `<b>${locale === "fr" ? "Commandes admin" : "Admin commands"}</b>`,
+    );
+    lines.push(
+      ...[
+        "/queuestatus",
+        "/status",
+        "/server",
+        "/health",
+        "/report",
+        "/daily",
+      ].map((item) => `• ${escapeHTML(item)}`),
+    );
   }
 
   lines.push("", t(locale, "botHelpGuidance"));
@@ -126,7 +171,9 @@ function sendUrlPrompt(locale: AppLocale, mode: DownloadMode) {
 function parseCommandRequest(text: string, fallbackMode: DownloadMode) {
   const parts = text.trim().split(/\s+/);
   const formatArg = parts.find((part) => part.startsWith("--format="));
-  const url = parts.find((part, index) => index > 0 && /^https?:\/\//i.test(part)) || null;
+  const url =
+    parts.find((part, index) => index > 0 && /^https?:\/\//i.test(part)) ||
+    null;
   const format = formatArg?.split("=")[1]?.trim().toLowerCase() || null;
 
   return {
@@ -145,21 +192,44 @@ function trimTitle(value: string) {
 }
 
 function buildMediaSummary(choice: PendingChoice) {
-  const parts = [choice.info.platform?.toUpperCase(), choice.info.uploader, formatDuration(choice.info.duration)].filter(Boolean);
+  const parts = [
+    choice.info.platform?.toUpperCase(),
+    choice.info.uploader,
+    formatDuration(choice.info.duration),
+  ].filter(Boolean);
   const titleLine = `<b>Request #${choice.requestId}</b>\n${escapeHTML(trimTitle(choice.info.title || "Media"))}`;
   return [titleLine, parts.join(" • ")].filter(Boolean).join("\n");
 }
 
-function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusText: string, jobId?: string) {
+function buildSelectionMessage(
+  choice: PendingChoice,
+  locale: AppLocale,
+  statusText: string,
+  jobId?: string,
+) {
   const meta = choice.info;
   const sourceLink = `<a href="${choice.url}">Source</a>`;
-  const trackLine = jobId ? ` | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>` : "";
+  const trackLine = jobId
+    ? ` | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`
+    : "";
 
   // Improve title fallback: If title is generic platform name, show platform + " Media"
   let displayTitle = decodeHtmlEntities(meta.title || "");
-  const genericPlatforms = ["facebook", "tiktok", "instagram", "threads", "twitter", "x"];
-  if (!displayTitle || genericPlatforms.includes(displayTitle.toLowerCase().split(" ")[0])) {
-    const platformName = meta.platform ? meta.platform.charAt(0).toUpperCase() + meta.platform.slice(1) : "Media";
+  const genericPlatforms = [
+    "facebook",
+    "tiktok",
+    "instagram",
+    "threads",
+    "twitter",
+    "x",
+  ];
+  if (
+    !displayTitle ||
+    genericPlatforms.includes(displayTitle.toLowerCase().split(" ")[0])
+  ) {
+    const platformName = meta.platform
+      ? meta.platform.charAt(0).toUpperCase() + meta.platform.slice(1)
+      : "Media";
     displayTitle = `${platformName} Post ${meta.uploader ? `by ${meta.uploader}` : ""}`;
   }
 
@@ -169,7 +239,10 @@ function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusT
     `<b>${escapeHTML(trimTitle(displayTitle))}</b>`,
   ];
 
-  if (meta.uploader && meta.uploader.toLowerCase() !== meta.platform?.toLowerCase()) {
+  if (
+    meta.uploader &&
+    meta.uploader.toLowerCase() !== meta.platform?.toLowerCase()
+  ) {
     lines.push(`👤 ${escapeHTML(meta.uploader)}`);
   }
 
@@ -178,11 +251,18 @@ function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusT
   }
 
   if (meta.description) {
-    lines.push(`\n📝 ${escapeHTML(meta.description.substring(0, 160))}${meta.description.length > 160 ? "..." : ""}`);
+    lines.push(
+      `\n📝 ${escapeHTML(meta.description.substring(0, 160))}${meta.description.length > 160 ? "..." : ""}`,
+    );
   }
 
   if (meta.tags && meta.tags.length > 0) {
-    lines.push(`\n🏷️ ${meta.tags.slice(0, 5).map((t) => `#${t.replace(/\s+/g, '_')}`).join(' ')}`);
+    lines.push(
+      `\n🏷️ ${meta.tags
+        .slice(0, 5)
+        .map((t) => `#${t.replace(/\s+/g, "_")}`)
+        .join(" ")}`,
+    );
   }
 
   lines.push(`\n🔗 ${sourceLink}${trackLine}`);
@@ -190,7 +270,15 @@ function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusT
   return lines.filter(Boolean).join("\n");
 }
 
-async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "upload_document" | "upload_video" | "upload_voice" = "typing") {
+async function sendPresence(
+  ctx: any,
+  action:
+    | "typing"
+    | "upload_photo"
+    | "upload_document"
+    | "upload_video"
+    | "upload_voice" = "typing",
+) {
   try {
     await ctx.sendChatAction(action);
   } catch {
@@ -198,31 +286,60 @@ async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "uploa
   }
 }
 
-async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLocale, jobId: string, title: string) {
+async function sendDeliveredMedia(
+  bot: Telegraf,
+  chatId: number,
+  locale: AppLocale,
+  jobId: string,
+  title: string,
+) {
   const job = getDownloadJob(jobId);
   const file = requireCompletedJob(jobId);
 
   if (!job || !file?.filePath || !file.filename) {
-    await bot.telegram.sendMessage(chatId, t(locale, "botDownloadFailed"), trackKeyboard(locale, jobId));
+    await bot.telegram.sendMessage(
+      chatId,
+      t(locale, "botDownloadFailed"),
+      trackKeyboard(locale, jobId),
+    );
     return;
   }
 
   if (statSync(file.filePath).size > appConfig.telegramUploadLimitBytes) {
-    await bot.telegram.sendMessage(chatId, t(locale, "botTooLarge"), trackKeyboard(locale, jobId));
+    await bot.telegram.sendMessage(
+      chatId,
+      t(locale, "botTooLarge"),
+      trackKeyboard(locale, jobId),
+    );
     return;
   }
 
   const extension = extname(file.filename).toLowerCase();
-  const finalCaption = `<b>Request #${job.source === "bot" ? (job as any).requestId || "?" : "?"}</b>\n${escapeHTML(title)}${job.description ? `\n\n📝 ${escapeHTML(job.description.substring(0, 200))}` : ""}${job.tags && job.tags.length > 0 ? `\n\n🏷️ ${job.tags.slice(0, 5).map(t => "#"+t.replace(/\s+/g, '_')).join(' ')}` : ""}\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
+  const finalCaption = `<b>Request #${job.source === "bot" ? (job as any).requestId || "?" : "?"}</b>\n${escapeHTML(title)}${job.description ? `\n\n📝 ${escapeHTML(job.description.substring(0, 200))}` : ""}${
+    job.tags && job.tags.length > 0
+      ? `\n\n🏷️ ${job.tags
+          .slice(0, 5)
+          .map((t) => "#" + t.replace(/\s+/g, "_"))
+          .join(" ")}`
+      : ""
+  }\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
   const options = { caption: finalCaption, parse_mode: "HTML" as const };
 
   if (extension === ".mp3" || extension === ".m4a") {
-    await bot.telegram.sendAudio(chatId, { source: createReadStream(file.filePath), filename: file.filename }, options);
+    await bot.telegram.sendAudio(
+      chatId,
+      { source: createReadStream(file.filePath), filename: file.filename },
+      options,
+    );
     return;
   }
 
   if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
-    await bot.telegram.sendPhoto(chatId, { source: createReadStream(file.filePath) }, options);
+    await bot.telegram.sendPhoto(
+      chatId,
+      { source: createReadStream(file.filePath) },
+      options,
+    );
     return;
   }
 
@@ -234,13 +351,25 @@ async function sendDeliveredMedia(bot: Telegraf, chatId: number, locale: AppLoca
     );
   } catch (err) {
     console.error("Bot video delivery failed, falling back to document:", err);
-    await bot.telegram.sendDocument(chatId, { source: createReadStream(file.filePath), filename: file.filename }, options);
+    await bot.telegram.sendDocument(
+      chatId,
+      { source: createReadStream(file.filePath), filename: file.filename },
+      options,
+    );
   }
 }
 
-async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, formatId: string = "best", silent: boolean = false) {
+async function triggerAudioJob(
+  bot: Telegraf,
+  ctx: any,
+  choice: PendingChoice,
+  formatId: string = "best",
+  silent: boolean = false,
+) {
   const targetExt = "mp3";
-  const audioOption = choice.info.audioOptions.find((o: any) => o.id === formatId);
+  const audioOption = choice.info.audioOptions.find(
+    (o: any) => o.id === formatId,
+  );
   const jobTitle = audioOption ? audioOption.label : choice.info.title;
 
   try {
@@ -256,7 +385,7 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
       description: choice.info.description,
       tags: choice.info.tags,
     });
-    
+
     (job as any).requestId = choice.requestId;
 
     if (choice.messageId && !silent) {
@@ -264,13 +393,18 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
         bot,
         ctx.chat.id,
         choice,
-        buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`, job.id),
+        buildSelectionMessage(
+          choice,
+          choice.locale,
+          `⏳ ${t(choice.locale, "botProcessing")}`,
+          job.id,
+        ),
         { inline_keyboard: [] },
       );
     }
 
     pendingByChat.delete(ctx.chat.id);
-    
+
     // Update active request with jobId for cancellation support
     const userId = ctx.from?.id;
     if (userId) {
@@ -284,23 +418,44 @@ async function triggerAudioJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
           mode: "audio",
           requestId: choice.requestId,
           info: choice.info,
-          jobId: job.id
+          jobId: job.id,
         });
       }
     }
 
     if (!choice.messageId && !silent) {
-       await ctx.reply(`🎧 ${t(choice.locale, "botAudioLabel")}: ${t(choice.locale, "botProcessingShort")}`);
+      await ctx.reply(
+        `🎧 ${t(choice.locale, "botAudioLabel")}: ${t(choice.locale, "botProcessingShort")}`,
+      );
     }
 
-    void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"), silent);
+    void trackJobInChat(
+      bot,
+      ctx,
+      choice,
+      job.id,
+      jobTitle || t(choice.locale, "botExportFallbackTitle"),
+      silent,
+    );
   } catch (error) {
-    await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+    await ctx.reply(
+      error instanceof Error
+        ? error.message
+        : t(choice.locale, "botDownloadFailed"),
+      webKeyboard(choice.locale),
+    );
     void processNextInQueue(bot, ctx.from?.id, ctx);
   }
 }
 
-async function triggerVideoJob(bot: Telegraf, ctx: any, choice: PendingChoice, formatId: string = "best", targetExt: string = "mp4", silent: boolean = false) {
+async function triggerVideoJob(
+  bot: Telegraf,
+  ctx: any,
+  choice: PendingChoice,
+  formatId: string = "best",
+  targetExt: string = "mp4",
+  silent: boolean = false,
+) {
   const jobTitle = choice.info.title;
 
   try {
@@ -316,7 +471,7 @@ async function triggerVideoJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
       description: choice.info.description,
       tags: choice.info.tags,
     });
-    
+
     (job as any).requestId = choice.requestId;
 
     if (choice.messageId && !silent) {
@@ -324,13 +479,18 @@ async function triggerVideoJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
         bot,
         ctx.chat.id,
         choice,
-        buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`, job.id),
+        buildSelectionMessage(
+          choice,
+          choice.locale,
+          `⏳ ${t(choice.locale, "botProcessing")}`,
+          job.id,
+        ),
         { inline_keyboard: [] },
       );
     }
 
     pendingByChat.delete(ctx.chat.id);
-    
+
     // Update active request with jobId for cancellation support
     const userId = ctx.from?.id;
     if (userId) {
@@ -344,18 +504,32 @@ async function triggerVideoJob(bot: Telegraf, ctx: any, choice: PendingChoice, f
           mode: "video",
           requestId: choice.requestId,
           info: choice.info,
-          jobId: job.id
+          jobId: job.id,
         });
       }
     }
 
     if (!choice.messageId && !silent) {
-       await ctx.reply(`🎬 ${t(choice.locale, "botVideoLabel")}: ${t(choice.locale, "botProcessingShort")}`);
+      await ctx.reply(
+        `🎬 ${t(choice.locale, "botVideoLabel")}: ${t(choice.locale, "botProcessingShort")}`,
+      );
     }
 
-    void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"), silent);
+    void trackJobInChat(
+      bot,
+      ctx,
+      choice,
+      job.id,
+      jobTitle || t(choice.locale, "botExportFallbackTitle"),
+      silent,
+    );
   } catch (error) {
-    await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
+    await ctx.reply(
+      error instanceof Error
+        ? error.message
+        : t(choice.locale, "botDownloadFailed"),
+      webKeyboard(choice.locale),
+    );
     void processNextInQueue(bot, ctx.from?.id, ctx);
   }
 }
@@ -375,9 +549,20 @@ async function processNextInQueue(bot: Telegraf, userId: number, ctx: any) {
 
   const locale = localeForTelegram(userId, ctx.from?.language_code);
   try {
-    await loadAndPrompt(bot, ctx, request.url, locale, request.mode, null, request.requestId, request.info);
+    await loadAndPrompt(
+      bot,
+      ctx,
+      request.url,
+      locale,
+      request.mode,
+      null,
+      request.requestId,
+      request.info,
+    );
   } catch (error) {
-    await ctx.reply(`❌ Request #${request.requestId}: ${error instanceof Error ? error.message : t(locale, "botDownloadFailed")}`);
+    await ctx.reply(
+      `❌ Request #${request.requestId}: ${error instanceof Error ? error.message : t(locale, "botDownloadFailed")}`,
+    );
     userActiveRequest.set(userId, null);
     void processNextInQueue(bot, userId, ctx);
   }
@@ -393,7 +578,9 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
 
   try {
     // Internal fix: Ensure URLs are absolute for media group
-    const validatedImages = images.map((u: any) => (typeof u === "string" && u.startsWith("//") ? `https:${u}` : u));
+    const validatedImages = images.map((u: any) =>
+      typeof u === "string" && u.startsWith("//") ? `https:${u}` : u,
+    );
 
     // Send images in groups of 10 (Telegram limit for media groups)
     for (let i = 0; i < validatedImages.length; i += 10) {
@@ -402,42 +589,74 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
         chunk.map((url: string, idx: number) => ({
           type: "photo",
           media: url,
-          caption: idx === 0 ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}${choice.info.description ? `\n\n📝 ${escapeHTML(choice.info.description.substring(0, 200))}` : ""}${choice.info.tags && choice.info.tags.length > 0 ? `\n\n🏷️ ${choice.info.tags.slice(0, 5).map(t => "#"+t.replace(/\s+/g, '_')).join(' ')}` : ""}\n\n🔗 <a href="${choice.url}">Source</a>` : undefined,
+          caption:
+            idx === 0
+              ? `<b>Request #${choice.requestId}</b>\n${escapeHTML(choice.info.title || "")}${choice.info.description ? `\n\n📝 ${escapeHTML(choice.info.description.substring(0, 200))}` : ""}${
+                  choice.info.tags && choice.info.tags.length > 0
+                    ? `\n\n🏷️ ${choice.info.tags
+                        .slice(0, 5)
+                        .map((t) => "#" + t.replace(/\s+/g, "_"))
+                        .join(" ")}`
+                    : ""
+                }\n\n🔗 <a href="${choice.url}">Source</a>`
+              : undefined,
           parse_mode: "HTML",
-        }))
+        })),
       );
       // Small delay to avoid flood
       if (i + 10 < validatedImages.length) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
     }
-    
+
     // await ctx.reply(`✅ ${t(locale, "botImagesSent")}`, webKeyboard(locale));
   } catch (error) {
-    logServer("error", "bot.images.failed", { error: error instanceof Error ? error.message : "Network error" });
-    await ctx.reply("❌ Error sending gallery images. Please use the web app.", webKeyboard(locale));
+    logServer("error", "bot.images.failed", {
+      error: error instanceof Error ? error.message : "Network error",
+    });
+    await ctx.reply(
+      "❌ Error sending gallery images. Please use the web app.",
+      webKeyboard(locale),
+    );
   }
 }
 
 function inlineResult(locale: AppLocale, query: string) {
   const hasUrl = !!firstHttpUrl(query);
-  const text = hasUrl ? `${t(locale, "botInlineTitle")}\n${query}` : t(locale, "botInlineEmpty");
+  const text = hasUrl
+    ? `${t(locale, "botInlineTitle")}\n${query}`
+    : t(locale, "botInlineEmpty");
 
   return {
     type: "article",
     id: randomUUID(),
     title: t(locale, "botInlineTitle"),
-    description: hasUrl ? t(locale, "botInlineDescription") : t(locale, "botInlineEmpty"),
+    description: hasUrl
+      ? t(locale, "botInlineDescription")
+      : t(locale, "botInlineEmpty"),
     input_message_content: {
       message_text: text,
     },
     reply_markup: {
-      inline_keyboard: [[{ text: t(locale, "botOpenWeb"), url: hasUrl ? `${appConfig.baseUrl}?url=${encodeURIComponent(query)}` : appConfig.baseUrl }]],
+      inline_keyboard: [
+        [
+          {
+            text: t(locale, "botOpenWeb"),
+            url: hasUrl
+              ? `${appConfig.baseUrl}?url=${encodeURIComponent(query)}`
+              : appConfig.baseUrl,
+          },
+        ],
+      ],
     },
   };
 }
 
-async function safeDeleteMessage(bot: Telegraf, chatId: number, messageId?: number) {
+async function safeDeleteMessage(
+  bot: Telegraf,
+  chatId: number,
+  messageId?: number,
+) {
   if (!messageId) {
     return;
   }
@@ -449,25 +668,33 @@ async function safeDeleteMessage(bot: Telegraf, chatId: number, messageId?: numb
   }
 }
 
-async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, replyMarkup: InlineKeyboardMarkup) {
+async function sendChoiceMessage(
+  ctx: any,
+  choice: PendingChoice,
+  text: string,
+  replyMarkup: InlineKeyboardMarkup,
+) {
   if (choice.info.thumbnail) {
     try {
       await sendPresence(ctx, "upload_photo");
-      
+
       // Attempt "Fetch Local" (Proxy) to bypass hotlinking protection
       const buffer = await fetchThumbnailBuffer(choice.info.thumbnail);
-      
+
       if (buffer) {
-        const message = await ctx.replyWithPhoto({ source: buffer }, {
-          caption: text,
-          parse_mode: "HTML",
-          reply_markup: replyMarkup,
-        });
+        const message = await ctx.replyWithPhoto(
+          { source: buffer },
+          {
+            caption: text,
+            parse_mode: "HTML",
+            reply_markup: replyMarkup,
+          },
+        );
         choice.messageId = message.message_id;
         choice.messageKind = "photo";
         return;
       }
-      
+
       // Fallback to URL if buffer failed
       const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
         caption: text,
@@ -479,35 +706,59 @@ async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, 
       choice.messageKind = "photo";
       return;
     } catch (err) {
-      logServer("warning", "bot.thumbnail.send.failed", { jobId: choice.requestId, error: String(err) });
+      logServer("warn", "bot.thumbnail.send.failed", {
+        jobId: choice.requestId,
+        error: String(err),
+      });
       // Fallback to text message below
     }
   }
 
   await sendPresence(ctx, "typing");
-  const message = await ctx.reply(text, { reply_markup: replyMarkup, parse_mode: "HTML" });
+  const message = await ctx.reply(text, {
+    reply_markup: replyMarkup,
+    parse_mode: "HTML",
+  });
   choice.messageId = message.message_id;
   choice.messageKind = "text";
 }
 
-async function editChoiceMessage(bot: Telegraf, chatId: number, choice: PendingChoice, text: string, replyMarkup?: InlineKeyboardMarkup) {
+async function editChoiceMessage(
+  bot: Telegraf,
+  chatId: number,
+  choice: PendingChoice,
+  text: string,
+  replyMarkup?: InlineKeyboardMarkup,
+) {
   if (!choice.messageId) {
     return;
   }
 
   try {
     if (choice.messageKind === "photo") {
-      await bot.telegram.editMessageCaption(chatId, choice.messageId, undefined, text, {
-        reply_markup: replyMarkup,
-        parse_mode: "HTML",
-      });
+      await bot.telegram.editMessageCaption(
+        chatId,
+        choice.messageId,
+        undefined,
+        text,
+        {
+          reply_markup: replyMarkup,
+          parse_mode: "HTML",
+        },
+      );
       return;
     }
 
-    await bot.telegram.editMessageText(chatId, choice.messageId, undefined, text, {
-      reply_markup: replyMarkup,
-      parse_mode: "HTML",
-    });
+    await bot.telegram.editMessageText(
+      chatId,
+      choice.messageId,
+      undefined,
+      text,
+      {
+        reply_markup: replyMarkup,
+        parse_mode: "HTML",
+      },
+    );
   } catch {
     // Ignore transient edit issues.
   }
@@ -515,7 +766,10 @@ async function editChoiceMessage(bot: Telegraf, chatId: number, choice: PendingC
 
 function progressBar(progress: number) {
   const total = 12;
-  const filled = Math.max(0, Math.min(total, Math.round((progress / 100) * total)));
+  const filled = Math.max(
+    0,
+    Math.min(total, Math.round((progress / 100) * total)),
+  );
   return `${"█".repeat(filled)}${"░".repeat(total - filled)}`;
 }
 
@@ -553,7 +807,7 @@ const funnyStages = {
 function getFunnyStatus(jobId: string, progress: number, status: string) {
   // 1. Determine Stage
   let stage: keyof typeof funnyStages = "DOWNLOADING";
-  
+
   if (status === "done" || progress >= 100) {
     stage = "FINALIZING";
   } else if (progress >= 90) {
@@ -579,7 +833,10 @@ function serverJobUpdate(locale: AppLocale, jobId: string) {
     return [
       locale === "fr" ? "⏳ File d'attente" : "⏳ Queue",
       "",
-      t(locale, "botQueueLine").replace("{position}", String(job.queuePosition || 1)),
+      t(locale, "botQueueLine").replace(
+        "{position}",
+        String(job.queuePosition || 1),
+      ),
       locale === "fr"
         ? "Le worker attend un slot libre."
         : "Waiting for a worker slot.",
@@ -591,23 +848,30 @@ function serverJobUpdate(locale: AppLocale, jobId: string) {
     return [
       getFunnyStatus(jobId, job.progress, job.status),
       `${progressBar(job.progress)} ${job.progress}%`,
-      job.progressLabel || (locale === "fr" ? "Traitement en cours..." : "Processing..."),
+      job.progressLabel ||
+        (locale === "fr" ? "Traitement en cours..." : "Processing..."),
       "",
       locale === "fr" ? `🔗 Suis ici: ${webLink}` : `🔗 Track here: ${webLink}`,
     ].join("\n");
   }
 
   if (job.status === "done") {
-    return [
-      getFunnyStatus(jobId, 100, "done"),
-      t(locale, "botReadyLine"),
-    ].join("\n");
+    return [getFunnyStatus(jobId, 100, "done"), t(locale, "botReadyLine")].join(
+      "\n",
+    );
   }
 
   return job.error || t(locale, "botDownloadFailed");
 }
 
-async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jobId: string, title: string, silent: boolean = false) {
+async function trackJobInChat(
+  bot: Telegraf,
+  ctx: any,
+  choice: PendingChoice,
+  jobId: string,
+  title: string,
+  silent: boolean = false,
+) {
   let lastText = "";
 
   while (true) {
@@ -616,7 +880,9 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
 
     const nextText = serverJobUpdate(choice.locale, jobId);
     if (!silent && nextText !== lastText) {
-      await editChoiceMessage(bot, ctx.chat.id, choice, nextText, { inline_keyboard: [] });
+      await editChoiceMessage(bot, ctx.chat.id, choice, nextText, {
+        inline_keyboard: [],
+      });
       lastText = nextText;
     }
 
@@ -629,9 +895,10 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
 
     if (job.status === "error") {
       await sendPresence(ctx, "typing");
-      const statusLine = choice.locale === "fr" 
-        ? `Requête #${choice.requestId} échouée et retirée de la file`
-        : `Request #${choice.requestId} failed and removed from queue`;
+      const statusLine =
+        choice.locale === "fr"
+          ? `Requête #${choice.requestId} échouée et retirée de la file`
+          : `Request #${choice.requestId} failed and removed from queue`;
 
       await ctx.reply(
         [
@@ -654,10 +921,21 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
   }
 }
 
-async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLocale, forcedMode?: DownloadMode, forcedExt?: string | null, requestId: number = 1, providedInfo?: MediaInfo) {
+async function loadAndPrompt(
+  bot: Telegraf,
+  ctx: any,
+  url: string,
+  locale: AppLocale,
+  forcedMode?: DownloadMode,
+  forcedExt?: string | null,
+  requestId: number = 1,
+  providedInfo?: MediaInfo,
+) {
   await sendPresence(ctx, "typing");
-  const loadingMessage = await ctx.reply(`🔍 Request #${requestId}: ${t(locale, "botInspecting")}`);
-  const info = providedInfo || await fetchMediaInfo(url);
+  const loadingMessage = await ctx.reply(
+    `🔍 Request #${requestId}: ${t(locale, "botInspecting")}`,
+  );
+  const info = providedInfo || (await fetchMediaInfo(url));
   const choice: PendingChoice = {
     id: randomUUID().slice(0, 8),
     url,
@@ -684,15 +962,34 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
-          [{ text: t(locale, "botQueuePlaylistVideo"), callback_data: `pl:${choice.id}:video` }],
-          [{ text: t(locale, "botQueuePlaylistAudio"), callback_data: `pl:${choice.id}:audio` }],
-          [{ text: t(locale, "botOpenWebPlaylist"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }],
+          [
+            {
+              text: t(locale, "botQueuePlaylistVideo"),
+              callback_data: `pl:${choice.id}:video`,
+            },
+          ],
+          [
+            {
+              text: t(locale, "botQueuePlaylistAudio"),
+              callback_data: `pl:${choice.id}:audio`,
+            },
+          ],
+          [
+            {
+              text: t(locale, "botOpenWebPlaylist"),
+              url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}`,
+            },
+          ],
         ],
       },
     };
 
     if (info.thumbnail) {
-      await ctx.replyWithPhoto(info.thumbnail, { caption: text, ...keyboard, parse_mode: "HTML" });
+      await ctx.replyWithPhoto(info.thumbnail, {
+        caption: text,
+        ...keyboard,
+        parse_mode: "HTML",
+      });
     } else {
       await ctx.reply(text, { ...keyboard, parse_mode: "HTML" });
     }
@@ -704,16 +1001,15 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     // TikTok specific: Auto-send without menu
     if (info.platform === "tiktok") {
       const hasAudioSource = Boolean(
-        info.resolvedUrl ||
-        (info.audioOptions && info.audioOptions.length > 0),
+        info.resolvedUrl || (info.audioOptions && info.audioOptions.length > 0),
       );
 
-      const msg = hasAudioSource 
+      const msg = hasAudioSource
         ? `🔥 ${t(locale, "botProcessingShort")} (Gallery + Audio)`
         : `🖼️ ${t(locale, "botImagesSent")}: ${t(locale, "botProcessingShort")}`;
 
       await ctx.reply(msg);
-      
+
       if (hasAudioSource) {
         void triggerAudioJob(bot, ctx, choice, "best", true);
       }
@@ -723,7 +1019,7 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
       if (!hasAudioSource) {
         void processNextInQueue(bot, ctx.from?.id, ctx);
       }
-      
+
       pendingByChat.delete(ctx.chat.id);
       return;
     }
@@ -732,41 +1028,63 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     const refLink = `<a href="${url}">Source</a>`;
     const text = [
       `<b>Request #${requestId}</b>`,
-      t(locale, "botImageCarousel"), 
-      countLine, 
-      escapeHTML(trimTitle(info.title || "")), 
-      "", 
+      t(locale, "botImageCarousel"),
+      countLine,
+      escapeHTML(trimTitle(info.title || "")),
+      "",
       t(locale, "botImageGalleryHint"),
       "",
-      `🔗 ${refLink}`
+      `🔗 ${refLink}`,
     ]
       .filter(Boolean)
       .join("\n");
-    
+
     // Add options for Video, Audio, and Images
     const inline_keyboard: any[][] = [];
-    
+
     // 1. Video option if present
     if (info.videoOptions && info.videoOptions.length > 0) {
-      inline_keyboard.push([{ text: `🎬 ${t(locale, "botVideoLabel")}`, callback_data: `dl:${choice.id}:video:best:mp4` }]);
+      inline_keyboard.push([
+        {
+          text: `🎬 ${t(locale, "botVideoLabel")}`,
+          callback_data: `dl:${choice.id}:video:best:mp4`,
+        },
+      ]);
     }
 
     // 2. Audio (Music) option if present
-    const hasAudio = (info.audioOptions && info.audioOptions.length > 0);
+    const hasAudio = info.audioOptions && info.audioOptions.length > 0;
     // For carousels with resolvedUrl but no videoOptions, it's likely just background music
-    const isMusicOnly = info.resolvedUrl && (!info.videoOptions || info.videoOptions.length === 0);
-    
+    const isMusicOnly =
+      info.resolvedUrl &&
+      (!info.videoOptions || info.videoOptions.length === 0);
+
     if (hasAudio || isMusicOnly) {
-      inline_keyboard.push([{ text: `🎧 ${t(locale, "botAudioLabel")}`, callback_data: `dl:${choice.id}:audio:best:mp3` }]);
+      inline_keyboard.push([
+        {
+          text: `🎧 ${t(locale, "botAudioLabel")}`,
+          callback_data: `dl:${choice.id}:audio:best:mp3`,
+        },
+      ]);
     }
-    
+
     // 3. Send Images option
     if (info.images && info.images.length > 0) {
-      inline_keyboard.push([{ text: t(locale, "botSendImages"), callback_data: `imgs:${choice.id}` }]);
+      inline_keyboard.push([
+        {
+          text: t(locale, "botSendImages"),
+          callback_data: `imgs:${choice.id}`,
+        },
+      ]);
     }
 
     // 4. Web Gallery option (always last/bottom)
-    inline_keyboard.push([{ text: t(locale, "botOpenWebGallery"), url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}` }]);
+    inline_keyboard.push([
+      {
+        text: t(locale, "botOpenWebGallery"),
+        url: `${appConfig.baseUrl}?url=${encodeURIComponent(url)}`,
+      },
+    ]);
 
     const keyboard = {
       reply_markup: {
@@ -792,7 +1110,12 @@ async function loadAndPrompt(bot: Telegraf, ctx: any, url: string, locale: AppLo
     return;
   }
 
-  await sendChoiceMessage(ctx, choice, buildSelectionMessage(choice, locale, t(locale, "botChooseMode")), modeKeyboard(locale).reply_markup);
+  await sendChoiceMessage(
+    ctx,
+    choice,
+    buildSelectionMessage(choice, locale, t(locale, "botChooseMode")),
+    modeKeyboard(locale).reply_markup,
+  );
 }
 
 async function replyWelcome(ctx: any, locale: AppLocale) {
@@ -800,12 +1123,19 @@ async function replyWelcome(ctx: any, locale: AppLocale) {
     locale === "fr"
       ? "<b>PulsorClip est pret.</b>\nEnvoie un lien media et je te guide etape par etape."
       : "<b>PulsorClip is ready.</b>\nSend one media link and I will guide you step by step.";
-  const intro = [statusMessage(locale), welcome, "", helpMessage(locale)].join("\n");
+  const intro = [statusMessage(locale), welcome, "", helpMessage(locale)].join(
+    "\n",
+  );
   await sendPresence(ctx, "typing");
   await ctx.reply(intro, { ...modeKeyboard(locale), parse_mode: "HTML" });
 }
 
-async function enqueueRequest(bot: Telegraf, ctx: any, url: string, mode: DownloadMode) {
+async function enqueueRequest(
+  bot: Telegraf,
+  ctx: any,
+  url: string,
+  mode: DownloadMode,
+) {
   const userId = ctx.from?.id;
   const locale = localeForTelegram(userId, ctx.from?.language_code);
   if (!userId) return;
@@ -822,11 +1152,18 @@ async function enqueueRequest(bot: Telegraf, ctx: any, url: string, mode: Downlo
   if (!userProcessing.get(userId)) {
     void processNextInQueue(bot, userId, ctx);
   } else {
-    await ctx.reply(`⏳ Added to your queue: <b>Request #${nextId}</b>`, { parse_mode: "HTML" });
+    await ctx.reply(`⏳ Added to your queue: <b>Request #${nextId}</b>`, {
+      parse_mode: "HTML",
+    });
   }
 }
 
-async function enqueuePlaylistRequests(bot: Telegraf, ctx: any, choice: PendingChoice, mode: DownloadMode) {
+async function enqueuePlaylistRequests(
+  bot: Telegraf,
+  ctx: any,
+  choice: PendingChoice,
+  mode: DownloadMode,
+) {
   const userId = ctx.from?.id;
   if (!userId || !choice.info.playlist?.entries?.length) {
     return;
@@ -853,7 +1190,10 @@ async function enqueuePlaylistRequests(bot: Telegraf, ctx: any, choice: PendingC
   }
 
   await ctx.reply(
-    t(locale, "playlistQueued").replace("{count}", String(choice.info.playlist.entries.length)),
+    t(locale, "playlistQueued").replace(
+      "{count}",
+      String(choice.info.playlist.entries.length),
+    ),
     webKeyboard(locale),
   );
 }
@@ -861,21 +1201,31 @@ async function enqueuePlaylistRequests(bot: Telegraf, ctx: any, choice: PendingC
 function userQueueKeyboard(userId: number, locale: AppLocale) {
   const active = userActiveRequest.get(userId);
   const queue = userQueues.get(userId) || [];
-  
+
   const buttons: any[][] = [];
 
   // Active job cancellation
   if (active && active.jobId) {
     buttons.push([
-      { text: `🛑 Stop Active #${active.requestId}`, callback_data: `cancelactive:${active.jobId}` },
+      {
+        text: `🛑 Stop Active #${active.requestId}`,
+        callback_data: `cancelactive:${active.jobId}`,
+      },
     ]);
   }
 
   // Queued jobs cancellation
   if (queue.length > 0) {
-    buttons.push(...queue.slice(0, 8).map((request) => [
-      { text: `❌ Cancel #${request.requestId}`, callback_data: `uqcancel:${request.requestId}` },
-    ]));
+    buttons.push(
+      ...queue
+        .slice(0, 8)
+        .map((request) => [
+          {
+            text: `❌ Cancel #${request.requestId}`,
+            callback_data: `uqcancel:${request.requestId}`,
+          },
+        ]),
+    );
   }
 
   buttons.push([{ text: "🌐 Open web", url: appConfig.baseUrl }]);
@@ -892,7 +1242,12 @@ function getRequestTypeLabel(request: QueuedRequest) {
   const info = request.info;
   if (info.playlist) return "PLAYLIST";
   if (info.images && info.images.length > 0) return "IMAGES";
-  if (info.audioOptions && info.audioOptions.length > 0 && (!info.videoOptions || info.videoOptions.length === 0)) return "AUDIO";
+  if (
+    info.audioOptions &&
+    info.audioOptions.length > 0 &&
+    (!info.videoOptions || info.videoOptions.length === 0)
+  )
+    return "AUDIO";
   return "VIDEO";
 }
 
@@ -905,8 +1260,10 @@ function userQueueMessage(userId: number, locale: AppLocale) {
     "",
     active
       ? locale === "fr"
-        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)}` + (active.jobId ? " (Traitement)" : " (Initialisation)")
-        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)}` + (active.jobId ? " (Processing)" : " (Initializing)")
+        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)}` +
+          (active.jobId ? " (Traitement)" : " (Initialisation)")
+        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)}` +
+          (active.jobId ? " (Processing)" : " (Initializing)")
       : locale === "fr"
         ? "▶️ En cours: aucun job actif"
         : "▶️ Active: no job processing right now",
@@ -924,13 +1281,20 @@ function userQueueMessage(userId: number, locale: AppLocale) {
 
   lines.push(
     "",
-    ...(queue.slice(0, 8).map((request, index) =>
-      `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · ${request.url}`,
-    )),
+    ...queue
+      .slice(0, 8)
+      .map(
+        (request, index) =>
+          `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · ${request.url}`,
+      ),
   );
 
   if (queue.length > 8) {
-    lines.push(locale === "fr" ? `… et ${queue.length - 8} autres.` : `… and ${queue.length - 8} more.`);
+    lines.push(
+      locale === "fr"
+        ? `… et ${queue.length - 8} autres.`
+        : `… and ${queue.length - 8} more.`,
+    );
   }
 
   lines.push(
@@ -981,7 +1345,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(helpMessage(locale), { ...modeKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(helpMessage(locale), {
+      ...modeKeyboard(locale),
+      parse_mode: "HTML",
+    });
     if (isAdmin(ctx.from?.id)) {
       await ctx.reply(adminHelpMessage(locale), { parse_mode: "HTML" });
     }
@@ -1029,7 +1396,9 @@ export function registerBotHandlers(bot: Telegraf) {
     await sendPresence(ctx, "typing");
     const userId = ctx.from?.id;
     if (!userId) {
-      await ctx.reply(locale === "fr" ? "Utilisateur introuvable." : "User not found.");
+      await ctx.reply(
+        locale === "fr" ? "Utilisateur introuvable." : "User not found.",
+      );
       return;
     }
 
@@ -1037,7 +1406,10 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (isAdmin(ctx.from?.id)) {
       const serverSnapshot = await getQueueSnapshotText();
-      await ctx.reply([personalMessage, "", serverSnapshot].join("\n"), userQueueKeyboard(userId, locale));
+      await ctx.reply(
+        [personalMessage, "", serverSnapshot].join("\n"),
+        userQueueKeyboard(userId, locale),
+      );
       return;
     }
 
@@ -1107,7 +1479,10 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (!request.url) {
       await sendPresence(ctx, "typing");
-      await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
+      await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, {
+        ...webKeyboard(locale),
+        parse_mode: "HTML",
+      });
       return;
     }
 
@@ -1123,7 +1498,10 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (!request.url) {
       await sendPresence(ctx, "typing");
-      await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
+      await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, {
+        ...webKeyboard(locale),
+        parse_mode: "HTML",
+      });
       return;
     }
 
@@ -1136,7 +1514,10 @@ export function registerBotHandlers(bot: Telegraf) {
     modeByChat.set(ctx.chat.id, "video");
     setUserMode(ctx.from?.id, "video");
     await sendPresence(ctx, "typing");
-    await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(`🎬 ${sendUrlPrompt(locale, "video")}`, {
+      ...webKeyboard(locale),
+      parse_mode: "HTML",
+    });
   });
 
   bot.command("mp3", async (ctx) => {
@@ -1145,16 +1526,22 @@ export function registerBotHandlers(bot: Telegraf) {
     modeByChat.set(ctx.chat.id, "audio");
     setUserMode(ctx.from?.id, "audio");
     await sendPresence(ctx, "typing");
-    await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, { ...webKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(`🎧 ${sendUrlPrompt(locale, "audio")}`, {
+      ...webKeyboard(locale),
+      parse_mode: "HTML",
+    });
   });
 
   bot.on("inline_query", async (ctx) => {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
-    await ctx.answerInlineQuery([inlineResult(locale, ctx.inlineQuery.query) as never], {
-      cache_time: 0,
-      is_personal: true,
-    });
+    await ctx.answerInlineQuery(
+      [inlineResult(locale, ctx.inlineQuery.query) as never],
+      {
+        cache_time: 0,
+        is_personal: true,
+      },
+    );
   });
 
   bot.on("text", async (ctx) => {
@@ -1181,10 +1568,16 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     try {
-      const preferredMode = modeByChat.get(ctx.chat.id) || getUserPreferences(ctx.from?.id).mode || "video";
+      const preferredMode =
+        modeByChat.get(ctx.chat.id) ||
+        getUserPreferences(ctx.from?.id).mode ||
+        "video";
       void enqueueRequest(bot, ctx, url, preferredMode);
     } catch (error) {
-      await ctx.reply(error instanceof Error ? error.message : t(locale, "botDownloadFailed"), webKeyboard(locale));
+      await ctx.reply(
+        error instanceof Error ? error.message : t(locale, "botDownloadFailed"),
+        webKeyboard(locale),
+      );
     }
   });
 
@@ -1198,9 +1591,15 @@ export function registerBotHandlers(bot: Telegraf) {
         ? "<b>PulsorClip est pret.</b>\nEnvoie un lien media et je te guide etape par etape."
         : "<b>PulsorClip is ready.</b>\nSend one media link and I will guide you step by step.";
     try {
-      await ctx.editMessageText([t(locale, "botLanguageSaved"), "", welcome].join("\n"), { ...modeKeyboard(locale), parse_mode: "HTML" });
+      await ctx.editMessageText(
+        [t(locale, "botLanguageSaved"), "", welcome].join("\n"),
+        { ...modeKeyboard(locale), parse_mode: "HTML" },
+      );
     } catch {
-      await ctx.reply([t(locale, "botLanguageSaved"), "", welcome].join("\n"), { ...modeKeyboard(locale), parse_mode: "HTML" });
+      await ctx.reply([t(locale, "botLanguageSaved"), "", welcome].join("\n"), {
+        ...modeKeyboard(locale),
+        parse_mode: "HTML",
+      });
     }
   });
 
@@ -1212,8 +1611,16 @@ export function registerBotHandlers(bot: Telegraf) {
       await ctx.answerCbQuery().catch(() => {});
       return;
     }
-    await ctx.answerCbQuery(locale === "fr" ? "Retour au mode" : "Back to mode");
-    await editChoiceMessage(bot, chatId, choice, promptForMode(locale, choice.info.title), modeKeyboard(locale).reply_markup);
+    await ctx.answerCbQuery(
+      locale === "fr" ? "Retour au mode" : "Back to mode",
+    );
+    await editChoiceMessage(
+      bot,
+      chatId,
+      choice,
+      promptForMode(locale, choice.info.title),
+      modeKeyboard(locale).reply_markup,
+    );
   });
 
   bot.action(/back:ext:([a-z0-9]+):(video|audio)/, async (ctx) => {
@@ -1225,8 +1632,20 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
     const mode = ctx.match[2] as DownloadMode;
-    await ctx.answerCbQuery(locale === "fr" ? "Retour au format" : "Back to format").catch(() => {});
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseFormat")), extensionKeyboard(choice, mode).reply_markup);
+    await ctx
+      .answerCbQuery(locale === "fr" ? "Retour au format" : "Back to format")
+      .catch(() => {});
+    await editChoiceMessage(
+      bot,
+      chatId,
+      choice,
+      buildSelectionMessage(
+        choice,
+        choice.locale,
+        t(choice.locale, "botChooseFormat"),
+      ),
+      extensionKeyboard(choice, mode).reply_markup,
+    );
   });
 
   bot.action(/mode:(video|audio)/, async (ctx) => {
@@ -1252,111 +1671,172 @@ export function registerBotHandlers(bot: Telegraf) {
     const choice = pendingByChat.get(chatId);
 
     if (!choice) {
-      await ctx.answerCbQuery(locale === "fr" ? "Mode enregistre" : "Mode saved");
-      await ctx.reply(sendUrlPrompt(locale, mode), { ...webKeyboard(locale), parse_mode: "HTML" });
-      return;
-    }
-
-    await ctx.answerCbQuery(locale === "fr" ? "Choisis le format" : "Choose format").catch(() => {});
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseFormat")), extensionKeyboard(choice, mode).reply_markup);
-  });
-
-  bot.action(/ext:([a-z0-9]+):(video|audio):(mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
-    if (shouldGateForMaintenance(ctx.from?.id)) {
-      const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-      await ctx.answerCbQuery().catch(() => {});
-      await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
-      return;
-    }
-
-    const chatId = ctx.chat?.id;
-
-    if (!chatId) {
-      await ctx.answerCbQuery("Chat unavailable.");
-      return;
-    }
-
-    const [, pendingId, rawMode, ext] = ctx.match;
-    const choice = pendingByChat.get(chatId);
-
-    if (!choice || choice.id !== pendingId) {
-      await ctx.answerCbQuery("Expired.");
-      return;
-    }
-
-    const mode = rawMode as DownloadMode;
-    await ctx.answerCbQuery(ext.toUpperCase()).catch(() => {});
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, t(choice.locale, "botChooseQuality")), qualityKeyboard(choice, mode, ext).reply_markup);
-  });
-
-  bot.action(/dl:([a-z0-9]+):(video|audio):(best|[0-9A-Za-z_-]+):(default|mp4|webm|mkv|mp3|m4a)/, async (ctx) => {
-    if (shouldGateForMaintenance(ctx.from?.id)) {
-      const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-      await ctx.answerCbQuery().catch(() => {});
-      await ctx.reply(t(locale, "botMaintenanceMessage"), webKeyboard(locale));
-      return;
-    }
-
-    const chatId = ctx.chat?.id;
-
-    if (!chatId) {
-      await ctx.answerCbQuery("Chat unavailable.");
-      return;
-    }
-
-    const [, pendingId, rawMode, selectedFormatId, selectedExt] = ctx.match;
-    const choice = pendingByChat.get(chatId);
-
-    if (!choice || choice.id !== pendingId) {
-      await ctx.answerCbQuery("Expired.");
-      return;
-    }
-
-    const mode = rawMode as DownloadMode;
-    const fallbackExt = mode === "video" ? "mp4" : "mp3";
-    const targetExt = selectedExt === "default" ? fallbackExt : selectedExt;
-
-    // Use specific audio label if it's an audio download and we have a format match
-    const audioOption = mode === "audio" ? choice.info.audioOptions.find(o => o.id === selectedFormatId) : null;
-    const jobTitle = audioOption ? audioOption.label : choice.info.title;
-
-    // Answer immediately
-    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
-
-    if (mode === "audio") {
-      await triggerAudioJob(bot, ctx, choice, selectedFormatId);
-      return;
-    }
-
-    try {
-      const job = createDownloadJob({
-        url: choice.url,
-        mode,
-        formatId: selectedFormatId === "best" ? null : selectedFormatId,
-        targetExt,
-        title: jobTitle,
-        source: "bot",
-        // For video mode: prefer resolvedVideoUrl (tikwm direct), fall back to resolvedUrl
-        resolvedUrl: mode === "video"
-          ? (choice.info.resolvedVideoUrl || choice.info.resolvedUrl)
-          : choice.info.resolvedUrl,
-        thumbnail: choice.info.thumbnail,
+      await ctx.answerCbQuery(
+        locale === "fr" ? "Mode enregistre" : "Mode saved",
+      );
+      await ctx.reply(sendUrlPrompt(locale, mode), {
+        ...webKeyboard(locale),
+        parse_mode: "HTML",
       });
+      return;
+    }
 
+    await ctx
+      .answerCbQuery(locale === "fr" ? "Choisis le format" : "Choose format")
+      .catch(() => {});
+    await editChoiceMessage(
+      bot,
+      chatId,
+      choice,
+      buildSelectionMessage(
+        choice,
+        choice.locale,
+        t(choice.locale, "botChooseFormat"),
+      ),
+      extensionKeyboard(choice, mode).reply_markup,
+    );
+  });
+
+  bot.action(
+    /ext:([a-z0-9]+):(video|audio):(mp4|webm|mkv|mp3|m4a)/,
+    async (ctx) => {
+      if (shouldGateForMaintenance(ctx.from?.id)) {
+        const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+        await ctx.answerCbQuery().catch(() => {});
+        await ctx.reply(
+          t(locale, "botMaintenanceMessage"),
+          webKeyboard(locale),
+        );
+        return;
+      }
+
+      const chatId = ctx.chat?.id;
+
+      if (!chatId) {
+        await ctx.answerCbQuery("Chat unavailable.");
+        return;
+      }
+
+      const [, pendingId, rawMode, ext] = ctx.match;
+      const choice = pendingByChat.get(chatId);
+
+      if (!choice || choice.id !== pendingId) {
+        await ctx.answerCbQuery("Expired.");
+        return;
+      }
+
+      const mode = rawMode as DownloadMode;
+      await ctx.answerCbQuery(ext.toUpperCase()).catch(() => {});
       await editChoiceMessage(
         bot,
         chatId,
         choice,
-        buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`, job.id),
-        { inline_keyboard: [] },
+        buildSelectionMessage(
+          choice,
+          choice.locale,
+          t(choice.locale, "botChooseQuality"),
+        ),
+        qualityKeyboard(choice, mode, ext).reply_markup,
       );
+    },
+  );
 
-      pendingByChat.delete(chatId);
-      void trackJobInChat(bot, ctx, choice, job.id, jobTitle || t(choice.locale, "botExportFallbackTitle"));
-    } catch (error) {
-      await ctx.reply(error instanceof Error ? error.message : t(choice.locale, "botDownloadFailed"), webKeyboard(choice.locale));
-    }
-  });
+  bot.action(
+    /dl:([a-z0-9]+):(video|audio):(best|[0-9A-Za-z_-]+):(default|mp4|webm|mkv|mp3|m4a)/,
+    async (ctx) => {
+      if (shouldGateForMaintenance(ctx.from?.id)) {
+        const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+        await ctx.answerCbQuery().catch(() => {});
+        await ctx.reply(
+          t(locale, "botMaintenanceMessage"),
+          webKeyboard(locale),
+        );
+        return;
+      }
+
+      const chatId = ctx.chat?.id;
+
+      if (!chatId) {
+        await ctx.answerCbQuery("Chat unavailable.");
+        return;
+      }
+
+      const [, pendingId, rawMode, selectedFormatId, selectedExt] = ctx.match;
+      const choice = pendingByChat.get(chatId);
+
+      if (!choice || choice.id !== pendingId) {
+        await ctx.answerCbQuery("Expired.");
+        return;
+      }
+
+      const mode = rawMode as DownloadMode;
+      const fallbackExt = mode === "video" ? "mp4" : "mp3";
+      const targetExt = selectedExt === "default" ? fallbackExt : selectedExt;
+
+      // Use specific audio label if it's an audio download and we have a format match
+      const audioOption =
+        mode === "audio"
+          ? choice.info.audioOptions.find((o) => o.id === selectedFormatId)
+          : null;
+      const jobTitle = audioOption ? audioOption.label : choice.info.title;
+
+      // Answer immediately
+      await ctx
+        .answerCbQuery(t(choice.locale, "botProcessingShort"))
+        .catch(() => {});
+
+      if (mode === "audio") {
+        await triggerAudioJob(bot, ctx, choice, selectedFormatId);
+        return;
+      }
+
+      try {
+        const job = createDownloadJob({
+          url: choice.url,
+          mode,
+          formatId: selectedFormatId === "best" ? null : selectedFormatId,
+          targetExt,
+          title: jobTitle,
+          source: "bot",
+          // For video mode: prefer resolvedVideoUrl (tikwm direct), fall back to resolvedUrl
+          resolvedUrl:
+            mode === "video"
+              ? choice.info.resolvedVideoUrl || choice.info.resolvedUrl
+              : choice.info.resolvedUrl,
+          thumbnail: choice.info.thumbnail,
+        });
+
+        await editChoiceMessage(
+          bot,
+          chatId,
+          choice,
+          buildSelectionMessage(
+            choice,
+            choice.locale,
+            `⏳ ${t(choice.locale, "botProcessing")}`,
+            job.id,
+          ),
+          { inline_keyboard: [] },
+        );
+
+        pendingByChat.delete(chatId);
+        void trackJobInChat(
+          bot,
+          ctx,
+          choice,
+          job.id,
+          jobTitle || t(choice.locale, "botExportFallbackTitle"),
+        );
+      } catch (error) {
+        await ctx.reply(
+          error instanceof Error
+            ? error.message
+            : t(choice.locale, "botDownloadFailed"),
+          webKeyboard(choice.locale),
+        );
+      }
+    },
+  );
 
   bot.action(/pl:([a-z0-9]+):(video|audio)/, async (ctx) => {
     const chatId = ctx.chat?.id;
@@ -1367,17 +1847,27 @@ export function registerBotHandlers(bot: Telegraf) {
     const [, pendingId, rawMode] = ctx.match;
     const choice = pendingByChat.get(chatId);
 
-    if (!choice || choice.id !== pendingId || !choice.info.playlist?.entries?.length) {
+    if (
+      !choice ||
+      choice.id !== pendingId ||
+      !choice.info.playlist?.entries?.length
+    ) {
       await ctx.answerCbQuery("Expired.").catch(() => {});
       return;
     }
 
-    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
+    await ctx
+      .answerCbQuery(t(choice.locale, "botProcessingShort"))
+      .catch(() => {});
     await editChoiceMessage(
       bot,
       chatId,
       choice,
-      buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`),
+      buildSelectionMessage(
+        choice,
+        choice.locale,
+        `⏳ ${t(choice.locale, "botProcessing")}`,
+      ),
       { inline_keyboard: [] },
     );
     pendingByChat.delete(chatId);
@@ -1394,18 +1884,34 @@ export function registerBotHandlers(bot: Telegraf) {
     const requestId = Number(ctx.match[1]);
     const locale = localeForTelegram(userId, ctx.from?.language_code);
     const queue = userQueues.get(userId) || [];
-    const nextQueue = queue.filter((request) => request.requestId !== requestId);
+    const nextQueue = queue.filter(
+      (request) => request.requestId !== requestId,
+    );
 
     if (nextQueue.length === queue.length) {
-      await ctx.answerCbQuery(locale === "fr" ? "Déjà lancé ou introuvable." : "Already started or not found.").catch(() => {});
+      await ctx
+        .answerCbQuery(
+          locale === "fr"
+            ? "Déjà lancé ou introuvable."
+            : "Already started or not found.",
+        )
+        .catch(() => {});
       return;
     }
 
     userQueues.set(userId, nextQueue);
-    await ctx.answerCbQuery(locale === "fr" ? `Élément #${requestId} annulé.` : `Item #${requestId} cancelled.`).catch(() => {});
-    await ctx.editMessageText(userQueueMessage(userId, locale), {
-      ...userQueueKeyboard(userId, locale),
-    }).catch(() => {});
+    await ctx
+      .answerCbQuery(
+        locale === "fr"
+          ? `Élément #${requestId} annulé.`
+          : `Item #${requestId} cancelled.`,
+      )
+      .catch(() => {});
+    await ctx
+      .editMessageText(userQueueMessage(userId, locale), {
+        ...userQueueKeyboard(userId, locale),
+      })
+      .catch(() => {});
   });
 
   bot.action(/imgs:([a-z0-9]+)/, async (ctx) => {
@@ -1420,10 +1926,22 @@ export function registerBotHandlers(bot: Telegraf) {
       return;
     }
 
-    await ctx.answerCbQuery(t(choice.locale, "botProcessingShort")).catch(() => {});
-    
+    await ctx
+      .answerCbQuery(t(choice.locale, "botProcessingShort"))
+      .catch(() => {});
+
     // Remove buttons and show state
-    await editChoiceMessage(bot, chatId, choice, buildSelectionMessage(choice, choice.locale, `⏳ ${t(choice.locale, "botProcessing")}`), { inline_keyboard: [] });
+    await editChoiceMessage(
+      bot,
+      chatId,
+      choice,
+      buildSelectionMessage(
+        choice,
+        choice.locale,
+        `⏳ ${t(choice.locale, "botProcessing")}`,
+      ),
+      { inline_keyboard: [] },
+    );
 
     await sendImagesGallery(ctx, choice);
   });
@@ -1434,23 +1952,38 @@ export function registerBotHandlers(bot: Telegraf) {
 
     const jobId = ctx.match[1];
     const locale = localeForTelegram(userId, ctx.from?.language_code);
-    
+
     try {
       const success = cancelDownloadJob(jobId);
       if (success) {
-        await ctx.answerCbQuery(locale === "fr" ? "Job actif arrêté." : "Active job stopped.").catch(() => {});
+        await ctx
+          .answerCbQuery(
+            locale === "fr" ? "Job actif arrêté." : "Active job stopped.",
+          )
+          .catch(() => {});
         // After cancellation, the job status will transition to error/cancelled,
         // and trackJobInChat will naturally handle the exit and processNextInQueue.
-        
+
         // Refresh the queue message if we were in the queue view
-        await ctx.editMessageText(userQueueMessage(userId, locale), {
-          ...userQueueKeyboard(userId, locale),
-        }).catch(() => {});
+        await ctx
+          .editMessageText(userQueueMessage(userId, locale), {
+            ...userQueueKeyboard(userId, locale),
+          })
+          .catch(() => {});
       } else {
-        await ctx.answerCbQuery(locale === "fr" ? "Job non trouvé ou déjà fini." : "Job not found or already finished.").catch(() => {});
+        await ctx
+          .answerCbQuery(
+            locale === "fr"
+              ? "Job non trouvé ou déjà fini."
+              : "Job not found or already finished.",
+          )
+          .catch(() => {});
       }
     } catch (error) {
-      logServer("error", "bot.action.cancelactive.failed", { jobId, error: String(error) });
+      logServer("error", "bot.action.cancelactive.failed", {
+        jobId,
+        error: String(error),
+      });
       await ctx.answerCbQuery("Error stopping job.").catch(() => {});
     }
   });
