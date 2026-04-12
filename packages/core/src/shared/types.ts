@@ -17,6 +17,7 @@ export type MediaOption = {
   height?: number;
   abr?: number;
   fps?: number;
+  url?: string;
 };
 
 export type PlaylistEntry = {

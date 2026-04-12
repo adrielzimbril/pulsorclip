@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     if (imageUrl.toLowerCase().includes(".webp")) contentType = "image/webp";
     if (imageUrl.toLowerCase().includes(".gif")) contentType = "image/gif";
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600",
