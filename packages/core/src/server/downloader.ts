@@ -224,20 +224,28 @@ function simplifyError(raw: string) {
     if (l.startsWith("video:") && l.includes("audio:") && l.includes("muxing overhead")) return false;
     if (l.startsWith("cpb: bitrate")) return false;
     if (l.includes("encoder :")) return false;
-    if (l.includes("Metadata:") || l.includes("  ") || l.includes("Stream #")) return false; // Filter indentation/meta blocks
+    if (l.includes("Metadata:") || l.includes("Stream #")) return false; // Filter meta blocks
     if (l.includes("built with")) return false; // Filter ffmpeg header
     if (l.startsWith("Configuration:")) return false;
     if (l.startsWith("libav")) return false;
+    if (l.includes("Press [q] to stop")) return false;
     return true;
   });
-  // Search all lines (not just last) for known error patterns, then fallback to last line
+
+  // Search all lines (not just last) for known error patterns
   const allText = lines.join(" ");
   const lower = allText.toLowerCase();
-  const lastLine = lines.at(-1) || raw.trim();
 
-  if (!lastLine) {
-    return "Unknown download error";
+  // If after filtering we have no useful lines, but the process failed,
+  // we check if the raw output was just noise.
+  if (lines.length === 0) {
+    if (raw.includes("encoder :") || raw.includes("Metadata:")) {
+      return "Media conversion failed. Check server logs for details.";
+    }
+    return raw.trim() || "Unknown extraction error";
   }
+
+  const lastLine = lines.at(-1)!;
 
   if (lower.includes("sign in to confirm you are not a bot") || lower.includes("login required")) {
     return "Authentication required. You must set YTDLP_COOKIES_BASE64 to download from this platform (especially for Stories).";

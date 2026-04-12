@@ -39,9 +39,31 @@ export function getWorkspaceRoot(): string {
   return process.cwd();
 }
 
+export function verifyBinaries() {
+  console.log(`[INFO] Verifying binaries configuration...`);
+  
+  const bins = [
+    { name: "yt-dlp", path: appConfig.ytDlpBin, arg: "--version" },
+    { name: "ffmpeg", path: appConfig.ffmpegBin, arg: "-version" }
+  ];
+
+  for (const bin of bins) {
+    try {
+      const output = execSync(`${bin.path} ${bin.arg}`, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+      console.log(`[OK] ${bin.name} located at: ${bin.path}`);
+      if (appConfig.debugLogs) {
+        console.log(`[DEBUG] ${bin.name} version info: ${output.split("\n")[0]}`);
+      }
+    } catch (err) {
+      console.error(`[WARNING] Could not verify ${bin.name} at "${bin.path}". Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
 export function ensureAppDirs() {
   const dir = resolve(getWorkspaceRoot(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
   mkdirSync(dir, { recursive: true });
+  verifyBinaries();
 }
 
 function resolveBinary(envValue: string | undefined, fallback: string, candidates: string[] = []) {
