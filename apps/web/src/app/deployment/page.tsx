@@ -4,8 +4,8 @@ import { getRequestLocale } from "@/lib/request-locale";
 
 const deploymentContent = {
   en: {
-    heading: "Render deployment guide",
-    intro: "PulsorClip currently targets a single Docker-backed Render web service on the free plan. The bot and the web app start from the same container.",
+    heading: "Server deployment guide",
+    intro: "PulsorClip currently targets a single Docker-backed Server web service on the free plan. The bot and the web app start from the same container.",
     strategyTitle: "Deployment strategy",
     strategyBody:
       "The project defaults to one Docker web service because it stays cheap, keeps setup simple, and still supports both the web workflow and Telegram polling.",
@@ -13,11 +13,11 @@ const deploymentContent = {
     envTitle: "Environment variables",
     notesTitle: "Notes",
     steps: [
-      "Create a new Render Blueprint from the GitHub repository.",
+      "Create a new Server from the GitHub repository.",
       "Keep the repository root unchanged so Docker can access apps/web, apps/bot, and packages/core.",
       "Set NEXT_PUBLIC_APP_URL to your own public domain or deployment URL.",
       "Fill TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_IDS, and optional yt-dlp cookie variables.",
-      "Deploy the free web service and attach the custom domain in Render settings.",
+      "Deploy the free web service and attach the custom domain in Server settings.",
     ],
     envRows: [
       ["NEXT_PUBLIC_APP_URL", "Public web URL used for metadata, SEO, and bot links."],
@@ -26,18 +26,18 @@ const deploymentContent = {
       ["TELEGRAM_ADMIN_IDS", "Comma-separated Telegram user IDs notified when the bot becomes live."],
       ["TELEGRAM_MAINTENANCE_MODE", "When true, non-admin users receive maintenance responses."],
       ["YTDLP_COOKIES_BASE64", "Recommended hosted-platform cookie option for YouTube."],
-      ["PULSORCLIP_DOWNLOAD_DIR", "Use /tmp/pulsorclip-downloads on Render free."],
+      ["PULSORCLIP_DOWNLOAD_DIR", "Use /tmp/pulsorclip-downloads on Server free."],
     ],
     notes: [
-      "Render free storage is ephemeral, so prepared files may disappear after restart or redeploy.",
+      "Server free storage is ephemeral, so prepared files may disappear after restart or redeploy.",
       "For YouTube, cookies are often required on hosted IP ranges.",
       "Root path stays at the repository root because the Docker build depends on the full monorepo.",
       "The bot sends startup notifications only when TELEGRAM_ADMIN_IDS contains valid Telegram user IDs.",
     ],
   },
   fr: {
-    heading: "Guide de deploiement Render",
-    intro: "PulsorClip cible actuellement un seul web service Render base sur Docker en plan gratuit. Le bot et l app web demarrent depuis le meme conteneur.",
+    heading: "Guide de deploiement Serveur",
+    intro: "PulsorClip cible actuellement un seul web service Serveur base sur Docker en plan gratuit. Le bot et l app web demarrent depuis le meme conteneur.",
     strategyTitle: "Strategie de deploiement",
     strategyBody:
       "Le projet part sur un seul web service Docker pour rester economique, simple a configurer, et compatible avec le workflow web comme avec le polling Telegram.",
@@ -45,11 +45,11 @@ const deploymentContent = {
     envTitle: "Variables d environnement",
     notesTitle: "Notes",
     steps: [
-      "Cree un nouveau Blueprint Render depuis le repository GitHub.",
+      "Cree un nouveau Serveur depuis le repository GitHub.",
       "Garde la racine du repository telle quelle pour que Docker puisse acceder a apps/web, apps/bot et packages/core.",
       "Definis NEXT_PUBLIC_APP_URL sur ton propre domaine public ou ton URL de deploiement.",
       "Renseigne TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_IDS et les cookies yt-dlp si necessaire.",
-      "Deploie le web service gratuit puis attache le domaine custom dans les reglages Render.",
+      "Deploie le web service gratuit puis attache le domaine custom dans les reglages Serveur.",
     ],
     envRows: [
       ["NEXT_PUBLIC_APP_URL", "URL web publique utilisee pour les metadata, le SEO et les liens du bot."],
@@ -58,10 +58,10 @@ const deploymentContent = {
       ["TELEGRAM_ADMIN_IDS", "IDs Telegram separes par des virgules pour notifier les admins quand le bot devient disponible."],
       ["TELEGRAM_MAINTENANCE_MODE", "Quand la valeur est true, les non-admins recoivent des reponses de maintenance."],
       ["YTDLP_COOKIES_BASE64", "Option recommandee pour les cookies YouTube sur une plateforme hebergee."],
-      ["PULSORCLIP_DOWNLOAD_DIR", "Utilise /tmp/pulsorclip-downloads sur Render free."],
+      ["PULSORCLIP_DOWNLOAD_DIR", "Utilise /tmp/pulsorclip-downloads sur Serveur free."],
     ],
     notes: [
-      "Le stockage Render free est ephemere, donc les fichiers prepares peuvent disparaitre apres restart ou redeploy.",
+      "Le stockage Serveur free est ephemere, donc les fichiers prepares peuvent disparaitre apres restart ou redeploy.",
       "Pour YouTube, les cookies sont souvent requis sur des IP hebergees.",
       "La racine reste celle du repository car le build Docker depend de tout le monorepo.",
       "Le bot n envoie des notifications de demarrage que si TELEGRAM_ADMIN_IDS contient des IDs Telegram valides.",

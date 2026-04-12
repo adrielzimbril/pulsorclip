@@ -1,7 +1,7 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "dockerfilePath": "docker/render.Dockerfile",
+    "dockerfilePath": "docker/Dockerfile",
     "watchPatterns": ["apps/**", "packages/**", "docker/**", "package.json", "tsconfig.base.json"]
   },
   "deploy": {
@@ -10,7 +10,6 @@
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 300,
-    "healthcheckInterval": 30
+    "healthcheckTimeout": 300
   }
 }

@@ -32,7 +32,7 @@ const faqContent = {
       {
         id: "error-no-file",
         title: "Export finished without a file",
-        body: "This usually means the host storage is ephemeral or ffmpeg failed during merge or extraction. Check Render logs and confirm ffmpeg is installed in the container.",
+        body: "This usually means the host storage is ephemeral or ffmpeg failed during merge or extraction. Check Server logs and confirm ffmpeg is installed in the container.",
       },
       {
         id: "error-telegram-size",
@@ -68,7 +68,7 @@ const faqContent = {
       {
         id: "error-no-file",
         title: "Export termine sans fichier final",
-        body: "Cela signifie souvent que le stockage de l hebergement est ephemere ou que ffmpeg a echoue pendant la fusion ou l extraction. Verifie les logs Render et la presence de ffmpeg dans le conteneur.",
+        body: "Cela signifie souvent que le stockage de l hebergement est ephemere ou que ffmpeg a echoue pendant la fusion ou l extraction. Verifie les logs Serveur et la presence de ffmpeg dans le conteneur.",
       },
       {
         id: "error-telegram-size",

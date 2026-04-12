@@ -100,9 +100,7 @@ Notes:
 - `.env`
   - ton fichier runtime local
 - `.env.example`
-  - template local documente
-- `.env.render`
-  - template Render documente
+  - template local documenté
 
 Variables importantes:
 
@@ -120,7 +118,7 @@ Variables importantes:
 
 ## Deploiement
 
-Cible par defaut: **Render free Web Service** avec un seul runtime Docker pour le web et le bot.
+Cible par defaut: **Railway free Web Service** avec un seul runtime Docker pour le web et le bot.
 
 Pourquoi cette topologie:
 

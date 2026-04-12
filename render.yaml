@@ -3,7 +3,7 @@ services:
     name: pulsorclip
     runtime: docker
     plan: free
-    dockerfilePath: ./docker/render.Dockerfile
+    dockerfilePath: ./docker/Dockerfile
     autoDeploy: true
     envVars:
       - key: NEXT_PUBLIC_APP_URL

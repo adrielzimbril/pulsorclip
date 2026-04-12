@@ -14,11 +14,11 @@ pnpm-debug.log*
 assets/*.mov
 .DS_Store
 .env
+.env.*
 .env.local
 .env.production
 .env.development
 !.env.example
-!.env.render
 
 dev-web.log
 
@@ -48,3 +48,5 @@ scratch/
 
 scripts/setup_wsl.sh
 *.build.json
+
+apps/web/next-env.d.ts

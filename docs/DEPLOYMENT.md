@@ -2,27 +2,25 @@
 
 ## Recommended Setup
 
-Use **Render** with one Docker-backed **Web Service** on the free plan.
+Use **Railway** with one Docker-backed **Web Service** on the free plan.
 
 Why one service:
 
-- Render Background Workers are not needed for this free setup.
 - The web app and Telegram bot can run in the same container.
 - This keeps the deployment on the free web-service tier.
 
-Current files used by Render:
+Current files used by Railway:
 
-1. blueprint file: `render.yaml`
-2. Dockerfile: `docker/render.Dockerfile`
-3. startup script: `docker/start-render.mjs`
+1. Dockerfile: `docker/Dockerfile`
+2. startup script: `docker/start.mjs`
 
 ## Repository Root
 
-The Render root is the **repository root**.
+The Railway root is the **repository root**.
 
 Use the repo root because:
 
-- `render.yaml` lives at the root
+- `railway.json` lives at the root
 - the Docker build needs access to `apps/web`, `apps/bot`, and `packages/core`
 - the workspace `package.json` and `package-lock.json` are also at the root
 

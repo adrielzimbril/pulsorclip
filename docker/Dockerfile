@@ -9,17 +9,21 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/package.json
 COPY apps/bot/package.json apps/bot/package.json
 COPY packages/core/package.json packages/core/package.json
 
 RUN npm install
 
+COPY apps/web apps/web
 COPY apps/bot apps/bot
 COPY packages/core packages/core
+COPY docker docker
 COPY tsconfig.base.json ./
 
-RUN npm run build --workspace @pulsorclip/core && npm run build --workspace @pulsorclip/bot
+RUN npm run build --workspace @pulsorclip/core \
+  && npm run build --workspace @pulsorclip/web \
+  && npm run build --workspace @pulsorclip/bot
 
-WORKDIR /app/apps/bot
-
+EXPOSE 10000
 CMD ["npm", "run", "start"]

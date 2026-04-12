@@ -31,6 +31,7 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "node ./docker/dev.mjs",
     "dev:web": "npm run dev --workspace @pulsorclip/web",
     "dev:bot": "npm run dev --workspace @pulsorclip/bot",
     "dev:desktop": "npm run dev --workspace @pulsorclip/desktop",
@@ -38,17 +39,16 @@
     "build:desktop": "npm run build --workspace @pulsorclip/desktop",
     "tauri": "npm run tauri --workspace @pulsorclip/desktop",
     "lint": "npm run lint --workspace @pulsorclip/web && npm run check --workspace @pulsorclip/bot && npm run check --workspace @pulsorclip/core",
-    "start": "npm run start:all",
+    "start": "node ./docker/start.mjs",
     "start:web": "npm run start --workspace @pulsorclip/web",
     "start:bot": "npm run start --workspace @pulsorclip/bot",
-    "start:all": "node ./docker/start-render.mjs",
-    "start:render": "node ./docker/start-render.mjs",
     "test": "npm run test --workspace @pulsorclip/core"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "puppeteer": "^24.40.0",
     "typescript": "^5.9.3"
   },
   "engines": {

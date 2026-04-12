@@ -5,6 +5,7 @@ async function capture() {
   const page = (await browser.pages())[0];
   
   await page.setViewport({ width: 1280, height: 800 });
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
   await page.goto('http://localhost:10000', { waitUntil: 'networkidle2' });
   await page.screenshot({ path: 'preview/home_light.png' });
   

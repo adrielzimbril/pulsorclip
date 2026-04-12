@@ -520,7 +520,7 @@ function getFunnyStatus(jobId: string, progress: number, status: string) {
   return messages[seed % messages.length];
 }
 
-function renderJobUpdate(locale: AppLocale, jobId: string) {
+function serverJobUpdate(locale: AppLocale, jobId: string) {
   const job = getDownloadJob(jobId);
 
   if (!job) {
@@ -566,7 +566,7 @@ async function trackJobInChat(bot: Telegraf, ctx: any, choice: PendingChoice, jo
     const job = getDownloadJob(jobId);
     if (!job) break;
 
-    const nextText = renderJobUpdate(choice.locale, jobId);
+    const nextText = serverJobUpdate(choice.locale, jobId);
     if (!silent && nextText !== lastText) {
       await editChoiceMessage(bot, ctx.chat.id, choice, nextText, { inline_keyboard: [] });
       lastText = nextText;

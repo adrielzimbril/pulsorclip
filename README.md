@@ -102,8 +102,6 @@ Notes:
   - your local runtime file
 - `.env.example`
   - documented local template
-- `.env.render`
-  - documented Render template
 
 Important variables:
 
@@ -124,15 +122,15 @@ Important variables:
 ### Railway (Recommended)
 
 1.  Connect this repository to a new Railway project.
-2.  Railway will automatically detect the `railway.json` and use `docker/render.Dockerfile`.
+2.  Railway will automatically detect the `railway.json` and use `docker/Dockerfile`.
 3.  Set the following environment variables (see `.env.example`):
     - `NEXT_PUBLIC_APP_URL`: Your Railway app URL.
     - `TELEGRAM_BOT_TOKEN`: Your bot token.
     - `PULSORCLIP_DEBUG_LOGS`: `true`.
 
-### Render
+### Server
 
-Current default target: **Render free Web Service** with one Docker runtime for both web and bot.
+Current default target: **Railway free Web Service** with one Docker runtime for both web and bot.
 
 Why this topology:
 

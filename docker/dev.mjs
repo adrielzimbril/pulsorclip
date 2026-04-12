@@ -21,7 +21,7 @@ function run(name, command, args, env = process.env) {
       console.error(`[pulsorclip] ${name} exited with code ${code}.`);
 
       if (name === "web") {
-        // Render expects the main process to exit if the web server fails,
+        // Server expects the main process to exit if the web server fails,
         // but since we want auto-restart, we'll only exit if it's a fatal shutdown.
         // However, if it crashed, we restart it.
         console.log(`[pulsorclip] restarting ${name} in 5s... (attempt ${++restartCount})`);
@@ -51,11 +51,11 @@ const port = process.env.PORT || "10000";
 run(
   "web",
   "npm",
-  ["run", "start", "--workspace", "@pulsorclip/web", "--", "-p", port, "-H", "0.0.0.0"],
+  ["run", "dev", "--workspace", "@pulsorclip/web", "--", "-p", port, "-H", "0.0.0.0"],
 );
 
 if (process.env.TELEGRAM_BOT_ENABLED !== "false" && process.env.TELEGRAM_BOT_TOKEN) {
-  run("bot", "npm", ["run", "start", "--workspace", "@pulsorclip/bot"]);
+  run("bot", "npm", ["run", "dev", "--workspace", "@pulsorclip/bot"]);
 } else {
   console.log("[pulsorclip] bot disabled or TELEGRAM_BOT_TOKEN not set, bot process skipped");
 }

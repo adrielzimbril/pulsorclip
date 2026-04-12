@@ -19,7 +19,7 @@ const docsByLocale = {
       {
         href: "/deployment",
         title: "Deployment",
-        body: "Go here when you need the right environment variables, Render setup, or bot startup behavior.",
+        body: "Go here when you need the right environment variables, Server setup, or bot startup behavior.",
       },
     ],
   },
@@ -38,7 +38,7 @@ const docsByLocale = {
       {
         href: "/deployment",
         title: "Deploiement",
-        body: "Va ici pour les variables d environnement, le setup Render, et le comportement de demarrage du bot.",
+        body: "Va ici pour les variables d environnement, le setup Serveur, et le comportement de demarrage du bot.",
       },
     ],
   },
