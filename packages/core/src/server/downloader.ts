@@ -1587,6 +1587,10 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
               entries: playlistEntries,
             }
           : undefined,
+      resolvedUrl:
+        typeof parsed.url === "string" ? normalizeUrl(parsed.url) : undefined,
+      resolvedVideoUrl:
+        typeof parsed.url === "string" ? normalizeUrl(parsed.url) : undefined,
     };
 
     // Manual Enrichment: If yt-dlp succeeded but returned generic info, try manual scraping
