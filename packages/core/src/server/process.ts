@@ -47,15 +47,28 @@ export async function runCommand(
   let actualArgs = [...args];
 
   // Automatic WSL wrapping for Linux paths on Windows
-  if (process.platform === "win32" && command.startsWith("/mnt/")) {
+  // e.g. /usr/bin/ffmpeg or /mnt/f/path
+  if (process.platform === "win32" && (command.startsWith("/") || command.startsWith("/mnt/"))) {
     actualCommand = "wsl";
-    actualArgs = ["-e", command, ...args.map(arg => {
+    actualArgs = [command, ...args.map(arg => {
       if (typeof arg === "string" && (arg.includes(":\\") || arg.includes(":/"))) {
         // Convert Windows path to WSL path: F:\path -> /mnt/f/path
         return arg.replace(/^([a-zA-Z]):\\/, (_, drive) => `/mnt/${drive.toLowerCase()}/`).replace(/\\/g, "/");
       }
       return arg;
     })];
+  }
+
+  // Import logServer inside the function or use a custom logger if needed
+  // For now let's use console.log to be safe if logServer isn't available
+  if (process.env.PULSORCLIP_DEBUG_LOGS === "true") {
+     console.log(JSON.stringify({
+       level: "debug",
+       event: "process.run",
+       command: actualCommand,
+       args: actualArgs,
+       cwd: process.cwd()
+     }));
   }
 
   return new Promise((resolve, reject) => {
@@ -66,6 +79,7 @@ export async function runCommand(
     const child = spawn(actualCommand, actualArgs, {
       stdio: ["ignore", "pipe", "pipe"],
       env: process.env,
+      shell: process.platform === "win32",
     });
 
     const cleanup = () => {

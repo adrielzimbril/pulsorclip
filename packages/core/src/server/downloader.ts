@@ -454,6 +454,11 @@ async function convertAudio(
       idleTimeoutMs: TRANSCODE_IDLE_TIMEOUT_MS,
       idleTimeoutMessage: `Audio conversion stalled for ${Math.round(TRANSCODE_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
       signal,
+      onStderrLine: (line) => {
+        if (line.includes("time=") || line.includes("bitrate=")) {
+          logServer("debug", "ffmpeg.audio.progress", { jobId: job.id, line: line.trim() });
+        }
+      },
     },
   );
 
@@ -583,8 +588,15 @@ async function convertVideo(
       idleTimeoutMs: TRANSCODE_IDLE_TIMEOUT_MS,
       idleTimeoutMessage: `Video conversion stalled for ${Math.round(TRANSCODE_IDLE_TIMEOUT_MS / 1000)} seconds. Retry this file.`,
       signal,
+      onStderrLine: (line) => {
+        if (line.includes("frame=") || line.includes("fps=")) {
+          logServer("debug", "ffmpeg.video.progress", { jobId: job.id, line: line.trim() });
+        }
+      },
     },
   );
+
+  updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`);
 
   if (result.exitCode !== 0) {
     throw new Error(simplifyError(result.stderr));
@@ -1405,12 +1417,13 @@ export async function executeDownload(jobId: string) {
     }
 
     const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
+    logServer("info", "media.convert.success", { jobId: job.id, outputPath });
+    updateJobProgress(job, 98, "😫 Nearly ready for download");
 
     const stats = statSync(outputPath);
     job.fileSize = stats.size;
     job.fileSizeLabel = (stats.size / (1024 * 1024)).toFixed(2) + " MB";
 
-    updateJobProgress(job, 98, "😫 Nearly ready for download");
     job.status = "done";
     job.progress = 100;
     job.progressLabel = "Ready for download";
@@ -1418,6 +1431,7 @@ export async function executeDownload(jobId: string) {
     job.filename = `${safeTitle}.${finalExt}`;
     job.updatedAt = Date.now();
     syncJobState(job);
+    logServer("info", "media.download.done", { jobId: job.id, filename: job.filename });
     trackDownloadCompleted(job.source);
     logServer("info", "media.download.completed", {
       jobId: job.id,

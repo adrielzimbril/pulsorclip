@@ -26,8 +26,21 @@ export function resolveRealBinaryPath(bin: string): string {
   return bin; // Fallback to the requested string
 }
 
+export function getWorkspaceRoot(): string {
+  let current = process.cwd();
+  for (let i = 0; i < 5; i++) {
+    if (existsSync(join(current, "package.json")) && existsSync(join(current, "apps")) && existsSync(join(current, "packages"))) {
+      return current;
+    }
+    const parent = resolve(current, "..");
+    if (parent === current) break;
+    current = parent;
+  }
+  return process.cwd();
+}
+
 export function ensureAppDirs() {
-  const dir = resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
+  const dir = resolve(getWorkspaceRoot(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
   mkdirSync(dir, { recursive: true });
 }
 
@@ -50,7 +63,7 @@ function resolveBinary(envValue: string | undefined, fallback: string, candidate
 export const appConfig = {
   appName: "PulsorClip",
   get downloadsDir() {
-    return resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
+    return resolve(getWorkspaceRoot(), process.env.PULSORCLIP_DOWNLOAD_DIR || "downloads");
   },
   debugLogs: process.env.PULSORCLIP_DEBUG_LOGS === "true",
   logFullUrls: process.env.PULSORCLIP_LOG_FULL_URLS === "true",
