@@ -217,8 +217,21 @@ export async function applyTelegramMetadata(bot: Telegraf) {
 
     // 6. Bot Profile Picture - Non-fatal
     try {
+      const res = await fetch("https://pulsorclip.adrielzimbril.com/icon.png");
+
+      if (!res.ok) {
+        logServer("warn", "bot.metadata.profile_picture.sync.failed", { error: `Failed to fetch image: ${res.status}` });
+        return;
+      }
+
+      const arrayBuffer = await res.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
       await safeTelegramCall(bot, "setMyProfilePhoto", {
-        photo: { url: "https://pulsorclip.adrielzimbril.com/icon.png" }
+        photo: {
+          source: buffer,
+          filename: "icon.png",
+        },  
       });
     } catch (err) {
       logServer("info", "bot.metadata.profile_picture.sync.failed", { error: String(err) });

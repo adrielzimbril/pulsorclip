@@ -9,7 +9,7 @@ type TelegramAdminBot = {
 
 type TelegramNotifyBot = {
   telegram: {
-    sendMessage: (chatId: number, text: string) => Promise<unknown>;
+    sendMessage: (chatId: number, text: string, options?: { parse_mode?: string }) => Promise<unknown>;
   };
 };
 
@@ -77,7 +77,7 @@ export async function notifyAdmins(
     appConfig.telegramAdminIds.map(async (adminId) => {
       try {
         logServer("info", "bot.admin.notify.attempt", { adminId });
-        await bot.telegram.sendMessage(adminId, message);
+        await bot.telegram.sendMessage(adminId, message, { parse_mode: "HTML" });
         delivered += 1;
         logServer("info", "bot.admin.notify.delivered", {
           adminId,

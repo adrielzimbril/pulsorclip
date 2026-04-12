@@ -90,7 +90,6 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/queue",
     "/language",
     "/support",
-    ...(admin ? ["/broadcast", "/users", "/status", "/report"] : []),
   ];
 
   const lines = [
@@ -115,7 +114,7 @@ function helpMessage(locale: AppLocale, admin = false) {
 }
 
 function adminHelpMessage(locale: AppLocale) {
-  const title = locale === "fr" ? "Commandes admin" : "Admin commands";
+  const title = locale === "fr" ? "👮 Commandes admin" : "👮 Admin commands";
   const body =
     locale === "fr"
       ? "Ces commandes servent au pilotage et au diagnostic du bot."
@@ -129,6 +128,7 @@ function adminHelpMessage(locale: AppLocale) {
     "• /status",
     "• /server",
     "• /health",
+    "• /users",
     "• /report",
     "• /daily",
     "• /broadcast",
@@ -1434,7 +1434,6 @@ export function registerBotHandlers(bot: Telegraf) {
     if (!isAdmin(ctx.from?.id)) {
       return;
     }
-
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
@@ -1463,8 +1462,6 @@ export function registerBotHandlers(bot: Telegraf) {
       parse_mode: "HTML",
     });
   });
-
-
 
   bot.command("queue", async (ctx) => {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
@@ -1518,11 +1515,10 @@ export function registerBotHandlers(bot: Telegraf) {
     if (!isAdmin(ctx.from?.id)) {
       return;
     }
-
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendHealthSnapshot(bot, locale);
-    await ctx.reply(t(locale, "botHealthSent"));
+    await ctx.reply(t(locale, "botHealthSent"), { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("report", async (ctx) => {
