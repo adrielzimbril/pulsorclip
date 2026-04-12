@@ -252,6 +252,17 @@ export function writeStoredJob(job: DownloadJob) {
     .run(job.id, JSON.stringify(job), now);
 }
 
+export function writeStoredQueue(queueList: string[]) {
+  const now = timestamp();
+  getDb().transaction(() => {
+    getDb().prepare("DELETE FROM queue").run();
+    const insertQueue = getDb().prepare("INSERT INTO queue (job_id, position, added_at) VALUES (?, ?, ?)");
+    queueList.forEach((jobId, index) => {
+      insertQueue.run(jobId, index, now);
+    });
+  })();
+}
+
 export function writeStoredJobs(jobsMap: Record<string, DownloadJob>, queueList: string[]) {
   const now = timestamp();
   getDb().transaction(() => {

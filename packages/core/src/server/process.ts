@@ -52,7 +52,7 @@ export async function runCommand(
     actualCommand = "wsl";
     actualArgs = [command, ...args.map(arg => {
       if (typeof arg === "string" && (arg.includes(":\\") || arg.includes(":/"))) {
-        // Convert Windows path to WSL path: F:\path -> /mnt/f/path
+        // Convert Windows path to WSL path: <path> -> /mnt/<path>
         return arg.replace(/^([a-zA-Z]):\\/, (_, drive) => `/mnt/${drive.toLowerCase()}/`).replace(/\\/g, "/");
       }
       return arg;

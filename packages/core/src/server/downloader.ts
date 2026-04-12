@@ -15,7 +15,7 @@ import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
 import { appConfig, ensureAppDirs } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
-import { getStoredJob, getStoredJobs, getStoredQueue, writeStoredJob, writeStoredJobs } from "./runtime-db";
+import { getStoredJob, getStoredJobs, getStoredQueue, writeStoredJob, writeStoredJobs, writeStoredQueue } from "./runtime-db";
 import { getSourceProfile } from "./source-adapters";
 import type {
   DownloadJob,
@@ -72,9 +72,12 @@ const TRANSCODE_IDLE_TIMEOUT_MS = 120_000;
 
 function syncJobState(job?: DownloadJob) {
   if (job) {
+    // Single job atomic update
     writeStoredJob(job);
   } else {
-    writeStoredJobs(Object.fromEntries(getJobs()), [...getQueue()]);
+    // Queue update - ONLY update the queue table, NOT the jobs table
+    // to prevent overwriting progress with stale memory data from other processes
+    writeStoredQueue([...getQueue()]);
   }
 }
 
@@ -426,10 +429,7 @@ async function convertAudio(
   sourcePath: string,
   outputPath: string,
   signal?: AbortSignal,
-) {
-  updateJobProgress(job, 92, `Encoding ${job.targetExt.toUpperCase()} audio`);
-
-  const codecArgs =
+) {const codecArgs =
     job.targetExt === "mp3"
       ? ["-vn", "-c:a", "libmp3lame", "-b:a", "192k"]
       : ["-vn", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"];
@@ -532,10 +532,7 @@ async function convertVideo(
   sourcePath: string,
   outputPath: string,
   signal?: AbortSignal,
-) {
-  updateJobProgress(job, 92, `Finalizing ${job.targetExt.toUpperCase()} video`);
-
-  const codecArgs =
+) {const codecArgs =
     job.targetExt === "mp4"
       ? [
           "-c:v",
@@ -595,8 +592,6 @@ async function convertVideo(
       },
     },
   );
-
-  updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`);
 
   if (result.exitCode !== 0) {
     throw new Error(simplifyError(result.stderr));
@@ -1411,19 +1406,18 @@ export async function executeDownload(jobId: string) {
         finalExt,
       });
     } else if (job.mode === "audio") {
+      updateJobProgress(job, 92, `Please wait, encoding ${job.targetExt.toUpperCase()} audio`);
       await convertAudio(job, sourceFile, outputPath, signal);
+      updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} audio is ready`);
     } else {
+      updateJobProgress(job, 92, `Please wait, finalizing ${job.targetExt.toUpperCase()} video`);
       await convertVideo(job, sourceFile, outputPath, signal);
+      updateJobProgress(job, 96, `Wait a little bit, ${job.targetExt.toUpperCase()} video is ready`);
     }
 
     const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
     logServer("info", "media.convert.success", { jobId: job.id, outputPath });
-    updateJobProgress(job, 98, "😫 Nearly ready for download");
-
-    const stats = statSync(outputPath);
-    job.fileSize = stats.size;
-    job.fileSizeLabel = (stats.size / (1024 * 1024)).toFixed(2) + " MB";
-
+    updateJobProgress(job, 100, "Ready for download");
     job.status = "done";
     job.progress = 100;
     job.progressLabel = "Ready for download";
