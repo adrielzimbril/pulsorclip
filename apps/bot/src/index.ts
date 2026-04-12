@@ -105,8 +105,6 @@ async function bootstrap() {
       },
     );
 
-
-
     if (appConfig.telegramAdminIds.length === 0) {
       logServer("warn", "bot.bootstrap.admins.none", {
         message: "⚠️ NO TELEGRAM_ADMIN_IDS configured. Admin notifications (start, daily, health) will be SKIPPED.",
