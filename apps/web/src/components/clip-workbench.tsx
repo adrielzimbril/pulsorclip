@@ -414,7 +414,7 @@ export function ClipWorkbench({
             progress: 0,
             progressLabel: t(locale, "inspectReady"),
             resolvedUrl: payload.resolvedUrl,
-            resolvedVideoUrl: payload.resolvedVideoUrl,
+            resolvedVideoUrl: payload.resolvedVideoUrl ?? payload.resolvedUrl,
           }));
         } catch (error) {
           updateCard(card.id, (current) => ({

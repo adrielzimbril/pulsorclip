@@ -31,6 +31,7 @@ function getDb() {
   mkdirSync(runtimeDir, { recursive: true });
 
   // Initialize Database with reasonable timeout for locks
+  logServer("info", "db.opening", { path: sqliteDbPath });
   _db = new Database(sqliteDbPath, { timeout: 10000 });
   _db.pragma("journal_mode = WAL");
 

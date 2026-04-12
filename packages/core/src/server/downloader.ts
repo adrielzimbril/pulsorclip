@@ -1417,7 +1417,18 @@ export async function executeDownload(jobId: string) {
 
     const safeTitle = sanitizeFilename(job.title) || `pulsorclip-${job.id}`;
     logServer("info", "media.convert.success", { jobId: job.id, outputPath });
-    updateJobProgress(job, 100, "Ready for download");
+
+    // Restore File Statistics
+    try {
+      const stats = statSync(outputPath);
+      job.fileSize = stats.size;
+      job.fileSizeLabel = (stats.size / (1024 * 1024)).toFixed(2) + " MB";
+    } catch (e) {
+      logServer("error", "media.stats.failed", { jobId: job.id, error: String(e) });
+    }
+
+    updateJobProgress(job, 98, "😫 Nearly ready for download");
+
     job.status = "done";
     job.progress = 100;
     job.progressLabel = "Ready for download";
