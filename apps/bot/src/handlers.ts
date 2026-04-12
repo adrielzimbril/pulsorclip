@@ -7,6 +7,8 @@ import {
   appConfig,
   createDownloadJob,
   fetchMediaInfo,
+  fetchThumbnailBuffer,
+  decodeHtmlEntities,
   getDownloadJob,
   getDailySummary,
   requireCompletedJob,
@@ -153,14 +155,39 @@ function buildSelectionMessage(choice: PendingChoice, locale: AppLocale, statusT
   const sourceLink = `<a href="${choice.url}">Source</a>`;
   const trackLine = jobId ? ` | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>` : "";
 
-  return [
+  // Improve title fallback: If title is generic platform name, show platform + " Media"
+  let displayTitle = decodeHtmlEntities(meta.title || "");
+  const genericPlatforms = ["facebook", "tiktok", "instagram", "threads", "twitter", "x"];
+  if (!displayTitle || genericPlatforms.includes(displayTitle.toLowerCase().split(" ")[0])) {
+    const platformName = meta.platform ? meta.platform.charAt(0).toUpperCase() + meta.platform.slice(1) : "Media";
+    displayTitle = `${platformName} Post ${meta.uploader ? `by ${meta.uploader}` : ""}`;
+  }
+
+  const lines = [
     `<b>Request #${choice.requestId}</b>`,
     statusText,
-    escapeHTML(trimTitle(meta.title || "")),
-    meta.description ? `\n📝 ${escapeHTML(meta.description.substring(0, 200))}` : "",
-    meta.tags && meta.tags.length > 0 ? `\n🏷️ ${meta.tags.slice(0, 5).map((t) => `#${t.replace(/\s+/g, '_')}`).join(' ')}` : "",
-    `\n🔗 ${sourceLink}${trackLine}`,
-  ].filter(Boolean).join("\n");
+    `<b>${escapeHTML(trimTitle(displayTitle))}</b>`,
+  ];
+
+  if (meta.uploader && meta.uploader.toLowerCase() !== meta.platform?.toLowerCase()) {
+    lines.push(`👤 ${escapeHTML(meta.uploader)}`);
+  }
+
+  if (meta.duration) {
+    lines.push(`⏱️ ${formatDuration(meta.duration)}`);
+  }
+
+  if (meta.description) {
+    lines.push(`\n📝 ${escapeHTML(meta.description.substring(0, 160))}${meta.description.length > 160 ? "..." : ""}`);
+  }
+
+  if (meta.tags && meta.tags.length > 0) {
+    lines.push(`\n🏷️ ${meta.tags.slice(0, 5).map((t) => `#${t.replace(/\s+/g, '_')}`).join(' ')}`);
+  }
+
+  lines.push(`\n🔗 ${sourceLink}${trackLine}`);
+
+  return lines.filter(Boolean).join("\n");
 }
 
 async function sendPresence(ctx: any, action: "typing" | "upload_photo" | "upload_document" | "upload_video" | "upload_voice" = "typing") {
@@ -424,16 +451,37 @@ async function safeDeleteMessage(bot: Telegraf, chatId: number, messageId?: numb
 
 async function sendChoiceMessage(ctx: any, choice: PendingChoice, text: string, replyMarkup: InlineKeyboardMarkup) {
   if (choice.info.thumbnail) {
-    await sendPresence(ctx, "upload_photo");
-    const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
-      caption: text,
-      parse_mode: "HTML",
-      reply_markup: replyMarkup,
-    });
+    try {
+      await sendPresence(ctx, "upload_photo");
+      
+      // Attempt "Fetch Local" (Proxy) to bypass hotlinking protection
+      const buffer = await fetchThumbnailBuffer(choice.info.thumbnail);
+      
+      if (buffer) {
+        const message = await ctx.replyWithPhoto({ source: buffer }, {
+          caption: text,
+          parse_mode: "HTML",
+          reply_markup: replyMarkup,
+        });
+        choice.messageId = message.message_id;
+        choice.messageKind = "photo";
+        return;
+      }
+      
+      // Fallback to URL if buffer failed
+      const message = await ctx.replyWithPhoto(choice.info.thumbnail, {
+        caption: text,
+        parse_mode: "HTML",
+        reply_markup: replyMarkup,
+      });
 
-    choice.messageId = message.message_id;
-    choice.messageKind = "photo";
-    return;
+      choice.messageId = message.message_id;
+      choice.messageKind = "photo";
+      return;
+    } catch (err) {
+      logServer("warning", "bot.thumbnail.send.failed", { jobId: choice.requestId, error: String(err) });
+      // Fallback to text message below
+    }
   }
 
   await sendPresence(ctx, "typing");

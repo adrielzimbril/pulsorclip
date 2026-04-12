@@ -89,7 +89,7 @@ function sanitizeFilename(input: string) {
     .slice(0, 96);
 }
 
-function decodeHtmlEntities(text: string): string {
+export function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>
@@ -464,6 +464,8 @@ async function convertAudio(
       String(appConfig.ffmpegThreads),
       "-i",
       sourcePath,
+      "-threads",
+      String(appConfig.ffmpegThreads),
       "-map",
       "0:a:0?",
       "-map_metadata",
@@ -596,6 +598,8 @@ async function convertVideo(
       String(appConfig.ffmpegThreads),
       "-i",
       sourcePath,
+      "-threads",
+      String(appConfig.ffmpegThreads),
       "-map",
       "0:v:0",
       "-map",
@@ -1128,6 +1132,36 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
       error: String(err),
     });
     throw err;
+  }
+}
+
+/**
+ * Fetches a remote image and returns it as a buffer.
+ * Used for proxying thumbnails to Telegram when direct hotlinking is blocked.
+ */
+export async function fetchThumbnailBuffer(url: string): Promise<Buffer | null> {
+  if (!url || !url.startsWith("http")) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    logServer("error", "thumbnail.fetch.failed", { url: urlForLogs(url), error: String(err) });
+    return null;
   }
 }
 
