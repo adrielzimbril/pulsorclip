@@ -1317,6 +1317,7 @@ export async function executeDownload(jobId: string) {
           "--no-playlist",
           "--newline",
           "--progress",
+          "--ignore-config",
           "--socket-timeout",
           "30",
           "--retries",
@@ -1339,7 +1340,7 @@ export async function executeDownload(jobId: string) {
         sourceArgs.push(
           "-f",
           job.formatId
-            ? `${job.formatId}+bestaudio/${job.formatId}/bestvideo+bestaudio/best`
+            ? `(${job.formatId}+bestaudio/bestvideo+bestaudio/best)[protocol^=http]`
             : "bestvideo+bestaudio/best",
           "--format-sort",
           "res:1080,vcodec:h264,vbr",
