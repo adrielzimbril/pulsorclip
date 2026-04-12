@@ -108,7 +108,7 @@ function normalizeMediaInfo(info: MediaInfo): MediaInfo {
     thumbnail: normalizeUrl(info.thumbnail) || "",
     images: info.images?.map((u) => normalizeUrl(u)).filter((u): u is string => !!u),
     resolvedUrl: normalizeUrl(info.resolvedUrl),
-    resolvedVideoUrl: normalizeUrl(info.resolvedVideoUrl),
+    resolvedVideoUrl: info.resolvedVideoUrl ? normalizeUrl(info.resolvedVideoUrl) : normalizeUrl(info.resolvedUrl),
     playlist: info.playlist
       ? {
           ...info.playlist,
@@ -1127,9 +1127,9 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       if (sourceProfile.platform === "tiktok") {
         return await scrapeTikTokCarousel(url);
       }
-      if (sourceProfile.platform === "facebook") {
-        return await scrapeFacebookInfo(url);
-      }
+      // if (sourceProfile.platform === "facebook") {
+      //   return await scrapeFacebookInfo(url);
+      // }
       throw new Error(simplifyError(result.stderr));
     }
 
