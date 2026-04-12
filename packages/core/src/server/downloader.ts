@@ -1436,7 +1436,6 @@ export async function executeDownload(jobId: string) {
     job.filename = `${safeTitle}.${finalExt}`;
     job.updatedAt = Date.now();
     syncJobState(job);
-    logServer("info", "media.download.done", { jobId: job.id, filename: job.filename });
     trackDownloadCompleted(job.source);
     logServer("info", "media.download.completed", {
       jobId: job.id,

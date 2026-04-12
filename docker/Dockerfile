@@ -6,6 +6,9 @@ RUN apt-get update \
   && chmod +x /usr/local/bin/yt-dlp \
   && rm -rf /var/lib/apt/lists/*
 
+RUN yt-dlp --version
+RUN ffmpeg -version
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
