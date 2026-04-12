@@ -325,37 +325,54 @@ async function sendDeliveredMedia(
   }\n\n🔗 <a href="${job.url}">Source</a> | 📊 <a href="${appConfig.baseUrl}/track/${jobId}">Track</a>`;
   const options = { caption: finalCaption, parse_mode: "HTML" as const };
 
-  if (extension === ".mp3" || extension === ".m4a") {
-    await bot.telegram.sendAudio(
-      chatId,
-      { source: createReadStream(file.filePath), filename: file.filename },
-      options,
-    );
-    return;
-  }
-
-  if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
-    await bot.telegram.sendPhoto(
-      chatId,
-      { source: createReadStream(file.filePath) },
-      options,
-    );
-    return;
-  }
-
   try {
-    await bot.telegram.sendVideo(
-      chatId,
-      { source: createReadStream(file.filePath), filename: file.filename },
-      { ...options, supports_streaming: true },
-    );
+    if (extension === ".mp3" || extension === ".m4a") {
+      await bot.telegram.sendAudio(
+        chatId,
+        { source: createReadStream(file.filePath), filename: file.filename },
+        options,
+      );
+      return;
+    }
+
+    if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
+      await bot.telegram.sendPhoto(
+        chatId,
+        { source: createReadStream(file.filePath) },
+        options,
+      );
+      return;
+    }
+
+    try {
+      await bot.telegram.sendVideo(
+        chatId,
+        { source: createReadStream(file.filePath), filename: file.filename },
+        { ...options, supports_streaming: true },
+      );
+    } catch (err) {
+      console.error("Bot video delivery failed, falling back to document:", err);
+      // Fallback to document, also wrapped in try-catch to prevent crash
+      await bot.telegram.sendDocument(
+        chatId,
+        { source: createReadStream(file.filePath), filename: file.filename },
+        options,
+      );
+    }
   } catch (err) {
-    console.error("Bot video delivery failed, falling back to document:", err);
-    await bot.telegram.sendDocument(
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logServer("error", "bot.delivery.failed", { jobId, chatId, error: errorMsg });
+    
+    // Final notification if everything fails
+    await bot.telegram.sendMessage(
       chatId,
-      { source: createReadStream(file.filePath), filename: file.filename },
-      options,
+      t(locale, "botDeliveryFailedTimeout", {
+        url: `${appConfig.baseUrl}/track/${jobId}`
+      }),
+      { ...trackKeyboard(locale, jobId), parse_mode: "HTML" }
     );
+    
+    throw err; // Re-throw so trackJobInChat knows it failed
   }
 }
 
@@ -888,7 +905,12 @@ async function trackJobInChat(
 
     if (job.status === "done") {
       await sendPresence(ctx, "upload_document");
-      await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
+      try {
+        await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
+      } catch (err) {
+        console.error(`[CRITICAL] Final delivery failed for job ${jobId}:`, err);
+        // Error is already reported to user inside sendDeliveredMedia
+      }
       void processNextInQueue(bot, ctx.from?.id, ctx);
       break;
     }

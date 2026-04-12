@@ -17,7 +17,9 @@ if (!botToken) {
   throw new Error("Missing TELEGRAM_BOT_TOKEN");
 }
 
-const bot = new Telegraf(botToken);
+const bot = new Telegraf(botToken, {
+  handlerTimeout: 600000, // 10 minutes to allow for large file uploads on slow connections
+});
 
 registerBotHandlers(bot);
 
