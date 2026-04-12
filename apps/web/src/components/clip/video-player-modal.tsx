@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { Player, PlayerSkin } from "@videojs/react/video";
+import { Video, VideoSkin } from "@videojs/react/video";
 import "@videojs/react/video/skin.css";
 
 interface VideoPlayerModalProps {
@@ -48,13 +48,13 @@ export function VideoPlayerModal({ isOpen, onClose, src, title }: VideoPlayerMod
 
             {/* Player Container */}
             <div className="aspect-video w-full bg-black">
-              <Player
+              <Video
                 src={`/api/stream?url=${encodeURIComponent(src)}`}
                 autoplay
                 controls
               >
-                <PlayerSkin />
-              </Player>
+                <VideoSkin />
+              </Video>
             </div>
 
             {/* Footer / Hint */}

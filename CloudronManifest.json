@@ -17,6 +17,12 @@
   },
   "env": {
     "PULSORCLIP_DOWNLOAD_DIR": "/app/data/downloads",
-    "NEXT_PUBLIC_APP_URL": "https://{hostname}"
+    "NEXT_PUBLIC_APP_URL": "https://{hostname}",
+    "TELEGRAM_BOT_TOKEN": "",
+    "TELEGRAM_ADMIN_IDS": "",
+    "PULSORCLIP_DAILY_REPORT_ENABLED": "true",
+    "PULSORCLIP_DAILY_REPORT_HOUR": "0",
+    "PULSORCLIP_DEBUG_LOGS": "true",
+    "TELEGRAM_BOT_USERNAME": "pulsorclip_bot"
   }
 }

@@ -131,6 +131,7 @@ Important variables:
 | **CapRover** | `captain-definition` | ✅ | New | ![CapRover](https://caprover.com/img/logo.png) |
 | **Coolify** | `docker-compose.yml` | ✅ | Stable | ![Coolify](https://coolify.io/favicon.png) |
 | **Dokploy** | `docker-compose.yml` | ✅ | Stable | ![Dokploy](https://dokploy.com/favicon.png) |
+| **Hostinger** | `docker-compose.yml` | ✅ | Stable | ![Hostinger](https://www.hostinger.com/favicon.ico) |
 | **HuggingFace**| Docker Spaces | ✅ | Stable | ![HF](https://huggingface.co/front/assets/huggingface_logo-noborder.svg) |
 
 ---

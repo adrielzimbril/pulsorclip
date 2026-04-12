@@ -10,8 +10,9 @@ PulsorClip is designed to be easily deployed on various platforms. Below are spe
 | **Render** | `render.yaml` / Docker | ✅ | ![Render](https://cdn.worldvectorlogo.com/logos/render-1.svg) |
 | **Cloudron** | `CloudronManifest.json` | ✅ | ![Cloudron](https://www.cloudron.io/img/logo.png) |
 | **CapRover** | `captain-definition` | ✅ | ![CapRover](https://caprover.com/img/logo.png) |
-| **Coolify** | Docker / Nixpacks | ✅ | ![Coolify](https://coolify.io/favicon.png) |
-| **Dokploy** | Docker Compose | ✅ | ![Dokploy](https://dokploy.com/favicon.png) |
+| **Coolify** | `docker-compose.yml` | ✅ | ![Coolify](https://coolify.io/favicon.png) |
+| **Dokploy** | `docker-compose.yml` | ✅ | ![Dokploy](https://dokploy.com/favicon.png) |
+| **Hostinger** | `docker-compose.yml` | ✅ | ![Hostinger](https://www.hostinger.com/favicon.ico) |
 | **HuggingFace**| Docker Spaces | ✅ | ![HF](https://huggingface.co/front/assets/huggingface_logo-noborder.svg) |
 
 ---
@@ -41,7 +42,14 @@ PulsorClip is designed to be easily deployed on various platforms. Below are spe
 - If using **App**, select the **Dockerfile** build type and set the port to `10000`.
 - Don't forget to mount `/app/data/downloads` to a persistent volume in the **Mounts** tab.
 
-### 5. Railway (Internal Crons)
+### 5. Hostinger (VPS Docker)
+- Open your **VPS Dashboard** and go to **Docker Manager**.
+- Select **Compose** and choose **GitHub/Git**.
+- Paste your repository URL: `https://github.com/adrielzimbril/pulsorclip`.
+- Hostinger will pull the `docker-compose.yml` and handle the build.
+- Don't forget to configure your environment variables in the manager.
+
+### 6. Railway (Internal Crons)
 If you want to ensure the daily report is sent even if the bot is in sleep mode:
 - Use **Railway Cron Jobs**.
 - Command: `npm run cron:report` (See package.json updates).
@@ -49,9 +57,15 @@ If you want to ensure the daily report is sent even if the bot is in sleep mode:
 ---
 
 ## 🛠️ Environment Variables
-| Variable | Description |
-| :--- | :--- |
-| `TELEGRAM_BOT_TOKEN` | Your Telegram Bot Token from @BotFather |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated list of IDs to receive reports |
-| `PULSORCLIP_DAILY_REPORT_HOUR` | UTC Hour for reports (0-23) |
-| `PULSORCLIP_DOWNLOAD_DIR` | (Optional) Path to data folder |
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_APP_URL` | Public web URL of your instance | `http://localhost:10000` |
+| `TELEGRAM_BOT_TOKEN` | Your Telegram Bot Token from @BotFather | (Required) |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated list of IDs to receive reports | (Required) |
+| `PULSORCLIP_DAILY_REPORT_ENABLED`| Enable daily admin summary | `true` |
+| `PULSORCLIP_DAILY_REPORT_HOUR` | UTC Hour for reports (0-23) | `0` |
+| `TELEGRAM_BOT_USERNAME` | Your bot's @username | `pulsorclip_bot` |
+| `PULSORCLIP_DOWNLOAD_DIR` | Path to persistent storage | `/app/data/downloads` |
+| `PULSORCLIP_DEBUG_LOGS` | Enable verbose logging | `true` |
+| `TELEGRAM_UPLOAD_LIMIT_MB` | Maximum file size for bot uploads | `45` |
+| `YTDLP_COOKIES_BASE64` | Base64 encoded cookies.txt for YouTube | (Optional) |

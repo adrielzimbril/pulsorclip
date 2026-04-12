@@ -11,14 +11,23 @@ services:
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:10000}
       - PULSORCLIP_DOWNLOAD_DIR=/app/data/downloads
       - PULSORCLIP_DEBUG_LOGS=${PULSORCLIP_DEBUG_LOGS:-true}
+      - PULSORCLIP_LOG_FULL_URLS=${PULSORCLIP_LOG_FULL_URLS:-false}
+      - PULSORCLIP_DEFAULT_LOCALE=${PULSORCLIP_DEFAULT_LOCALE:-en}
       
       # Bot Configuration
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-pulsorclip_bot}
       - TELEGRAM_ADMIN_IDS=${TELEGRAM_ADMIN_IDS}
       - TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED:-true}
+      - TELEGRAM_UPLOAD_LIMIT_MB=${TELEGRAM_UPLOAD_LIMIT_MB:-45}
+      - TELEGRAM_MAINTENANCE_MODE=${TELEGRAM_MAINTENANCE_MODE:-false}
       
-      # Optional persistence path inside container
+      # Reporting & Schedulers
+      - PULSORCLIP_DAILY_REPORT_ENABLED=${PULSORCLIP_DAILY_REPORT_ENABLED:-true}
       - PULSORCLIP_DAILY_REPORT_HOUR=${PULSORCLIP_DAILY_REPORT_HOUR:-0}
+      
+      # Authentication Fallback
+      - YTDLP_COOKIES_BASE64=${YTDLP_COOKIES_BASE64:-}
     volumes:
       - pulsorclip_data:/app/data/downloads
     restart: always

@@ -22,6 +22,10 @@ services:
         value: en
       - key: TELEGRAM_BOT_ENABLED
         value: true
+      - key: PULSORCLIP_DAILY_REPORT_ENABLED
+        value: true
+      - key: PULSORCLIP_DAILY_REPORT_HOUR
+        value: 0
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_BOT_USERNAME
