@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale, DownloadMode, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
+import { Play, Eye } from "lucide-react";
 import type { ClipCard, CardStatus } from "./types";
 
 function formatDuration(value: number | null) {
@@ -112,6 +113,7 @@ export function MediaCard({
   onDownload: () => void;
   onSelectFormat: (formatId: string | null) => void;
   onSelectContainer: (container: VideoContainer | AudioContainer) => void;
+  onPreview?: (src: string, title: string) => void;
 }) {
   const selectedOptions = mode === "video" ? card.videoOptions : card.audioOptions;
   const activeFormatId = mode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
@@ -124,15 +126,30 @@ export function MediaCard({
       ? t(locale, "statusReadyMessage")
       : getFunnyStatus(locale, card.jobId || card.id, card.status, card.progress));
 
+  const hasVideoPreview = !!(card.resolvedVideoUrl || card.resolvedUrl) && mode === "video";
+
   return (
     <article className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
       <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-[16px] border border-line bg-background">
+        <div className="relative overflow-hidden rounded-[16px] border border-line bg-background group/thumb">
           {card.status === "loading" ? (
             <div className="skeleton h-56 w-full" />
           ) : card.thumbnail && mode === "video" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover" src={card.thumbnail} />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover transition duration-500 group-hover/thumb:scale-105" src={card.thumbnail} />
+              
+              {hasVideoPreview && onPreview && (
+                <button 
+                  onClick={() => onPreview(card.resolvedVideoUrl || card.resolvedUrl || "", card.title)}
+                  className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-300 group-hover/thumb:opacity-100"
+                >
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/90 text-background shadow-xl backdrop-blur-sm transition duration-300 hover:scale-110">
+                    <Play className="ml-1 h-8 w-8 fill-current" />
+                  </div>
+                </button>
+              )}
+            </>
           ) : (
             <div className="flex h-56 items-center justify-center bg-surface-muted text-xs font-semibold uppercase tracking-[0.15em] text-muted">
               {mode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
@@ -272,6 +289,17 @@ export function MediaCard({
             >
               {card.status === "error" ? t(locale, "retry") : card.status === "done" ? t(locale, "statusDone") : t(locale, "prepareDownload")}
             </button>
+
+            {hasVideoPreview && onPreview && (
+              <button
+                className="btn-outline flex items-center justify-center gap-2 w-full sm:w-auto"
+                onClick={() => onPreview(card.resolvedVideoUrl || card.resolvedUrl || "", card.title)}
+                type="button"
+              >
+                <Eye className="h-4 w-4" />
+                {t(locale, "watchPreview") || "Watch Preview"}
+              </button>
+            )}
 
             <button
               className="btn-outline w-full sm:w-auto"

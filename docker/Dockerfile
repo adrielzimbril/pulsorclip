@@ -5,7 +5,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl ca-certificates python3 xz-utils \
-  && curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ffmpeg.tar.xz \
+  && curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-6.1-amd64-static.tar.xz -o /tmp/ffmpeg.tar.xz \
   && mkdir -p /tmp/ffmpeg-unpack \
   && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg-unpack --strip-components=1 \
   && mv /tmp/ffmpeg-unpack/ffmpeg /usr/local/bin/ \

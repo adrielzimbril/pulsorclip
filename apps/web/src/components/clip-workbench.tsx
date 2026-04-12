@@ -8,6 +8,7 @@ import { MediaCard } from "./clip/media-card";
 import { SupportedPlatformsModal } from "./clip/supported-platforms-modal";
 import type { ClipCard } from "./clip/types";
 import { SiteHeader } from "./site/site-header";
+import { VideoPlayerModal } from "./clip/video-player-modal";
 import { externalLinks } from "@/lib/external-links";
 
 type WorkspaceView = "normal" | "bulk";
@@ -55,6 +56,7 @@ export function ClipWorkbench({
   const [isQueueingPlaylist, setIsQueueingPlaylist] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [serverQueue, setServerQueue] = useState<QueueJob[]>([]);
+  const [previewVideo, setPreviewVideo] = useState<{ src: string; title: string } | null>(null);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
 
@@ -570,6 +572,13 @@ export function ClipWorkbench({
     <main className="mx-auto flex min-h-screen w-full flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:max-w-[1320px] lg:px-8" id="top">
       <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
+      
+      <VideoPlayerModal 
+        isOpen={!!previewVideo} 
+        onClose={() => setPreviewVideo(null)} 
+        src={previewVideo?.src || ""} 
+        title={previewVideo?.title} 
+      />
 
       <section className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[32px] sm:p-6" id="workspace">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -794,6 +803,7 @@ export function ClipWorkbench({
                 mode={downloadMode}
                 onDownload={() => card.jobId && openDownload(card.jobId)}
                 onPrepare={() => void prepareDownload(card)}
+                onPreview={(src, title) => setPreviewVideo({ src, title })}
                 onSelectContainer={(container) =>
                   updateCard(card.id, (current) => ({
                     ...current,
