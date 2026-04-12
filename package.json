@@ -42,7 +42,8 @@
     "start": "node ./docker/start.mjs",
     "start:web": "npm run start --workspace @pulsorclip/web",
     "start:bot": "npm run start --workspace @pulsorclip/bot",
-    "test": "npm run test --workspace @pulsorclip/core"
+    "test": "npm run test --workspace @pulsorclip/core",
+    "cron:report": "tsx apps/bot/src/scripts/trigger-report.ts"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",

@@ -1,0 +1,22 @@
+{
+  "id": "com.pulsorclip.app",
+  "version": "1.1.0",
+  "author": "PulsorClip Team",
+  "title": "PulsorClip",
+  "tagline": "The ultimate open-source clip & media management toolkit.",
+  "description": "PulsorClip captures, manages, and automates your clips from Telegram or Web. Features include automated downloads from YouTube/Instagram, premium video preview, and admin notification reporting.",
+  "website": "https://github.com/adrielzimbril/pulsorclip",
+  "contactEmail": "info@pulsorclip.io",
+  "httpPort": 10000,
+  "healthCheckPath": "/",
+  "manifestVersion": 2,
+  "addons": {
+    "localstorage": {
+      "mountPath": "/app/data"
+    }
+  },
+  "env": {
+    "PULSORCLIP_DOWNLOAD_DIR": "/app/data/downloads",
+    "NEXT_PUBLIC_APP_URL": "https://{hostname}"
+  }
+}

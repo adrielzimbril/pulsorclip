@@ -1,0 +1,28 @@
+services:
+  pulsorclip:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    container_name: pulsorclip
+    ports:
+      - "10000:10000"
+    environment:
+      # Application Configuration
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:10000}
+      - PULSORCLIP_DOWNLOAD_DIR=/app/data/downloads
+      - PULSORCLIP_DEBUG_LOGS=${PULSORCLIP_DEBUG_LOGS:-true}
+      
+      # Bot Configuration
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ADMIN_IDS=${TELEGRAM_ADMIN_IDS}
+      - TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED:-true}
+      
+      # Optional persistence path inside container
+      - PULSORCLIP_DAILY_REPORT_HOUR=${PULSORCLIP_DAILY_REPORT_HOUR:-0}
+    volumes:
+      - pulsorclip_data:/app/data/downloads
+    restart: always
+
+volumes:
+  pulsorclip_data:
+    driver: local

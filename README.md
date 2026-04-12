@@ -119,14 +119,29 @@ Important variables:
 
 ## Deployment
 
-### Railway (Recommended)
-
-1.  Connect this repository to a new Railway project.
-2.  Railway will automatically detect the `railway.json` and use `docker/Dockerfile`.
-3.  Set the following environment variables (see `.env.example`):
-    - `NEXT_PUBLIC_APP_URL`: Your Railway app URL.
-    - `TELEGRAM_BOT_TOKEN`: Your bot token.
     - `PULSORCLIP_DEBUG_LOGS`: `true`.
+
+### Self-Hosting Dashboard
+
+| Platform | Deployment Method | One-Click | Status | Logo |
+| :--- | :--- | :---: | :--- | :---: |
+| **Railway** | `railway.json` | ✅ | Stable | ![Railway](https://raw.githubusercontent.com/railwayapp/brand-assets/main/logo/logo-dark.png) |
+| **Render** | `render.yaml` | ✅ | Stable | ![Render](https://cdn.worldvectorlogo.com/logos/render-1.svg) |
+| **Cloudron** | `CloudronManifest.json` | ✅ | New | ![Cloudron](https://www.cloudron.io/img/logo.png) |
+| **CapRover** | `captain-definition` | ✅ | New | ![CapRover](https://caprover.com/img/logo.png) |
+| **Coolify** | `docker-compose.yml` | ✅ | Stable | ![Coolify](https://coolify.io/favicon.png) |
+| **Dokploy** | `docker-compose.yml` | ✅ | Stable | ![Dokploy](https://dokploy.com/favicon.png) |
+| **HuggingFace**| Docker Spaces | ✅ | Stable | ![HF](https://huggingface.co/front/assets/huggingface_logo-noborder.svg) |
+
+---
+
+### Detailed Setup
+
+- **CapRover**: Detection of `captain-definition` is automatic.
+- **Cloudron**: Use `cloudron install`. Data is persisted in `/app/data`.
+- **Coolify/Dokploy**: Standard Docker deployment on port `10000`.
+
+For detailed instructions, see [docs/self-hosting.md](docs/self-hosting.md).
 
 ### Server
 

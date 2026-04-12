@@ -116,7 +116,31 @@ Variables importantes:
 - `YTDLP_COOKIES_FILE`
 - `YTDLP_COOKIES_BASE64`
 
-## Deploiement
+## Déploiement
+
+### Dashboard d'Auto-Hébergement
+
+| Plateforme | Méthode | One-Click | Statut | Logo |
+| :--- | :--- | :---: | :--- | :---: |
+| **Railway** | `railway.json` | ✅ | Stable | ![Railway](https://raw.githubusercontent.com/railwayapp/brand-assets/main/logo/logo-dark.png) |
+| **Render** | `render.yaml` | ✅ | Stable | ![Render](https://cdn.worldvectorlogo.com/logos/render-1.svg) |
+| **Cloudron** | `CloudronManifest.json` | ✅ | Nouveau | ![Cloudron](https://www.cloudron.io/img/logo.png) |
+| **CapRover** | `captain-definition` | ✅ | Nouveau | ![CapRover](https://caprover.com/img/logo.png) |
+| **Coolify** | `docker-compose.yml` | ✅ | Stable | ![Coolify](https://coolify.io/favicon.png) |
+| **Dokploy** | `docker-compose.yml` | ✅ | Stable | ![Dokploy](https://dokploy.com/favicon.png) |
+| **HuggingFace**| Docker Spaces | ✅ | Stable | ![HF](https://huggingface.co/front/assets/huggingface_logo-noborder.svg) |
+
+---
+
+### Configuration Détaillée
+
+- **CapRover** : Détection automatique via `captain-definition`.
+- **Cloudron** : Utiliser `cloudron install`. Données persistantes dans `/app/data`.
+- **Coolify/Dokploy** : Déploiement Docker standard sur le port `10000`.
+
+Pour des instructions détaillées, voir [docs/auto-hebergement.md](docs/auto-hebergement.md).
+
+### Serveur (Cible par défaut)
 
 Cible par defaut: **Railway free Web Service** avec un seul runtime Docker pour le web et le bot.
 

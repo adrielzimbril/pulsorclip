@@ -124,13 +124,29 @@ export function startBotMonitoring(bot: BotLike) {
   });
 
   // Daily report at configurable hour (UTC)
-  const dailyCron = `0 ${appConfig.dailyReportHour} * * *`;
-  cron.schedule(dailyCron, () => {
-    logServer("info", "bot.monitoring.daily_report.triggered", { cron: dailyCron });
-    void notifyAdmins(bot, formatDailyReport());
-  }, {
-    timezone: "UTC"
-  });
+  if (appConfig.dailyReportEnabled) {
+    const dailyCron = `0 ${appConfig.dailyReportHour} * * *`;
+    cron.schedule(dailyCron, () => {
+      logServer("info", "bot.monitoring.daily_report.triggered", { 
+        cron: dailyCron,
+        hour: appConfig.dailyReportHour,
+        timezone: "UTC"
+      });
+      void notifyAdmins(bot, formatDailyReport());
+    }, {
+      timezone: "UTC"
+    });
+
+    logServer("info", "bot.monitoring.daily_report.scheduled", {
+      cron: dailyCron,
+      hour: appConfig.dailyReportHour,
+      timezone: "UTC"
+    });
+  } else {
+    logServer("info", "bot.monitoring.daily_report.disabled", {
+      message: "Daily report is disabled via PULSORCLIP_DAILY_REPORT_ENABLED=false"
+    });
+  }
 
   logServer("info", "bot.monitoring.started", {
     healthCadenceMins: appConfig.healthCheckCadenceMins,
