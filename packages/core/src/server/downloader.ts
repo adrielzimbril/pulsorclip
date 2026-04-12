@@ -460,6 +460,8 @@ async function convertAudio(
     appConfig.ffmpegBin,
     [
       "-y",
+      "-threads",
+      String(appConfig.ffmpegThreads),
       "-i",
       sourcePath,
       "-map",
@@ -590,6 +592,8 @@ async function convertVideo(
     appConfig.ffmpegBin,
     [
       "-y",
+      "-threads",
+      String(appConfig.ffmpegThreads),
       "-i",
       sourcePath,
       "-map",

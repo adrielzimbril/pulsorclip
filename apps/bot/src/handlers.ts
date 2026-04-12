@@ -385,7 +385,7 @@ async function sendImagesGallery(ctx: any, choice: PendingChoice) {
       }
     }
     
-    await ctx.reply(`✅ ${t(locale, "botImagesSent")}`, webKeyboard(locale));
+    // await ctx.reply(`✅ ${t(locale, "botImagesSent")}`, webKeyboard(locale));
   } catch (error) {
     logServer("error", "bot.images.failed", { error: error instanceof Error ? error.message : "Network error" });
     await ctx.reply("❌ Error sending gallery images. Please use the web app.", webKeyboard(locale));

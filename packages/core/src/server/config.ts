@@ -108,4 +108,5 @@ export const appConfig = {
   dailyReportHour: Number(process.env.PULSORCLIP_DAILY_REPORT_HOUR || "0"),
   dailyReportEnabled: process.env.PULSORCLIP_DAILY_REPORT_ENABLED !== "false",
   healthCheckCadenceMins: Number(process.env.PULSORCLIP_HEALTH_CHECK_CADENCE_MINS || "15"),
+  ffmpegThreads: Number(process.env.FFMPEG_THREADS || "2"),
 };
