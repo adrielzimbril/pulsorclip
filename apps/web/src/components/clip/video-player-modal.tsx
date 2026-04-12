@@ -2,8 +2,9 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { Video, VideoSkin } from "@videojs/react/video";
 import "@videojs/react/video/skin.css";
+import { createPlayer, videoFeatures } from "@videojs/react";
+import { VideoSkin, Video } from "@videojs/react/video";
 
 interface VideoPlayerModalProps {
   isOpen: boolean;
@@ -12,11 +13,18 @@ interface VideoPlayerModalProps {
   title?: string;
 }
 
-export function VideoPlayerModal({ isOpen, onClose, src, title }: VideoPlayerModalProps) {
+const Player = createPlayer({ features: videoFeatures });
+
+export function VideoPlayerModal({
+  isOpen,
+  onClose,
+  src,
+  title,
+}: VideoPlayerModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -48,13 +56,17 @@ export function VideoPlayerModal({ isOpen, onClose, src, title }: VideoPlayerMod
 
             {/* Player Container */}
             <div className="aspect-video w-full bg-black">
-              <Video
-                src={`/api/stream?url=${encodeURIComponent(src)}`}
-                autoPlay
-                controls
-              >
-                <VideoSkin />
-              </Video>
+              <Player.Provider>
+                <Video
+                  src={`/api/stream?url=${encodeURIComponent(src)}`}
+                  autoPlay
+                  controls
+                  loop
+                  preload="auto"
+                >
+                  <VideoSkin />
+                </Video>{" "}
+              </Player.Provider>
             </div>
 
             {/* Footer / Hint */}
@@ -63,26 +75,6 @@ export function VideoPlayerModal({ isOpen, onClose, src, title }: VideoPlayerMod
                 Preview powered by @videojs/react & PulsorClip
               </p>
             </div>
-
-            <style jsx global>{`
-              /* Custom styling for Video.js 10/React components */
-              .vjs-player {
-                width: 100% !important;
-                height: 100% !important;
-                aspect-ratio: 16 / 9;
-              }
-              
-              /* Glossy/Accent overrides for the new skin */
-              .vjs-big-play-button {
-                background-color: rgba(124, 58, 237, 0.8) !important;
-                border: none !important;
-                border-radius: 50% !important;
-                width: 80px !important;
-                height: 80px !important;
-                line-height: 80px !important;
-                backdrop-filter: blur(8px);
-              }
-            `}</style>
           </motion.div>
         </div>
       )}
