@@ -127,10 +127,10 @@ async function syncDescriptions(bot: Telegraf) {
   const descPrefixFr = "🚀 PulsorClip : Outil Professionnel d'Extraction Média\n\n";
   
   const bodyEn = "Send any media link (TikTok, Instagram, YouTube, etc.), choose your format, and receive the file directly in Telegram. Fast, reliable, and privacy-focused.";
-  const bodyFr = "Envoyez n'importe quel lien média (TikTok, Instagram, YouTube, etc.), choisissez votre format et recevez le fichier directement dans Telegram. Rapide, fiable et respectueux de la vie privée.";
+  const bodyFr = "Envoyez n'importe quel lien média (TikTok, Instagram, YouTube, etc.), choisissez votre format et recevez le fichier directement dans Telegram. Rapide, fiable et respectueux de la privacy policy.";
 
-  const linksEn = `\n\n⚖️ Privacy: ${url}/privacy\n🚩 DMCA: ${url}/dmca\n👨‍💻 Dev: @${appConfig.telegramAdminHandle}`;
-  const linksFr = `\n\n⚖️ Vie Privée : ${url}/privacy\n🚩 DMCA : ${url}/dmca\n👨‍💻 Développeur : @${appConfig.telegramAdminHandle}`;
+  const linksEn = `\n\n⚖️ Privacy Policy: ${url}/privacy\n🚩 DMCA: ${url}/dmca\n👨‍💻 Dev: @${appConfig.telegramAdminHandle}`;
+  const linksFr = `\n\n⚖️ Privacy Policy : ${url}/privacy\n🚩 DMCA : ${url}/dmca\n👨‍💻 Développeur : @${appConfig.telegramAdminHandle}`;
 
   logServer("info", "bot.metadata.descriptions.sync.started", {
     botName,

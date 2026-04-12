@@ -30,6 +30,12 @@ export function SiteFooter({ locale }: { locale: AppLocale }) {
             <a className="text-sm text-muted underline underline-offset-4" href={externalLinks.website} rel="noreferrer" target="_blank">
               {t(locale, "websiteLabel")}
             </a>
+            <a className="text-sm text-muted underline underline-offset-4" href="/privacy">
+              {t(locale, "navPrivacy")}
+            </a>
+            <a className="text-sm text-muted underline underline-offset-4" href="/dmca">
+              {t(locale, "navDmca")}
+            </a>
             <a className="text-sm font-semibold" href="#top">
               {t(locale, "backToTop")}
             </a>

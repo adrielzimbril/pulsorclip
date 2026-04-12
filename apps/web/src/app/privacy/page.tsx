@@ -37,7 +37,7 @@ export default async function PrivacyPage() {
       },
       {
         id: 5,
-        title: "Données & Vie Privée",
+        title: "Données & Privacy Policy",
         body: "Nous collectons des données techniques minimales (IDs Telegram) uniquement pour faciliter le processus de file d'attente et de livraison. Nous ne suivons pas ce que vous téléchargez au-delà de la période de traitement temporaire requise pour fournir le service."
       }
     ],
