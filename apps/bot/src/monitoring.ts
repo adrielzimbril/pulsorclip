@@ -1,4 +1,5 @@
 import { flushDailySummary, getDailySummary, getServerDiagnostics, appConfig, logServer, getMetadata, setMetadata } from "@pulsorclip/core/server";
+import type { AppLocale } from "@pulsorclip/core/shared";
 import cron from "node-cron";
 import { notifyAdmins } from "./notifications";
 

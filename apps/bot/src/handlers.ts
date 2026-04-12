@@ -1407,7 +1407,7 @@ export function registerBotHandlers(bot: Telegraf) {
     await ctx.reply(message, {
       ...webKeyboard(locale),
       parse_mode: "HTML",
-      disable_web_page_preview: true,
+      link_preview_options: { is_disabled: true },
     });
   });
 
@@ -1563,7 +1563,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(userId, ctx.from?.language_code);
     
     // Support both direct text and captions
-    const text = (ctx.message.text || ctx.message.caption || "").split(/\s+/).slice(1).join(" ").trim();
+    const text = (ctx.message.text || (ctx.message as any).caption || "").split(/\s+/).slice(1).join(" ").trim();
     const replyTo = ctx.message.reply_to_message;
     
     // Detect if the message itself is a media message (e.g. photo with /broadcast caption)
