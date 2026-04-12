@@ -10,12 +10,18 @@ RUN apt-get update \
   && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg-unpack --strip-components=1 \
   && mv /tmp/ffmpeg-unpack/ffmpeg /usr/local/bin/ \
   && mv /tmp/ffmpeg-unpack/ffprobe /usr/local/bin/ \
+  && ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg \
+  && ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe \
   && chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe \
   && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+  && ln -sf /usr/local/bin/yt-dlp /usr/bin/yt-dlp \
   && chmod +x /usr/local/bin/yt-dlp \
   && rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg-unpack /var/lib/apt/lists/*
 
-RUN yt-dlp --version && ffmpeg -version
+RUN yt-dlp --version
+RUN which yt-dlp
+RUN ffmpeg -version
+RUN which ffmpeg
 
 WORKDIR /app
 

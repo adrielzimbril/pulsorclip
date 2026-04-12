@@ -68,7 +68,7 @@ export const appConfig = {
   debugLogs: process.env.PULSORCLIP_DEBUG_LOGS === "true",
   logFullUrls: process.env.PULSORCLIP_LOG_FULL_URLS === "true",
   ytDlpBin: resolveBinary(process.env.YTDLP_BIN, "yt-dlp", ["/usr/local/bin/yt-dlp", "/usr/bin/yt-dlp"]),
-  ffmpegBin: resolveBinary(process.env.FFMPEG_BIN, "ffmpeg", ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"]),
+  ffmpegBin: resolveBinary(process.env.FFMPEG_BIN, "ffmpeg", ["/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"]),
   ytDlpCookiesFromBrowser: process.env.YTDLP_COOKIES_FROM_BROWSER || "",
   ytDlpCookiesFile: process.env.YTDLP_COOKIES_FILE || "",
   ytDlpCookiesBase64: process.env.YTDLP_COOKIES_BASE64 || "",

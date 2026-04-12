@@ -221,6 +221,10 @@ function simplifyError(raw: string) {
     // Filter out FFmpeg progress noise to reveal the actual error
     if (l.includes("frame=") && l.includes("fps=")) return false;
     if (l.startsWith("size=") && l.includes("time=")) return false;
+    if (l.startsWith("video:") && l.includes("audio:") && l.includes("muxing overhead")) return false;
+    if (l.startsWith("cpb: bitrate")) return false;
+    if (l.includes("encoder :")) return false;
+    if (l.startsWith("Metadata:") || l.startsWith("  ")) return false; // Filter indentation/meta blocks
     return true;
   });
   // Search all lines (not just last) for known error patterns, then fallback to last line
