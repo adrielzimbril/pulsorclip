@@ -51,24 +51,45 @@ function formatAdminHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnost
     `• Health: ${lastHealthCheckAt ? `✅ ${lastHealthCheckAt}` : "⏳ Pending"}`,
     `• Daily: ${lastDailyReportAt ? `✅ ${lastDailyReportAt}` : "⏳ Pending"}`,
     "",
+    `📊 <b>Daily Aggregate</b>`,
+    `• Users: <code>${getDailySummary().botUsers}</code>`,
+    `• Bot Jobs: <code>${getDailySummary().downloadsCompleted.bot}</code>`,
+    `• Web Jobs: <code>${getDailySummary().downloadsCompleted.web}</code>`,
+    "",
     `👥 <b>Admin Count:</b> ${snapshot.adminCount}`,
   ];
 
   return rows.join("\n");
 }
 
-function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>) {
+function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, isAdmin: boolean = false) {
   const status = snapshot.maintenanceMode ? "🟠 Maintenance" : (snapshot.botEnabled ? "🟢 Online" : "🔴 Offline");
   const totalLoad = snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
   
-  return [
+  const rows = [
     `<b>📊 PulsorClip Status</b>`,
     "",
     `✨ <b>System:</b> ${status}`,
     `⏳ <b>Active Load:</b> ${totalLoad} job${totalLoad > 1 ? 's' : ''} processing`,
+  ];
+
+  if (isAdmin) {
+    const summary = getDailySummary();
+    rows.push(
+      "",
+      `📊 <b>Admin Quick View</b>`,
+      `• Users today: <code>${summary.botUsers}</code>`,
+      `• Bot jobs: <code>${summary.downloadsCompleted.bot}</code>`,
+      `• Web jobs: <code>${summary.downloadsCompleted.web}</code>`
+    );
+  }
+
+  rows.push(
     "",
     "<i>Everything is running smoothly. Send a link to start downloading!</i>"
-  ].join("\n");
+  );
+
+  return rows.join("\n");
 }
 
 function formatQueue(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>) {
@@ -120,7 +141,7 @@ export async function sendDailySnapshot(bot: BotLike) {
 
 export async function getServerHealthText(isAdmin: boolean = false) {
   const snapshot = await getServerDiagnostics();
-  return isAdmin ? formatAdminHealth(snapshot) : formatPublicHealth(snapshot);
+  return isAdmin ? formatAdminHealth(snapshot) : formatPublicHealth(snapshot, isAdmin);
 }
 
 export async function getQueueSnapshotText() {

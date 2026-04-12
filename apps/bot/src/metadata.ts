@@ -185,45 +185,43 @@ async function syncDescriptions(bot: Telegraf) {
 }
 
 export async function applyTelegramMetadata(bot: Telegraf) {
-  logServer("info", "bot.metadata.apply.started", {
+  logServer("info", "bot.metadata.sync.start", {
+    appName: appConfig.appName,
     adminCount: appConfig.telegramAdminIds.length,
-    adminIds: appConfig.telegramAdminIds,
   });
 
-  await setCommands(bot, publicEnglishCommands, { type: "default" });
-  await setCommands(bot, publicFrenchCommands, { type: "default" }, "fr");
-  await setCommands(bot, publicEnglishCommands, { type: "all_private_chats" });
-  await setCommands(bot, publicFrenchCommands, { type: "all_private_chats" }, "fr");
+  try {
+    // 1. Set global commands
+    logServer("info", "bot.metadata.sync.commands.global");
+    await setCommands(bot, publicEnglishCommands, { type: "default" });
+    await setCommands(bot, publicFrenchCommands, { type: "default" }, "fr");
+    await setCommands(bot, publicEnglishCommands, { type: "all_private_chats" });
+    await setCommands(bot, publicFrenchCommands, { type: "all_private_chats" }, "fr");
 
-  for (const adminId of appConfig.telegramAdminIds) {
-    logServer("info", "bot.metadata.apply.admin_scope", {
-      adminId,
+    // 2. Set admin commands
+    for (const adminId of appConfig.telegramAdminIds) {
+      logServer("info", "bot.metadata.sync.commands.admin", { adminId });
+      await setCommands(bot, adminEnglishCommands, { type: "chat", chat_id: adminId });
+      await setCommands(bot, adminFrenchCommands, { type: "chat", chat_id: adminId }, "fr");
+    }
+
+    // 3. Sync descriptions (About/Bio)
+    logServer("info", "bot.metadata.sync.descriptions");
+    await syncDescriptions(bot);
+
+    // 4. Set Menu Button
+    logServer("info", "bot.metadata.sync.menu_button");
+    await safeTelegramCall(bot, "setChatMenuButton", {
+      menu_button: { type: "commands" },
     });
 
-    await setCommands(bot, adminEnglishCommands, {
-      type: "chat",
-      chat_id: adminId,
+    logServer("info", "bot.metadata.sync.success", {
+      timestamp: new Date().toISOString(),
     });
-    await setCommands(
-      bot,
-      adminFrenchCommands,
-      {
-        type: "chat",
-        chat_id: adminId,
-      },
-      "fr",
-    );
+  } catch (err) {
+    logServer("error", "bot.metadata.sync.fatal", {
+      error: String(err),
+    });
+    throw err;
   }
-
-  await syncDescriptions(bot);
-
-  await safeTelegramCall(bot, "setChatMenuButton", {
-    menu_button: {
-      type: "commands",
-    },
-  });
-
-  logServer("info", "bot.metadata.apply.completed", {
-    adminCount: appConfig.telegramAdminIds.length,
-  });
 }

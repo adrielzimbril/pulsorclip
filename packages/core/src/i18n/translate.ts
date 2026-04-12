@@ -28,6 +28,14 @@ export function detectLocaleFromHeader(headerValue: string | null | undefined, f
   return normalizeLocale(first, fallback);
 }
 
-export function t(locale: AppLocale, key: MessageKey) {
-  return messages[locale][key] || messages.en[key];
+export function t(locale: AppLocale, key: MessageKey, params?: Record<string, any>) {
+  let message = messages[locale][key] || messages.en[key] || String(key);
+
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      message = message.replace(new RegExp(`{${key}}`, "g"), String(value));
+    });
+  }
+
+  return message;
 }
