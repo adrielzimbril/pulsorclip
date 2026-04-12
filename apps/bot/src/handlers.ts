@@ -1421,22 +1421,14 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.command("status", async (ctx) => {
-    if (!isAdmin(ctx.from?.id)) {
-      return;
-    }
+    const userId = ctx.from?.id;
+    const isUserAdmin = isAdmin(userId);
+    const locale = localeForTelegram(userId, ctx.from?.language_code);
+    rememberUser(userId);
 
-    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-    rememberUser(ctx.from?.id);
-    const summary = getDailySummary();
-    const text = [
-      statusMessage(locale),
-      appConfig.baseUrl,
-      `Bot users today: ${summary.botUsers}`,
-      `Bot jobs completed: ${summary.downloadsCompleted.bot}`,
-      `Web jobs completed: ${summary.downloadsCompleted.web}`,
-    ].join("\n");
     await sendPresence(ctx, "typing");
-    await ctx.reply(text, webKeyboard(locale));
+    const healthText = await getServerHealthText(isUserAdmin);
+    await ctx.reply(healthText, { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("server", async (ctx) => {
@@ -1447,7 +1439,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(await getServerHealthText(), webKeyboard(locale));
+    await ctx.reply(await getServerHealthText(true), { ...webKeyboard(locale), parse_mode: "HTML" });
   });
 
   bot.command("queue", async (ctx) => {
@@ -1550,17 +1542,18 @@ export function registerBotHandlers(bot: Telegraf) {
     const replyTo = ctx.message.reply_to_message;
 
     if (!text && !replyTo) {
-      await ctx.reply(t(locale, "botBroadcastUsage"));
+      await ctx.reply(t(locale, "botBroadcastUsage"), { parse_mode: "HTML" });
       return;
     }
 
     const userIds = getAllStoredUserIds();
-    await ctx.reply(t(locale, "botBroadcastStarted", { count: userIds.length }));
+    const statusMsg = await ctx.reply(t(locale, "botBroadcastStarted", { count: userIds.length }));
 
     let success = 0;
     let failed = 0;
 
-    for (const uid of userIds) {
+    for (let i = 0; i < userIds.length; i++) {
+      const uid = userIds[i];
       try {
         if (replyTo) {
           await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
@@ -1568,16 +1561,26 @@ export function registerBotHandlers(bot: Telegraf) {
           await bot.telegram.sendMessage(uid, text);
         }
         success++;
-        // Rate limiting: 30 messages per second is the limit for bots
-        // We go a bit slower to be safe
-        await new Promise((r) => setTimeout(r, 50));
       } catch (err) {
         failed++;
         logServer("warn", "bot.broadcast.failed", { uid, error: String(err) });
       }
+
+      // Update progress every 20 users
+      if ((i + 1) % 20 === 0 || i === userIds.length - 1) {
+        await bot.telegram.editMessageText(
+          ctx.chat.id,
+          statusMsg.message_id,
+          undefined,
+          `${t(locale, "botBroadcastStarted", { count: userIds.length })}\n\n⏳ Progression : ${i + 1}/${userIds.length}`
+        ).catch(() => {});
+      }
+
+      // Rate limiting: 30 messages per second is the limit for bots
+      await new Promise((r) => setTimeout(r, 60));
     }
 
-    await ctx.reply(t(locale, "botBroadcastCompleted", { success, failed }));
+    await ctx.reply(t(locale, "botBroadcastCompleted", { success, failed }), { parse_mode: "HTML" });
   });
 
   bot.command("video", async (ctx) => {
