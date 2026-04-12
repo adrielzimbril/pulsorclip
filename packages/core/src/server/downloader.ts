@@ -67,8 +67,8 @@ function setActiveJobId(id: string | null) {
 const INFO_TIMEOUT_MS = 60_000;
 const DOWNLOAD_TIMEOUT_MS = 12 * 60_000;
 const TRANSCODE_TIMEOUT_MS = 25 * 60_000;
-const DOWNLOAD_IDLE_TIMEOUT_MS = 90_000;
-const TRANSCODE_IDLE_TIMEOUT_MS = 120_000;
+const DOWNLOAD_IDLE_TIMEOUT_MS = 120_000;
+const TRANSCODE_IDLE_TIMEOUT_MS = 300_000; // Increased for low-CPU environments like Railway
 
 function syncJobState(job?: DownloadJob) {
   if (job) {
@@ -215,7 +215,14 @@ function extractPlaylistEntries(parsed: Record<string, unknown>, playlistUrl: st
 }
 
 function simplifyError(raw: string) {
-  const lines = raw.trim().split(/\r?\n/).filter(Boolean);
+  const lines = raw.trim().split(/\r?\n/).filter(line => {
+    const l = line.trim();
+    if (!l) return false;
+    // Filter out FFmpeg progress noise to reveal the actual error
+    if (l.includes("frame=") && l.includes("fps=")) return false;
+    if (l.startsWith("size=") && l.includes("time=")) return false;
+    return true;
+  });
   // Search all lines (not just last) for known error patterns, then fallback to last line
   const allText = lines.join(" ");
   const lower = allText.toLowerCase();
