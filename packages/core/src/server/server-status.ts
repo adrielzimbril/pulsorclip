@@ -50,6 +50,19 @@ type ServerDiagnostics = {
 
   loadAvg: number[];
 
+  network: {
+    interfaces: {
+      interface: string;
+      details: {
+        address: string;
+        family: string;
+        internal: boolean;
+        mac: string;
+      }[];
+    }[];
+    publicIp: string;
+    latencyMs: number;
+  }
   activeConnectionsApprox: number | null;
 
   totalMemoryMB: number;
@@ -147,6 +160,30 @@ export async function getServerDiagnostics(): Promise<ServerDiagnostics> {
     }
   }
 
+  const nets = os.networkInterfaces();
+
+  const networkInfo = Object.entries(nets).map(([name, infos]) => ({
+    interface: name,
+    details: (infos ?? []).map(i => ({
+      address: i.address,
+      family: i.family,
+      internal: i.internal,
+      mac: i.mac,
+    }))
+  }));
+
+  const res = await fetch("https://api.ipify.org?format=json");
+  const data = await res.json();
+  const publicIp = data.ip;
+
+  async function getLatencyMs() {
+    const start = Date.now();
+    await fetch("https://google.com");
+    return Date.now() - start;
+  }
+
+  const latencyMs = await getLatencyMs();
+
   return {
     checkedAt: new Date().toISOString(),
     uptimeSeconds: Math.round(process.uptime()),
@@ -179,11 +216,16 @@ export async function getServerDiagnostics(): Promise<ServerDiagnostics> {
 
     loadAvg: os.loadavg(), // 1m, 5m, 15m
 
+    network: {
+      interfaces: networkInfo,
+      publicIp,
+      latencyMs,
+    },
     activeConnectionsApprox: getActiveConnectionsApprox(),
     
-    totalMemoryMB: Math.round(totalMem / 1024 / 1024),
-    freeMemoryMB: Math.round(freeMem / 1024 / 1024),
-    usedMemoryMB: Math.round((totalMem - freeMem) / 1024 / 1024),
+    totalMemoryMB: Math.round(totalMem / 1024 / 1024 / 1024),
+    freeMemoryMB: Math.round(freeMem / 1024 / 1024 / 1024),
+    usedMemoryMB: Math.round((totalMem - freeMem) / 1024 / 1024 / 1024),
 
     uptimeSec: os.uptime(),
 

@@ -4,13 +4,6 @@ import cron from "node-cron";
 import { notifyAdmins } from "./notifications";
 import type { Telegraf } from "telegraf";
 
-type BotLike = {
-  telegram: {
-    getMe: () => Promise<unknown>;
-    sendMessage: (chatId: number, text: string) => Promise<unknown>;
-  };
-};
-
 let lastHealthSignature = "";
 let lastHealthCheckAt: string | null = null;
 let lastDailyReportAt: string | null = null;
@@ -85,9 +78,9 @@ function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDi
     "",
 
     `🧠 <b>Memory</b>`,
-    `• Total: <code>${snapshot.totalMemoryMB} MB</code>`,
-    `• Used: <code>${snapshot.usedMemoryMB} MB</code>`,
-    `• Free: <code>${snapshot.freeMemoryMB} MB</code>`,
+    `• Total: <code>${snapshot.totalMemoryMB} GB</code>`,
+    `• Used: <code>${snapshot.usedMemoryMB} GB</code>`,
+    `• Free: <code>${snapshot.freeMemoryMB} GB</code>`,
     "",
     `• Process RSS: <code>${snapshot.processMemoryMB.rss} MB</code>`,
     `• Heap Used: <code>${snapshot.processMemoryMB.heapUsed} MB</code>`,
@@ -100,13 +93,29 @@ function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDi
       : `⚠️ Disk stats not available`,
     "",
 
+    `🌐 <b>Network</b>`,
+    `• Public IP: <code>${snapshot.network.publicIp}</code>`,
+    `• Latency: <code>${snapshot.network.latencyMs} ms</code>`,
+    "",
+
+    `🧩 Interfaces:`,
+    snapshot.network.interfaces
+      .map(i =>
+        `• ${i.interface}: ${i.details
+          ?.filter(d => !d.internal)
+          .map(d => d.address)
+          .join(", ")}`
+      )
+      .join("\n"),
+    "",
+
     `📡 <b>Connections</b>`,
     `• TCP: <code>${snapshot.activeConnectionsApprox ?? "N/A"}</code>`,
     "",
 
     `⏱️ <b>Uptime</b>`,
-    `• System: <code>${Math.floor(snapshot.uptimeSec / 60)} mins</code>`,
-    `• Process: <code>${Math.floor(process.uptime() / 60)} mins</code>`,
+    `• System: <code>${Math.floor(snapshot.uptimeSec / 60 / 60)} hours</code> or <code>${Math.floor(snapshot.uptimeSec / 60)} mins</code>`,
+    `• Process: <code>${Math.floor(process.uptime() / 60 / 60)} hours</code> or <code>${Math.floor(process.uptime() / 60)} mins</code>`,
   ];
 
   return rows.join("\n");
