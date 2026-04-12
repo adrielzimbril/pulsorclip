@@ -1,4 +1,4 @@
-import { flushDailySummary, getDailySummary, getServerDiagnostics, appConfig, logServer } from "@pulsorclip/core/server";
+import { flushDailySummary, getDailySummary, getServerDiagnostics, appConfig, logServer, getMetadata, setMetadata } from "@pulsorclip/core/server";
 import cron from "node-cron";
 import { notifyAdmins } from "./notifications";
 
@@ -63,30 +63,30 @@ function formatAdminHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnost
 }
 
 function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, isAdmin: boolean = false) {
-  const status = snapshot.maintenanceMode ? "🟠 Maintenance" : (snapshot.botEnabled ? "🟢 Online" : "🔴 Offline");
+  const statusIcon = snapshot.maintenanceMode ? "🟠" : (snapshot.botEnabled ? "🟢" : "🔴");
+  const statusText = snapshot.maintenanceMode ? "Maintenance" : (snapshot.botEnabled ? "Online" : "Offline");
   const totalLoad = snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
   
   const rows = [
-    `<b>📊 PulsorClip Status</b>`,
-    "",
-    `✨ <b>System:</b> ${status}`,
-    `⏳ <b>Active Load:</b> ${totalLoad} job${totalLoad > 1 ? 's' : ''} processing`,
+    `<b>✨ PulsorClip Network Status</b>`,
+    `━━━━━━━━━━━━━━━━━━`,
+    `📡 <b>Core System:</b> ${statusIcon} ${statusText}`,
+    `⚡ <b>Current Load:</b> ${totalLoad} active session${totalLoad !== 1 ? 's' : ''}`,
   ];
 
   if (isAdmin) {
     const summary = getDailySummary();
     rows.push(
-      "",
-      `📊 <b>Admin Quick View</b>`,
-      `• Users today: <code>${summary.botUsers}</code>`,
-      `• Bot jobs: <code>${summary.downloadsCompleted.bot}</code>`,
-      `• Web jobs: <code>${summary.downloadsCompleted.web}</code>`
+      `━━━━━━━━━━━━━━━━━━`,
+      `📊 <b>Admin Dashboard</b>`,
+      `• Active today: <code>${summary.botUsers}</code> users`,
+      `• Total jobs today: <code>${summary.downloadsCompleted.bot + summary.downloadsCompleted.web}</code>`
     );
   }
 
   rows.push(
-    "",
-    "<i>Everything is running smoothly. Send a link to start downloading!</i>"
+    `━━━━━━━━━━━━━━━━━━`,
+    "<i>Everything is running smoothly. Ready for your next high-speed media conversion!</i>"
   );
 
   return rows.join("\n");
@@ -136,7 +136,34 @@ export async function sendHealthSnapshot(bot: BotLike) {
 }
 
 export async function sendDailySnapshot(bot: BotLike) {
+  const now = new Date();
+  const dateKey = now.toISOString().slice(0, 10);
+  lastDailyReportAt = now.toISOString().replace("T", " ").split(".")[0] + " UTC";
+  
   await notifyAdmins(bot, formatDailyReport());
+  setMetadata("last_daily_report_date", dateKey);
+}
+
+async function catchUpDailyReport(bot: BotLike) {
+  if (!appConfig.dailyReportEnabled) return;
+
+  const lastReportDate = getMetadata("last_daily_report_date");
+  const now = new Date();
+  const todayDate = now.toISOString().slice(0, 10);
+  const currentHour = now.getUTCHours();
+
+  logServer("info", "bot.monitoring.catchup.check", { 
+    lastReportDate, 
+    todayDate, 
+    currentHour, 
+    targetHour: appConfig.dailyReportHour 
+  });
+
+  // If we haven't reported today and it's past the reporting hour, do it now.
+  if (lastReportDate !== todayDate && currentHour >= appConfig.dailyReportHour) {
+    logServer("info", "bot.monitoring.catchup.triggering", { reason: "Missed scheduled window" });
+    await sendDailySnapshot(bot);
+  }
 }
 
 export async function getServerHealthText(isAdmin: boolean = false) {
@@ -152,6 +179,9 @@ export function startBotMonitoring(bot: BotLike) {
   logServer("info", "bot.monitoring.init", {
     message: "Initializing internal bot monitoring (node-cron)",
   });
+
+  // Catch-up on startup
+  void catchUpDailyReport(bot);
 
   const runHealthCheck = async () => {
     lastHealthCheckAt = new Date().toISOString().replace("T", " ").split(".")[0] + " UTC";
@@ -193,8 +223,7 @@ export function startBotMonitoring(bot: BotLike) {
         hour: appConfig.dailyReportHour,
         timezone: "UTC"
       });
-      lastDailyReportAt = new Date().toISOString().replace("T", " ").split(".")[0] + " UTC";
-      void notifyAdmins(bot, formatDailyReport());
+      void sendDailySnapshot(bot);
     }, {
       timezone: "UTC"
     });

@@ -58,10 +58,9 @@ function getDb() {
       updated_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS queue (
-      job_id TEXT PRIMARY KEY,
-      position INTEGER NOT NULL,
-      added_at TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS metadata (
+      key TEXT PRIMARY KEY,
+      value TEXT
     );
   `);
 
@@ -293,4 +292,13 @@ export function writeStoredJobs(jobsMap: Record<string, DownloadJob>, queueList:
       insertQueue.run(jobId, index, now);
     });
   })();
+}
+
+export function getStoredMetadata(key: string): string | null {
+  const row = getDb().prepare("SELECT value FROM metadata WHERE key = ?").get(key) as { value: string } | undefined;
+  return row ? row.value : null;
+}
+
+export function setStoredMetadata(key: string, value: string) {
+  getDb().prepare("INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)").run(key, value);
 }

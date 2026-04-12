@@ -3,6 +3,8 @@ import {
   flushStoredDailySummary,
   getStoredDailySummary,
   incrementDailyCounter,
+  getStoredMetadata,
+  setStoredMetadata,
   trackStoredBotUser,
 } from "./runtime-db";
 
@@ -24,4 +26,12 @@ export function getDailySummary() {
 
 export function flushDailySummary() {
   return flushStoredDailySummary();
+}
+
+export function getMetadata(key: string) {
+  return getStoredMetadata(key);
+}
+
+export function setMetadata(key: string, value: string) {
+  setStoredMetadata(key, value);
 }

@@ -85,6 +85,7 @@ const adminEnglishCommands: BotCommand[] = [
   { command: "report", description: "📊 Show the current daily report" },
   { command: "daily", description: "🗓️ Send the daily summary now" },
   { command: "broadcast", description: "📢 Send a broadcast message to all users" },
+  { command: "users", description: "👥 Show total unique user statistics" },
 ];
 
 const adminFrenchCommands: BotCommand[] = [
@@ -96,6 +97,7 @@ const adminFrenchCommands: BotCommand[] = [
   { command: "report", description: "📊 Voir le rapport journalier courant" },
   { command: "daily", description: "🗓️ Envoyer le récap journalier maintenant" },
   { command: "broadcast", description: "📢 Diffuser un message à tous les utilisateurs" },
+  { command: "users", description: "👥 Voir les statistiques des utilisateurs uniques" },
 ];
 
 async function setCommands(
@@ -128,6 +130,7 @@ async function setCommands(
 async function syncDescriptions(bot: Telegraf) {
   const botName = "Pulsor Clip - Media Downloader (TikTok, Instagram, YT & more)";
   const descPrefix = "Dev: https://t.me/akaiokami_az\n\n";
+  const privacyLine = `\n\n⚖️ Privacy Policy: ${appConfig.baseUrl}/privacy`;
 
   logServer("info", "bot.metadata.descriptions.sync.started", {
     botName,
@@ -140,19 +143,19 @@ async function syncDescriptions(bot: Telegraf) {
   });
 
   await safeTelegramCall(bot, "setMyDescription", {
-    description: `${descPrefix}Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app.`,
+    description: `${descPrefix}Send a media link, choose the format, and receive the prepared file in Telegram or continue in the web app if it's too large.${privacyLine}`,
   });
   await safeTelegramCall(bot, "setMyDescription", {
     language_code: "fr",
-    description: `${descPrefix}Envoie un lien média, choisis le format, puis reçois le fichier préparé dans Telegram ou continue dans l'app web si le fichier est trop lourd.`,
+    description: `${descPrefix}Envoie un lien média, choisis le format, puis reçois le fichier préparé dans Telegram ou continue dans l'app web si le fichier est trop lourd.${privacyLine}`,
   });
 
   await safeTelegramCall(bot, "setMyShortDescription", {
-    short_description: "🎬 Download videos and audio. Dev: @akaiokami_az",
+    short_description: "🎬 Download video and audio - TikTok, IG, YT & more. Dev: @akaiokami_az",
   });
   await safeTelegramCall(bot, "setMyShortDescription", {
     language_code: "fr",
-    short_description: "🎬 Téléchargement vidéos et audio. Dev: @akaiokami_az",
+    short_description: "🎬 Téléchargement vidéo et audio - TikTok, IG, YT & plus. Dev: @akaiokami_az",
   });
 
   const descriptionDefault = await safeTelegramCall<{ description: string }>(bot, "getMyDescription");
@@ -213,6 +216,13 @@ export async function applyTelegramMetadata(bot: Telegraf) {
     logServer("info", "bot.metadata.sync.menu_button");
     await safeTelegramCall(bot, "setChatMenuButton", {
       menu_button: { type: "commands" },
+    });
+
+    logServer("info", "bot.metadata.sync.privacy_policy", {
+      url: `${appConfig.baseUrl}/privacy`,
+    });
+    await safeTelegramCall(bot, "setMyPrivacyPolicyUrl", {
+      url: `${appConfig.baseUrl}/privacy`,
     });
 
     logServer("info", "bot.metadata.sync.success", {

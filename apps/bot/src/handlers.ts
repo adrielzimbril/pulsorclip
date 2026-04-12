@@ -15,6 +15,7 @@ import {
   logServer,
   cancelDownloadJob,
   getAllStoredUserIds,
+  getDailySummary,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import {
@@ -30,6 +31,7 @@ import {
   extensionKeyboard,
   trackKeyboard,
   trackAndCancelKeyboard,
+  supportKeyboard,
 } from "./keyboards";
 import {
   getCurrentDailySummaryText,
@@ -80,51 +82,37 @@ function formatDuration(value: number | null) {
 }
 
 function helpMessage(locale: AppLocale, admin = false) {
+  const isFr = locale === "fr";
   const shortcuts = [
-    "/video <media_url>",
-    "/audio <media_url>",
+    "/video <url>",
+    "/audio <url>",
     "/mp4",
     "/mp3",
     "/formats",
     "/queue",
     "/language",
     "/support",
-    ...(admin ? ["/broadcast", "/server", "/status", "/report"] : []),
+    ...(admin ? ["/broadcast", "/users", "/status", "/report"] : []),
   ];
 
   const lines = [
-    `<b>${escapeHTML(t(locale, "botHelpIntro"))}</b>`,
-    locale === "fr"
-      ? "Colle un lien, choisis video ou audio, puis je gere la file et je t envoie le resultat ici quand Telegram le permet."
-      : "Paste a link, choose video or audio, then I handle the queue and send the result here when Telegram allows it.",
+    `<b>✨ PulsorClip Premium Guide</b>`,
+    isFr 
+      ? "Extrais des médias avec une qualité studio et un contrôle total." 
+      : "Extract media with studio quality and total control.",
+    "━━━━━━━━━━━━━━",
+    `<b>🚀 ${isFr ? "Démarrage Rapide" : "Quick Start"}</b>`,
+    isFr
+      ? "1. Colle un lien (TikTok, IG, YT...)\n2. Choisis Vidéo ou Audio\n3. Patiente pendant le traitement\n4. Reçois le fichier ou utilise le lien web"
+      : "1. Paste a link (TikTok, IG, YT...)\n2. Pick Video or Audio\n3. Wait for processing\n4. Get the file or use the web tracker",
     "",
-    `<b>${locale === "fr" ? "Commandes" : "Commands"}</b>`,
-    locale === "fr"
-      ? "1. Envoie une URL media\n2. Choisis le format\n3. Choisis la qualite\n4. Attends le fichier ou ouvre le suivi web"
-      : "1. Send a media URL\n2. Pick the format\n3. Pick the quality\n4. Wait for the file or open the web tracker",
-    "",
-    `<b>${escapeHTML(t(locale, "botHelpShortcutsLine"))}</b>`,
-    ...shortcuts.map((item) => `• ${escapeHTML(item)}`),
+    `<b>⌨️ ${isFr ? "Commandes" : "Commands"}</b>`,
+    ...shortcuts.map((item) => `• <code>${escapeHTML(item)}</code>`),
+    "━━━━━━━━━━━━━━",
+    `⚖️ <a href="${appConfig.baseUrl}/privacy">${isFr ? "Politique de confidentialité" : "Privacy Policy"}</a>`,
+    `🤝 <a href="https://t.me/akaiokami_az">${isFr ? "Contact Support" : "Contact Support"}</a>`,
   ];
 
-  if (admin) {
-    lines.push(
-      "",
-      `<b>${locale === "fr" ? "Commandes admin" : "Admin commands"}</b>`,
-    );
-    lines.push(
-      ...[
-        "/queuestatus",
-        "/status",
-        "/server",
-        "/health",
-        "/report",
-        "/daily",
-      ].map((item) => `• ${escapeHTML(item)}`),
-    );
-  }
-
-  lines.push("", t(locale, "botHelpGuidance"));
   return lines.join("\n");
 }
 
@@ -150,6 +138,7 @@ function adminHelpMessage(locale: AppLocale) {
 }
 
 function supportMessage(locale: AppLocale) {
+  const isFr = locale === "fr";
   return [
     `<b>${t(locale, "botSupportTitle")}</b>`,
     "",
@@ -157,6 +146,10 @@ function supportMessage(locale: AppLocale) {
     "",
     t(locale, "botSupportContact"),
     t(locale, "botSupportLinks"),
+    "",
+    `⚖️ <a href="${appConfig.baseUrl}/privacy">${isFr ? "Confidentialité & Mentions Légales" : "Privacy & Legal Terms"}</a>`,
+    "",
+    `<i>${t(locale, "educationalDisclaimer")}</i>`,
   ].join("\n");
 }
 
@@ -1402,16 +1395,17 @@ export function registerBotHandlers(bot: Telegraf) {
   });
 
   bot.help(async (ctx) => {
-    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
-    rememberUser(ctx.from?.id);
+    const userId = ctx.from?.id;
+    const locale = localeForTelegram(userId, ctx.from?.language_code);
+    rememberUser(userId);
     await sendPresence(ctx, "typing");
-    await ctx.reply(helpMessage(locale), {
-      ...modeKeyboard(locale),
+    
+    const message = helpMessage(locale, isAdmin(userId));
+    await ctx.reply(message, {
+      ...webKeyboard(locale),
       parse_mode: "HTML",
+      disable_web_page_preview: true,
     });
-    if (isAdmin(ctx.from?.id)) {
-      await ctx.reply(adminHelpMessage(locale), { parse_mode: "HTML" });
-    }
   });
 
   bot.command("language", async (ctx) => {
@@ -1441,6 +1435,31 @@ export function registerBotHandlers(bot: Telegraf) {
     await sendPresence(ctx, "typing");
     await ctx.reply(await getServerHealthText(true), { ...webKeyboard(locale), parse_mode: "HTML" });
   });
+
+  bot.command("users", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      return;
+    }
+
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
+    
+    const userIds = getAllStoredUserIds();
+    const summary = getDailySummary();
+    
+    await ctx.reply(t(locale, "botUsersCountAdmin", { 
+      total: userIds.length, 
+      today: summary.botUsers,
+      botJobs: summary.downloadsCompleted.bot,
+      webJobs: summary.downloadsCompleted.web,
+    }), {
+      ...webKeyboard(locale),
+      parse_mode: "HTML",
+    });
+  });
+
+
 
   bot.command("queue", async (ctx) => {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
@@ -1526,9 +1545,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
+    
     await ctx.reply(supportMessage(locale), {
+      ...supportKeyboard(locale),
       parse_mode: "HTML",
-      ...webKeyboard(locale),
     });
   });
 
@@ -1556,6 +1576,7 @@ export function registerBotHandlers(bot: Telegraf) {
       const uid = userIds[i];
       try {
         if (replyTo) {
+          // copyMessage is superior as it replicates any media object + caption
           await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
         } else {
           await bot.telegram.sendMessage(uid, text);
@@ -1576,7 +1597,7 @@ export function registerBotHandlers(bot: Telegraf) {
         ).catch(() => {});
       }
 
-      // Rate limiting: 30 messages per second is the limit for bots
+      // Respect Telegram rate limits (~30/s)
       await new Promise((r) => setTimeout(r, 60));
     }
 

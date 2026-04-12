@@ -23,10 +23,19 @@ export function trackAndCancelKeyboard(locale: AppLocale, jobId: string) {
   return Markup.inlineKeyboard([
     [
       Markup.button.url(
-        `📊 ${t(locale, "botOpenWeb")}`,
+        `🔍 ${t(locale, "botTrackJob")}`,
         `${appConfig.baseUrl}/track/${jobId}`,
       ),
       Markup.button.callback(`🛑 ${t(locale, "botCancel")}`, `cancelactive:${jobId}`),
+    ],
+  ]);
+}
+
+export function supportKeyboard(locale: AppLocale) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.url("⭐ GitHub", "https://github.com/adrielzimbril/pulsorclip"),
+      Markup.button.url("💬 Support", `https://t.me/${appConfig.telegramAdminHandle}`),
     ],
   ]);
 }

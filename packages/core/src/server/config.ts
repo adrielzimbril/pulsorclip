@@ -142,4 +142,5 @@ export const appConfig = {
     process.env.PULSORCLIP_HEALTH_CHECK_CADENCE_MINS || "15",
   ),
   ffmpegThreads: Number(process.env.FFMPEG_THREADS || "2"),
+  telegramAdminHandle: process.env.TELEGRAM_ADMIN_HANDLE || "admin",
 };
