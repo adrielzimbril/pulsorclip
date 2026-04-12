@@ -58,6 +58,12 @@ function getDb() {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS queue (
+      job_id TEXT PRIMARY KEY,
+      position INTEGER NOT NULL,
+      added_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS metadata (
       key TEXT PRIMARY KEY,
       value TEXT

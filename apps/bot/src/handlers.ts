@@ -86,8 +86,6 @@ function helpMessage(locale: AppLocale, admin = false) {
   const shortcuts = [
     "/video <url>",
     "/audio <url>",
-    "/mp4",
-    "/mp3",
     "/formats",
     "/queue",
     "/language",
@@ -107,7 +105,7 @@ function helpMessage(locale: AppLocale, admin = false) {
       : "1. Paste a link (TikTok, IG, YT...)\n2. Pick Video or Audio\n3. Wait for processing\n4. Get the file or use the web tracker",
     "",
     `<b>⌨️ ${isFr ? "Commandes" : "Commands"}</b>`,
-    ...shortcuts.map((item) => `• <code>${escapeHTML(item)}</code>`),
+    ...shortcuts.map((item) => `• ${escapeHTML(item)}`),
     "━━━━━━━━━━━━━━",
     `⚖️ <a href="${appConfig.baseUrl}/privacy">${isFr ? "Politique de confidentialité" : "Privacy Policy"}</a>`,
     `🤝 <a href="https://t.me/akaiokami_az">${isFr ? "Contact Support" : "Contact Support"}</a>`,
@@ -1541,7 +1539,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendDailySnapshot(bot);
-    await ctx.reply(t(locale, "botReportSent"));
+    await ctx.reply(t(locale, "botReportSent"), { parse_mode: "HTML" });
   });
 
   bot.command("support", async (ctx) => {
@@ -1595,11 +1593,14 @@ export function registerBotHandlers(bot: Telegraf) {
           // copyMessage replicates any media object + caption from the replied message
           await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
         } else if (hasMedia) {
-          // copyMessage replicates the current media message + caption
-          await bot.telegram.copyMessage(uid, ctx.chat.id, ctx.message.message_id);
+          // copyMessage replicates the current media message with the command-less caption
+          await bot.telegram.copyMessage(uid, ctx.chat.id, ctx.message.message_id, {
+            caption: text,
+            parse_mode: "HTML"
+          });
         } else {
           // Just a text message
-          await bot.telegram.sendMessage(uid, text);
+          await bot.telegram.sendMessage(uid, text, { parse_mode: "HTML" });
         }
         success++;
       } catch (err) {

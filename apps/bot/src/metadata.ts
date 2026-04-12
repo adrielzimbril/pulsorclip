@@ -207,12 +207,21 @@ export async function applyTelegramMetadata(bot: Telegraf) {
     }
 
     // 5. Privacy Policy Link - Non-fatal
+    // try {
+    //   await safeTelegramCall(bot, "setMyPrivacyPolicyUrl", {
+    //     url: `${appConfig.baseUrl}/privacy`,
+    //   });
+    // } catch (err) {
+    //   logServer("info", "bot.metadata.privacy_policy.sync.failed", { error: String(err) });
+    // }
+
+    // 6. Bot Profile Picture - Non-fatal
     try {
-      await safeTelegramCall(bot, "setMyPrivacyPolicyUrl", {
-        url: `${appConfig.baseUrl}/privacy`,
+      await safeTelegramCall(bot, "setMyProfilePhoto", {
+        photo: "https://pulsorclip.adrielzimbril.com/icon.png",
       });
     } catch (err) {
-      logServer("info", "bot.metadata.privacy_policy.sync.failed", { error: String(err) });
+      logServer("info", "bot.metadata.profile_picture.sync.failed", { error: String(err) });
     }
 
     logServer("info", "bot.metadata.sync.success");
