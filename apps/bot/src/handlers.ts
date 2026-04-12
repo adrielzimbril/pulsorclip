@@ -1407,6 +1407,10 @@ export function registerBotHandlers(bot: Telegraf) {
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
     });
+
+    if (isAdmin(ctx.from?.id)) {
+      await ctx.reply(adminHelpMessage(locale), { parse_mode: "HTML" });
+    }
   });
 
   bot.command("language", async (ctx) => {
@@ -1589,25 +1593,62 @@ export function registerBotHandlers(bot: Telegraf) {
     for (let i = 0; i < userIds.length; i++) {
       const uid = userIds[i];
       try {
+        const msg = ctx.message as any;
+        // 1. Reply broadcast (forward original message)
         if (replyTo) {
-          // copyMessage replicates any media object + caption from the replied message
           await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
-        } else if (hasMedia) {
-          // copyMessage replicates the current media message with the command-less caption
-          await bot.telegram.copyMessage(uid, ctx.chat.id, ctx.message.message_id, {
-            caption: text,
-            parse_mode: "HTML"
+        }
+        // 2. PHOTO
+        else if (msg.photo) {
+          const fileId = msg.photo.at(-1).file_id;
+          await bot.telegram.sendPhoto(uid, fileId, {
+            caption: text || undefined,
+            parse_mode: "HTML",
           });
-        } else {
-          // Just a text message
-          await bot.telegram.sendMessage(uid, text, { parse_mode: "HTML" });
+        }
+        // 3. VIDEO
+        else if (msg.video) {
+          await bot.telegram.sendVideo(uid, msg.video.file_id, {
+            caption: text || undefined,
+            parse_mode: "HTML",
+          });
+        }
+        // 4. DOCUMENT (PDF, ZIP, etc.)
+        else if (msg.document) {
+          await bot.telegram.sendDocument(uid, msg.document.file_id, {
+            caption: text || undefined,
+            parse_mode: "HTML",
+          });
+        }
+        // 5. AUDIO
+        else if (msg.audio) {
+          await bot.telegram.sendAudio(uid, msg.audio.file_id, {
+            caption: text || undefined,
+            parse_mode: "HTML",
+          });
+        }
+        // 6. ANIMATION (GIF)
+        else if (msg.animation) {
+          await bot.telegram.sendAnimation(uid, msg.animation.file_id, {
+            caption: text || undefined,
+            parse_mode: "HTML",
+          });
+        }
+        // 7. TEXT ONLY
+        else {
+          await bot.telegram.sendMessage(uid, text, {
+            parse_mode: "HTML",
+          });
         }
         success++;
       } catch (err) {
         failed++;
-        logServer("warn", "bot.broadcast.failed", { uid, error: String(err) });
+        logServer("warn", "bot.broadcast.failed", {
+          uid,
+          error: String(err),
+        });
       }
-
+      
       // Update progress every 20 users
       if ((i + 1) % 20 === 0 || i === userIds.length - 1) {
         await bot.telegram.editMessageText(

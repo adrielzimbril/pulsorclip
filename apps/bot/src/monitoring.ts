@@ -64,7 +64,7 @@ function formatAdminHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnost
   return rows.join("\n");
 }
 
-function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en", isAdmin: boolean = false) {
+function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
   const statusIcon = snapshot.maintenanceMode ? "🟠" : (snapshot.botEnabled ? "🟢" : "🔴");
   const statusText = snapshot.maintenanceMode 
     ? (locale === "fr" ? "Maintenance" : "Maintenance") 
@@ -79,16 +79,6 @@ function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnos
     `⚡ <b>Current Load:</b> ${totalLoad} active session${totalLoad !== 1 ? 's' : ''}`,
   ];
 
-  if (isAdmin) {
-    const summary = getDailySummary();
-    rows.push(
-      `━━━━━━━━━━━━━━━━━━`,
-      `📊 <b>Admin Dashboard</b>`,
-      `• Active today: <code>${summary.botUsers}</code> users`,
-      `• Total jobs today: <code>${summary.downloadsCompleted.bot + summary.downloadsCompleted.web}</code>`
-    );
-  }
-
   rows.push(
     `━━━━━━━━━━━━━━━━━━`,
     locale === "fr" 
@@ -97,6 +87,26 @@ function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnos
   );
 
   return rows.join("\n");
+}
+
+function formatAdminHealthMini(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
+  const summary = getDailySummary();
+  const totalLoad = snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
+  
+  return [
+    `<b>⚙️ Admin Quick Status</b>`,
+    `<i>Checked at: ${new Date(snapshot.checkedAt).toLocaleString(locale)}</i>`,
+    "",
+    `🌐 <b>Web:</b> ${snapshot.webHealthOk ? "🟢" : "🔴"}`,
+    `🤖 <b>Bot:</b> ${snapshot.botEnabled ? "✅" : "❌"}`,
+    `📦 <b>Load:</b> ${totalLoad} active`,
+    "",
+    `📊 <b>Today</b>`,
+    `• Users: <code>${summary.botUsers}</code>`,
+    `• Jobs: <code>${summary.downloadsCompleted.bot + summary.downloadsCompleted.web}</code>`,
+    "",
+    `<i>Use /health for full diagnostics.</i>`
+  ].join("\n");
 }
 
 function formatQueue(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
@@ -175,7 +185,12 @@ async function catchUpDailyReport(bot: BotLike) {
 
 export async function getServerHealthText(locale: AppLocale = "en", isAdmin: boolean = false) {
   const snapshot = await getServerDiagnostics();
-  return isAdmin ? formatAdminHealth(snapshot, locale) : formatPublicHealth(snapshot, locale, isAdmin);
+  return isAdmin ? formatAdminHealthMini(snapshot, locale) : formatPublicHealth(snapshot, locale);
+}
+
+export async function getServerHealthDetailedText(locale: AppLocale = "en") {
+  const snapshot = await getServerDiagnostics();
+  return formatAdminHealth(snapshot, locale);
 }
 
 export async function getQueueSnapshotText(locale: AppLocale = "en") {

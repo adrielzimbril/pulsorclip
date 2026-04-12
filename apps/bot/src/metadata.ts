@@ -218,7 +218,7 @@ export async function applyTelegramMetadata(bot: Telegraf) {
     // 6. Bot Profile Picture - Non-fatal
     try {
       await safeTelegramCall(bot, "setMyProfilePhoto", {
-        photo: "https://pulsorclip.adrielzimbril.com/icon.png",
+        photo: { url: "https://pulsorclip.adrielzimbril.com/icon.png" }
       });
     } catch (err) {
       logServer("info", "bot.metadata.profile_picture.sync.failed", { error: String(err) });

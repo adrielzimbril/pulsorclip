@@ -77,7 +77,7 @@ export async function notifyAdmins(
     appConfig.telegramAdminIds.map(async (adminId) => {
       try {
         logServer("info", "bot.admin.notify.attempt", { adminId });
-        await bot.telegram.sendMessage(adminId, message);
+        await bot.telegram.sendMessage(adminId, message, { parse_mode: "HTML" });
         delivered += 1;
         logServer("info", "bot.admin.notify.delivered", {
           adminId,
