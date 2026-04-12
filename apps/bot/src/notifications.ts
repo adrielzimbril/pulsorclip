@@ -1,4 +1,5 @@
 import { appConfig, logServer } from "@pulsorclip/core/server";
+import type { Telegraf } from "telegraf";
 
 type TelegramAdminBot = {
   telegram: {
@@ -60,7 +61,7 @@ export async function validateAdminRecipients(bot: TelegramAdminBot) {
 }
 
 export async function notifyAdmins(
-  bot: TelegramNotifyBot,
+  bot: Telegraf,
   message: string,
 ) {
   if (!appConfig.telegramAdminIds.length) {

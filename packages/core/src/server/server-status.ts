@@ -4,6 +4,9 @@ import { getQueueSnapshot } from "./downloader";
 import { appConfig } from "./config";
 import { runCommand } from "./process";
 import { getRuntimeDbPath } from "./runtime-db";
+import os from "os";
+import fs from "fs";
+import net from "net";
 
 type BinaryStatus = {
   ok: boolean;
@@ -32,6 +35,36 @@ type ServerDiagnostics = {
     ffmpeg: BinaryStatus;
   };
   queue: ReturnType<typeof getQueueSnapshot>;
+  hostname: string;
+  platform: string;
+  arch: string;
+  release: string;
+  diskUsage: {
+    totalGB: string;
+    usedGB: string;
+    freeGB: string;
+  } | null;
+
+  cpuModel: string | undefined;
+  cpuCores: number;
+
+  loadAvg: number[];
+
+  activeConnectionsApprox: number | null;
+
+  totalMemoryMB: number;
+  freeMemoryMB: number;
+  usedMemoryMB: number;
+
+  uptimeSec: number;
+
+  nodeVersion: string;
+
+  processMemoryMB: {
+    rss: number;
+    heapUsed: number;
+    heapTotal: number;
+  };
 };
 
 async function checkBinary(command: string, args: string[]): Promise<BinaryStatus> {
@@ -81,6 +114,38 @@ function checkDownloadsDirWritable() {
 export async function getServerDiagnostics(): Promise<ServerDiagnostics> {
   const runtimeDbPath = getRuntimeDbPath();
   const runtimeDbSize = statSync(runtimeDbPath).size;
+  const cpus = os.cpus();
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+
+  function getDiskUsage() {
+    try {
+      const stats = fs.statfsSync ? fs.statfsSync("/") : null;
+
+      if (!stats) return null;
+
+      const total = stats.blocks * stats.bsize;
+      const free = stats.bfree * stats.bsize;
+      const used = total - free;
+
+      return {
+        totalGB: (total / 1024 / 1024 / 1024).toFixed(2),
+        usedGB: (used / 1024 / 1024 / 1024).toFixed(2),
+        freeGB: (free / 1024 / 1024 / 1024).toFixed(2),
+      };
+    } catch {
+      return null;
+    }
+  }
+    
+  function getActiveConnectionsApprox() {
+    try {
+      const data = fs.readFileSync("/proc/net/tcp", "utf8");
+      return data.split("\n").length - 1;
+    } catch {
+      return null;
+    }
+  }
 
   return {
     checkedAt: new Date().toISOString(),
@@ -103,5 +168,31 @@ export async function getServerDiagnostics(): Promise<ServerDiagnostics> {
       ffmpeg: await checkBinary(appConfig.ffmpegBin, ["-version"]),
     },
     queue: getQueueSnapshot(),
+    hostname: os.hostname(),
+    platform: os.platform(),
+    arch: os.arch(),
+    release: os.release(),
+    diskUsage: getDiskUsage(),
+
+    cpuModel: cpus[0]?.model,
+    cpuCores: cpus.length,
+
+    loadAvg: os.loadavg(), // 1m, 5m, 15m
+
+    activeConnectionsApprox: getActiveConnectionsApprox(),
+    
+    totalMemoryMB: Math.round(totalMem / 1024 / 1024),
+    freeMemoryMB: Math.round(freeMem / 1024 / 1024),
+    usedMemoryMB: Math.round((totalMem - freeMem) / 1024 / 1024),
+
+    uptimeSec: os.uptime(),
+
+    nodeVersion: process.version,
+
+    processMemoryMB: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+    },
   };
 }

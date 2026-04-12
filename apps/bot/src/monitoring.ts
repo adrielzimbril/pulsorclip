@@ -2,6 +2,7 @@ import { flushDailySummary, getDailySummary, getServerDiagnostics, appConfig, lo
 import type { AppLocale } from "@pulsorclip/core/shared";
 import cron from "node-cron";
 import { notifyAdmins } from "./notifications";
+import type { Telegraf } from "telegraf";
 
 type BotLike = {
   telegram: {
@@ -59,6 +60,53 @@ function formatAdminHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnost
     `• Web Jobs: <code>${getDailySummary().downloadsCompleted.web}</code>`,
     "",
     `👥 <b>Admin Count:</b> ${snapshot.adminCount}`,
+  ];
+
+  return rows.join("\n");
+}
+
+function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
+  const rows = [
+    `<b>🖥️ FULL SERVER DIAGNOSTICS</b>`,
+    `<i>${new Date(snapshot.checkedAt).toLocaleString(locale)}</i>`,
+    "",
+
+    `🌐 <b>System</b>`,
+    `• Hostname: <code>${snapshot.hostname}</code>`,
+    `• Platform: <code>${snapshot.platform}</code>`,
+    `• Arch: <code>${snapshot.arch}</code>`,
+    `• Kernel: <code>${snapshot.release}</code>`,
+    "",
+
+    `⚙️ <b>CPU</b>`,
+    `• Model: <code>${snapshot.cpuModel}</code>`,
+    `• Cores: <code>${snapshot.cpuCores}</code>`,
+    `• Load Avg: <code>${snapshot.loadAvg.map(v => v.toFixed(2)).join(" / ")}</code>`,
+    "",
+
+    `🧠 <b>Memory</b>`,
+    `• Total: <code>${snapshot.totalMemoryMB} MB</code>`,
+    `• Used: <code>${snapshot.usedMemoryMB} MB</code>`,
+    `• Free: <code>${snapshot.freeMemoryMB} MB</code>`,
+    "",
+    `• Process RSS: <code>${snapshot.processMemoryMB.rss} MB</code>`,
+    `• Heap Used: <code>${snapshot.processMemoryMB.heapUsed} MB</code>`,
+    `• Heap Total: <code>${snapshot.processMemoryMB.heapTotal} MB</code>`,
+    "",
+
+    `💾 <b>Disk</b>`,
+    snapshot.diskUsage
+      ? `• Used: <code>${snapshot.diskUsage.usedGB} GB</code>\n• Free: <code>${snapshot.diskUsage.freeGB} GB</code>\n• Total: <code>${snapshot.diskUsage.totalGB} GB</code>`
+      : `⚠️ Disk stats not available`,
+    "",
+
+    `📡 <b>Connections</b>`,
+    `• TCP: <code>${snapshot.activeConnectionsApprox ?? "N/A"}</code>`,
+    "",
+
+    `⏱️ <b>Uptime</b>`,
+    `• System: <code>${Math.floor(snapshot.uptimeSec / 60)} mins</code>`,
+    `• Process: <code>${Math.floor(process.uptime() / 60)} mins</code>`,
   ];
 
   return rows.join("\n");
@@ -147,12 +195,13 @@ function formatDailyReport(flushing: boolean = true) {
   ].join("\n");
 }
 
-export async function sendHealthSnapshot(bot: BotLike, locale: AppLocale = "en") {
+export async function sendHealthSnapshot(bot: Telegraf, locale: AppLocale = "en") {
   const snapshot = await getServerDiagnostics();
   await notifyAdmins(bot, formatAdminHealth(snapshot, locale));
+  await notifyAdmins(bot, formatAdminServerHealth(snapshot, locale));
 }
 
-export async function sendDailySnapshot(bot: BotLike) {
+export async function sendDailySnapshot(bot: Telegraf) {
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
   lastDailyReportAt = now.toISOString().replace("T", " ").split(".")[0] + " UTC";
@@ -161,7 +210,7 @@ export async function sendDailySnapshot(bot: BotLike) {
   setMetadata("last_daily_report_date", dateKey);
 }
 
-async function catchUpDailyReport(bot: BotLike) {
+async function catchUpDailyReport(bot: Telegraf) {
   if (!appConfig.dailyReportEnabled) return;
 
   const lastReportDate = getMetadata("last_daily_report_date");
@@ -193,11 +242,16 @@ export async function getServerHealthDetailedText(locale: AppLocale = "en") {
   return formatAdminHealth(snapshot, locale);
 }
 
+export async function getServerHealthFullDetailedText(locale: AppLocale = "en") {
+  const snapshot = await getServerDiagnostics();
+  return formatAdminServerHealth(snapshot, locale);
+}
+
 export async function getQueueSnapshotText(locale: AppLocale = "en") {
   return formatQueue(await getServerDiagnostics(), locale);
 }
 
-export function startBotMonitoring(bot: BotLike) {
+export function startBotMonitoring(bot: Telegraf) {
   logServer("info", "bot.monitoring.init", {
     message: "Initializing internal bot monitoring (node-cron)",
   });
@@ -221,6 +275,7 @@ export function startBotMonitoring(bot: BotLike) {
     if (signature !== lastHealthSignature) {
       lastHealthSignature = signature;
       await notifyAdmins(bot, formatAdminHealth(snapshot));
+      await notifyAdmins(bot, formatAdminServerHealth(snapshot));
     }
   };
 
