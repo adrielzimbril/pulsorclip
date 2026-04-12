@@ -52,7 +52,7 @@ export type MediaInfo = {
   playlist?: {
     id?: string;
     title: string;
-    count: number;
+    count?: number;
     entries: PlaylistEntry[];
   };
 };

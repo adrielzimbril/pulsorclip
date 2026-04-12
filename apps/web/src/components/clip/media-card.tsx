@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { t } from "@pulsorclip/core/i18n";
 import type { AppLocale, DownloadMode, AudioContainer, VideoContainer } from "@pulsorclip/core/shared";
@@ -129,6 +130,27 @@ export function MediaCard({
 
   const hasVideoPreview = !!(card.resolvedVideoUrl || card.resolvedUrl) && mode === "video";
 
+  const displayTitle = React.useMemo(() => {
+    if (card.status === "loading") return null;
+    if (!card.title) return t(locale, "inspecting");
+    
+    // Improve generic titles (e.g. "Facebook Post" -> "Facebook Post by [Uploader]")
+    const genericPlatforms = ["facebook", "tiktok", "instagram", "threads", "twitter", "x"];
+    const titleLower = card.title.toLowerCase();
+    const isGeneric = genericPlatforms.some(p => titleLower.includes(p) && card.title.length < 25);
+    
+    if (isGeneric && card.uploader && card.uploader.toLowerCase() !== card.title.toLowerCase()) {
+      return `${card.title} by ${card.uploader}`;
+    }
+    
+    return card.title;
+  }, [card.title, card.uploader, card.status, locale]);
+
+  const proxiedThumbnail = React.useMemo(() => {
+    if (!card.thumbnail) return null;
+    return `/api/proxy/thumbnail?url=${encodeURIComponent(card.thumbnail)}`;
+  }, [card.thumbnail]);
+
   return (
     <article className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
       <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
@@ -138,7 +160,7 @@ export function MediaCard({
           ) : card.thumbnail && mode === "video" ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt={card.title || "Media thumbnail"} className="h-56 w-full object-cover transition duration-500 group-hover/thumb:scale-105" src={card.thumbnail} />
+              <img alt={displayTitle || "Media thumbnail"} className="h-56 w-full object-cover transition duration-500 group-hover/thumb:scale-105" src={proxiedThumbnail!} />
               
               {hasVideoPreview && onPreview && (
                 <button 
@@ -165,7 +187,7 @@ export function MediaCard({
                 {card.status === "loading" ? (
                   <div className="skeleton h-7 w-3/4" />
                 ) : (
-                  card.title || t(locale, "inspecting")
+                  displayTitle
                 )}
               </h3>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">

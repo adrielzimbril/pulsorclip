@@ -110,8 +110,23 @@ function normalizeUrl(url: string | null | undefined): string | undefined {
 }
 
 function normalizeMediaInfo(info: MediaInfo): MediaInfo {
+  // Enrich generic titles if we have uploader info
+  const genericTitles = ["facebook post", "instagram post", "tiktok video", "tiktok audio", "threads post", "twitter post", "x post"];
+  const titleLower = info.title?.toLowerCase().trim();
+  
+  let finalTitle = info.title;
+  if (info.title && genericTitles.includes(titleLower) && info.uploader) {
+    const uploaderLower = info.uploader.toLowerCase();
+    const isPlatformName = ["facebook", "instagram", "tiktok", "threads", "twitter", "x"].includes(uploaderLower);
+    
+    if (uploaderLower !== titleLower && !uploaderLower.includes("generic") && !isPlatformName) {
+      finalTitle = `${info.title} by ${info.uploader}`;
+    }
+  }
+
   return {
     ...info,
+    title: finalTitle,
     thumbnail: normalizeUrl(info.thumbnail) || "",
     images: info.images?.map((u) => normalizeUrl(u)).filter((u): u is string => !!u),
     resolvedUrl: normalizeUrl(info.resolvedUrl),
@@ -1075,15 +1090,12 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
 
     const html = await response.text();
 
-    const titleMatch = html.match(
-      /<meta property="og:title" content="([^"]+)"/i,
-    );
-    const thumbnailMatch = html.match(
-      /<meta property="og:image" content="([^"]+)"/i,
-    );
-    const descriptionMatch = html.match(
-      /<meta property="og:description" content="([^"]+)"/i,
-    );
+    const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i) || 
+                       html.match(/<meta name="twitter:title" content="([^"]+)"/i);
+    const thumbnailMatch = html.match(/<meta property="og:image" content="([^"]+)"/i) || 
+                           html.match(/<meta name="twitter:image" content="([^"]+)"/i);
+    const descriptionMatch = html.match(/<meta property="og:description" content="([^"]+)"/i) || 
+                             html.match(/<meta name="twitter:description" content="([^"]+)"/i);
 
     const title = decodeHtmlEntities(titleMatch ? titleMatch[1] : "");
     const thumbnail = thumbnailMatch
@@ -1116,18 +1128,107 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
       });
     }
 
+    const videoOptions: MediaOption[] = [];
+    const fbVideoPatterns = [
+      { id: "fb-hd", label: "High Quality (HD)", regex: /"(?:hd_src|browser_native_hd_url)":"([^"]+)"/i },
+      { id: "fb-sd", label: "Standard Quality (SD)", regex: /"(?:sd_src|browser_native_sd_url)":"([^"]+)"/i },
+      { id: "fb-video", label: "Video", regex: /"video_url":"([^"]+)"/i }
+    ];
+
+    fbVideoPatterns.forEach(pattern => {
+      const match = html.match(pattern.regex);
+      if (match) {
+        const videoUrl = match[1].replace(/\\/g, "").replace(/&amp;/g, "&");
+        if (!videoOptions.find(o => o.url === videoUrl)) {
+          videoOptions.push({
+            id: pattern.id,
+            label: pattern.label,
+            ext: "mp4",
+            qualityLabel: pattern.label === "Video" ? "Best" : pattern.label,
+            url: videoUrl,
+          });
+        }
+      }
+    });
+
+    let uploader = "Facebook";
+    if (title && title.includes(" | Facebook")) {
+      uploader = title.split(" | Facebook")[0].trim();
+    } else if (title && title.includes(" - ")) {
+      uploader = title.split(" - ")[0].trim();
+    }
+
     return normalizeMediaInfo({
       title: title || description || "Facebook Post",
       thumbnail,
       duration: null,
-      uploader: "Facebook",
+      uploader,
       platform: "facebook",
       images: images.length > 0 ? [...new Set(images)].slice(0, 15) : undefined,
-      videoOptions: [],
+      videoOptions,
       audioOptions: [],
     });
   } catch (err) {
     logServer("error", "media.info.scrape.facebook.failed", {
+      url: urlForLogs(url),
+      error: String(err),
+    });
+    throw err;
+  }
+}
+
+async function scrapeInstagramInfo(url: string): Promise<MediaInfo> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      },
+    });
+
+    const html = await response.text();
+
+    const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i) || 
+                       html.match(/<meta property="og:description" content="([^"]+)"/i);
+    const thumbnailMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
+    
+    // Extract account/uploader from title which is often "Profile Name (@handle) • Instagram photos and videos"
+    let uploader = "Instagram";
+    const authorMatch = html.match(/<meta property="og:title" content="([^"]+) on Instagram/i) || 
+                        html.match(/content="([^"]+) \(@[^)]+\) • Instagram/i);
+    if (authorMatch) {
+      uploader = authorMatch[1].trim();
+    }
+
+    const title = titleMatch ? decodeHtmlEntities(titleMatch[1]) : "";
+    const thumbnail = thumbnailMatch ? thumbnailMatch[1].replace(/&amp;/g, "&") : "";
+
+    const videoOptions: MediaOption[] = [];
+    const igVideoMatch = html.match(/"video_url":"([^"]+)"/i) || html.match(/<meta property="og:video" content="([^"]+)"/i);
+    if (igVideoMatch) {
+      const videoUrl = igVideoMatch[1].replace(/\\/g, "").replace(/&amp;/g, "&");
+      videoOptions.push({
+        id: "instagram-video",
+        label: "Video",
+        ext: "mp4",
+        qualityLabel: "Best",
+        url: videoUrl,
+      });
+    }
+
+    return normalizeMediaInfo({
+      title: title || "Instagram Post",
+      thumbnail,
+      duration: null,
+      uploader,
+      platform: "instagram",
+      videoOptions,
+      audioOptions: [],
+    });
+  } catch (err) {
+    logServer("error", "media.info.scrape.instagram.failed", {
       url: urlForLogs(url),
       error: String(err),
     });
@@ -1272,14 +1373,33 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
                   ? parsed.title
                   : "Playlist",
               ),
-              count:
-                typeof parsed.playlist_count === "number"
-                  ? parsed.playlist_count
-                  : playlistEntries.length,
+              count: typeof parsed.playlist_count === "number" ? parsed.playlist_count : undefined,
               entries: playlistEntries,
             }
           : undefined,
     };
+
+    // Manual Enrichment: If yt-dlp succeeded but returned generic info, try manual scraping
+    const titleLower = mediaInfo.title.toLowerCase().trim();
+    const genericTitles = ["facebook post", "instagram post", "threads post"];
+    if (!mediaInfo.title || genericTitles.includes(titleLower)) {
+      try {
+        if (sourceProfile.platform === "facebook") {
+          const enriched = await scrapeFacebookInfo(url);
+          if (enriched.title && !genericTitles.includes(enriched.title.toLowerCase())) mediaInfo.title = enriched.title;
+          if (enriched.uploader && enriched.uploader !== "Facebook") mediaInfo.uploader = enriched.uploader;
+          if (enriched.images && (!mediaInfo.images || mediaInfo.images.length === 0)) mediaInfo.images = enriched.images;
+        } else if (sourceProfile.platform === "instagram") {
+          const enriched = await scrapeInstagramInfo(url);
+          if (enriched.title && !genericTitles.includes(enriched.title.toLowerCase())) mediaInfo.title = enriched.title;
+          if (enriched.uploader && enriched.uploader !== "Instagram") mediaInfo.uploader = enriched.uploader;
+          if (enriched.thumbnail && !mediaInfo.thumbnail) mediaInfo.thumbnail = enriched.thumbnail;
+        }
+      } catch {
+        // Enrichment failed, keep original info
+      }
+    }
+
 
     // TikTok Enrichment Fallback: If no audioOptions, try to find the audio via Tikwm
     if (sourceProfile.platform === "tiktok" && mediaInfo.audioOptions.length === 0) {
