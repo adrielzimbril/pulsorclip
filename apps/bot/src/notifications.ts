@@ -30,22 +30,31 @@ export async function validateAdminRecipients(bot: TelegramAdminBot) {
   const reports = await Promise.all(
     appConfig.telegramAdminIds.map(async (adminId): Promise<AdminDeliveryReport> => {
       try {
+        logServer("info", "bot.admin.validate.attempt", { adminId });
         const chat = await bot.telegram.getChat(adminId);
+        const chatType = typeof chat === "object" && chat && "type" in chat ? (chat as { type?: string }).type : "unknown";
         logServer("info", "bot.admin.validate.ok", {
           adminId,
-          chatType: typeof chat === "object" && chat && "type" in chat ? (chat as { type?: string }).type : undefined,
+          chatType,
+          status: "reachable",
         });
         return { adminId, ok: true };
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
+        const isNotFound = reason.includes("chat not found") || reason.includes("400");
+        
         logServer("warn", "bot.admin.validate.failed", {
           adminId,
           reason,
+          hint: isNotFound 
+            ? "Admin likely hasn't started a private chat with the bot yet." 
+            : "Check if the admin ID is correct and the bot has permissions.",
         });
         return { adminId, ok: false, reason };
       }
     }),
   );
+
 
   return reports;
 }
@@ -67,6 +76,7 @@ export async function notifyAdmins(
   await Promise.all(
     appConfig.telegramAdminIds.map(async (adminId) => {
       try {
+        logServer("info", "bot.admin.notify.attempt", { adminId });
         await bot.telegram.sendMessage(adminId, message);
         delivered += 1;
         logServer("info", "bot.admin.notify.delivered", {

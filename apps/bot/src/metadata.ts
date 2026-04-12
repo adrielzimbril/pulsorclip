@@ -15,13 +15,13 @@ async function safeTelegramCall<T = unknown>(
   bot: Telegraf,
   method: string,
   payload?: Record<string, unknown>,
-): Promise<T | null> {
-  try {
-    logServer("info", "bot.metadata.call.started", {
-      method,
-      payload,
-    });
+): Promise<T> {
+  logServer("info", "bot.metadata.call.started", {
+    method,
+    payload,
+  });
 
+  try {
     const result = await bot.telegram.callApi(method as never, (payload || {}) as never);
 
     logServer("info", "bot.metadata.call.ok", {
@@ -36,9 +36,11 @@ async function safeTelegramCall<T = unknown>(
       payload,
       reason: details,
     });
-    return null;
+    // Throwing ensures runBootstrapStep catches the failure and stops the sequence
+    throw new Error(`Telegram API call ${method} failed: ${details}`);
   }
 }
+
 
 const publicEnglishBaseCommands: BotCommand[] = [
   { command: "start", description: "🚀 Start the guided PulsorClip flow" },
@@ -98,15 +100,13 @@ async function setCommands(
   scope: CommandScope,
   languageCode?: string,
 ) {
-  await safeTelegramCall(bot, "deleteMyCommands", {
-    scope,
-    ...(languageCode ? { language_code: languageCode } : {}),
-  });
+  // Removed redundant deleteMyCommands. setMyCommands overwrites them.
   await safeTelegramCall(bot, "setMyCommands", {
     commands,
     scope,
     ...(languageCode ? { language_code: languageCode } : {}),
   });
+
 
   const current = await safeTelegramCall<BotCommand[]>(bot, "getMyCommands", {
     scope,
@@ -165,13 +165,19 @@ async function syncDescriptions(bot: Telegraf) {
   });
 
   logServer("info", "bot.metadata.descriptions.snapshot", {
-    nameDefault: nameDefault?.name || null,
-    nameFr: nameFr?.name || null,
-    descriptionDefault: descriptionDefault?.description || null,
-    descriptionFr: descriptionFr?.description || null,
-    shortDescriptionDefault: shortDescriptionDefault?.short_description || null,
-    shortDescriptionFr: shortDescriptionFr?.short_description || null,
+    nameDefault: nameDefault?.name || "MISSING",
+    nameFr: nameFr?.name || "MISSING",
+    descriptionDefault: descriptionDefault?.description || "MISSING",
+    descriptionFr: descriptionFr?.description || "MISSING",
+    shortDescriptionDefault: shortDescriptionDefault?.short_description || "MISSING",
+    shortDescriptionFr: shortDescriptionFr?.short_description || "MISSING",
   });
+
+  // Basic validation to ensure we're not flying blind
+  if (!nameDefault?.name || !descriptionDefault?.description) {
+    throw new Error("Critical bot metadata verification failed: Default name or description is empty after sync.");
+  }
+
 }
 
 export async function applyTelegramMetadata(bot: Telegraf) {

@@ -65,6 +65,14 @@ async function bootstrap() {
   ensureAppDirs();
 
   try {
+    const me = await bot.telegram.getMe();
+    logServer("info", "bot.bootstrap.identity", {
+      message: `🤖 Bot identity verified: @${me.username || "unknown"}`,
+      botId: me.id,
+      canJoinGroups: me.can_join_groups,
+      supportsInlineQueries: me.supports_inline_queries,
+    });
+
     await runBootstrapStep(
       "bot.bootstrap.telegram.cleanup",
       "🧹 Removing previous Telegram webhook",
@@ -75,33 +83,24 @@ async function bootstrap() {
     );
 
     await runBootstrapStep(
-      "bot.bootstrap.launch",
-      "🚀 Launching Telegram polling",
-      "✅ Telegram polling launched",
-      async () => {
-        await bot.launch();
-      },
-    );
-
-    await runBootstrapStep(
       "bot.bootstrap.metadata",
-      "📝 Applying Telegram metadata",
+      "📝 Applying Telegram metadata (commands, name, description)",
       "✅ Telegram metadata applied",
       async () => {
         await applyTelegramMetadata(bot);
       },
     );
 
-    const me = await bot.telegram.getMe();
-    logServer("info", "bot.bootstrap.running", {
-      message: `🤖 Bot is running as @${me.username || "unknown"}`,
-      botId: me.id,
-      actualUsername: me.username,
-      configuredUsername: appConfig.telegramBotUsername,
-      canJoinGroups: me.can_join_groups,
-      canReadAllGroupMessages: me.can_read_all_group_messages,
-      supportsInlineQueries: me.supports_inline_queries,
-    });
+    await runBootstrapStep(
+      "bot.bootstrap.launch",
+      "🚀 Launching Telegram polling loop",
+      "✅ Telegram polling launched",
+      async () => {
+        await bot.launch();
+      },
+    );
+
+
 
     if (appConfig.telegramAdminIds.length === 0) {
       logServer("warn", "bot.bootstrap.admins.none", {
@@ -110,9 +109,15 @@ async function bootstrap() {
       });
     }
 
+    logServer("info", "bot.bootstrap.admins.validating", {
+      message: "🔎 Validating admin reachability...",
+      adminIds: appConfig.telegramAdminIds,
+    });
+
     const adminValidation = await validateAdminRecipients(bot);
     const reachableAdmins = adminValidation.filter((item) => item.ok).map((item) => item.adminId);
     const unreachableAdmins = adminValidation.filter((item) => !item.ok);
+    
     if (appConfig.telegramAdminIds.length > 0 && reachableAdmins.length === 0) {
       logServer("error", "bot.bootstrap.admins.unreachable", {
         message: "❌ ALL configured TELEGRAM_ADMIN_IDS are unreachable! You will NOT receive notifications.",
@@ -127,16 +132,33 @@ async function bootstrap() {
       });
     }
 
+    const adminLocale = appConfig.defaultLocale || "en";
     const adminMessage = appConfig.telegramMaintenanceMode
-      ? t("en", "botStartupAdminMaintenance")
-      : t("en", "botStartupAdmin");
+      ? t(adminLocale, "botStartupAdminMaintenance")
+      : t(adminLocale, "botStartupAdmin");
+
+    logServer("info", "bot.bootstrap.admin_notify.started", {
+      message: "📣 Sending startup notification to reachable admins...",
+      adminLocale,
+      messagePreview: adminMessage.substring(0, 50) + "...",
+    });
 
     const startupResult = await notifyAdmins(bot, `${adminMessage}\n${appConfig.baseUrl}`);
-    logServer("info", "bot.bootstrap.admin_notify.completed", {
-      message: `📣 Startup notification sent to ${startupResult.delivered} admins`,
-      delivered: startupResult.delivered,
-      failed: startupResult.failed,
-    });
+    
+    if (reachableAdmins.length > 0 && startupResult.delivered === 0) {
+      logServer("error", "bot.bootstrap.admin_notify.failed_all", {
+        message: "❌ Startup notification failed to reach ANY admins, even though they were marked as reachable.",
+        attempted: reachableAdmins.length,
+        failed: startupResult.failed,
+      });
+    } else {
+      logServer("info", "bot.bootstrap.admin_notify.completed", {
+        message: `📣 Startup notification sent to ${startupResult.delivered} admins`,
+        delivered: startupResult.delivered,
+        failed: startupResult.failed,
+      });
+    }
+
 
     await sendHealthSnapshot(bot);
     startBotMonitoring(bot);
