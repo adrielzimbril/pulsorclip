@@ -120,7 +120,7 @@ async function setCommands(
 }
 
 async function syncDescriptions(bot: Telegraf) {
-  const botName = "PulsorClip | Media Downloader";
+  const botName = "PulsorClip - Media Downloader (TikTok, Instagram, YT & more)";
   const url = appConfig.baseUrl;
   
   const descPrefixEn = "🚀 PulsorClip: Professional Media Extraction Tool\n\n";
