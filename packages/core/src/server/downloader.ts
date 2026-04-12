@@ -224,7 +224,10 @@ function simplifyError(raw: string) {
     if (l.startsWith("video:") && l.includes("audio:") && l.includes("muxing overhead")) return false;
     if (l.startsWith("cpb: bitrate")) return false;
     if (l.includes("encoder :")) return false;
-    if (l.startsWith("Metadata:") || l.startsWith("  ")) return false; // Filter indentation/meta blocks
+    if (l.includes("Metadata:") || l.includes("  ") || l.includes("Stream #")) return false; // Filter indentation/meta blocks
+    if (l.includes("built with")) return false; // Filter ffmpeg header
+    if (l.startsWith("Configuration:")) return false;
+    if (l.startsWith("libav")) return false;
     return true;
   });
   // Search all lines (not just last) for known error patterns, then fallback to last line
@@ -311,7 +314,7 @@ function simplifyError(raw: string) {
   }
 
   // Generic fallback: prioritize the last meaningful line, but include raw snippet if it looks like a system error
-  return lastLine.length > 3 ? lastLine : `Extraction failed (Check Railway logs for raw stderr)`;
+  return lastLine.length > 3 ? lastLine : `Media extraction/processing failed. Ensure your binaries (ffmpeg/yt-dlp) are up to date and accessible.`;
 }
 
 function updateJobProgress(
@@ -474,6 +477,7 @@ async function convertAudio(
   );
 
   if (result.exitCode !== 0) {
+    console.error(`[CRITICAL] FFmpeg audio conversion failed for job ${job.id}. Stderr:`, result.stderr);
     throw new Error(simplifyError(result.stderr));
   }
 }
@@ -605,6 +609,7 @@ async function convertVideo(
   );
 
   if (result.exitCode !== 0) {
+    console.error(`[CRITICAL] FFmpeg video conversion failed for job ${job.id}. Stderr:`, result.stderr);
     throw new Error(simplifyError(result.stderr));
   }
 }
@@ -1304,7 +1309,8 @@ export async function executeDownload(jobId: string) {
       if (sourceProfile.platform === "tiktok") {
         sourceArgs = [
           ...getAuthArgs(),
-          ...sourceProfile.extractorArgs,
+          ...getSourceProfile(job.url).extractorArgs,
+          "--force-ipv4",
           "--no-playlist",
           "--newline",
           "--progress",
@@ -1317,7 +1323,8 @@ export async function executeDownload(jobId: string) {
       } else {
         sourceArgs = [
           ...getAuthArgs(),
-          ...sourceProfile.extractorArgs,
+          ...getSourceProfile(job.url).extractorArgs,
+          "--force-ipv4",
           "--no-playlist",
           "--newline",
           "--progress",
@@ -1380,8 +1387,12 @@ export async function executeDownload(jobId: string) {
           platform: sourceProfile.platform,
           url: urlForLogs(job.url),
           exitCode: downloadResult.exitCode,
-          stderr: downloadResult.stderr.slice(-500),
+          stderr: downloadResult.stderr.slice(-2000),
         });
+        
+        // Log to console for direct visibility in VPS logs
+        console.error(`[CRITICAL] yt-dlp failed for job ${job.id}. Stderr:`, downloadResult.stderr);
+        
         updateJobProgress(job, 0, "❌ Error while processing");
         return;
       }
