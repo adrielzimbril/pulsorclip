@@ -847,6 +847,7 @@ function serverJobUpdate(locale: AppLocale, jobId: string) {
   }
 
   if (job.status === "queued") {
+    const webLink = `${appConfig.baseUrl}/track/${jobId}`;
     return [
       locale === "fr" ? "⏳ File d'attente" : "⏳ Queue",
       "",
@@ -857,6 +858,8 @@ function serverJobUpdate(locale: AppLocale, jobId: string) {
       locale === "fr"
         ? "Le worker attend un slot libre."
         : "Waiting for a worker slot.",
+      "",
+      locale === "fr" ? `🔗 Suis ici: ${webLink}` : `🔗 Track here: ${webLink}`,
     ].join("\n");
   }
 
@@ -897,9 +900,7 @@ async function trackJobInChat(
 
     const nextText = serverJobUpdate(choice.locale, jobId);
     if (!silent && nextText !== lastText) {
-      await editChoiceMessage(bot, ctx.chat.id, choice, nextText, {
-        inline_keyboard: [],
-      });
+      await editChoiceMessage(bot, ctx.chat.id, choice, nextText, trackKeyboard(choice.locale, jobId).reply_markup);
       lastText = nextText;
     }
 
@@ -1227,8 +1228,13 @@ function userQueueKeyboard(userId: number, locale: AppLocale) {
   const buttons: any[][] = [];
 
   // Active job cancellation
+  // Active job cancellation & tracking
   if (active && active.jobId) {
     buttons.push([
+      {
+        text: `📊 Track #${active.requestId}`,
+        url: `${appConfig.baseUrl}/track/${active.jobId}`,
+      },
       {
         text: `🛑 Stop Active #${active.requestId}`,
         callback_data: `cancelactive:${active.jobId}`,
@@ -1282,10 +1288,14 @@ function userQueueMessage(userId: number, locale: AppLocale) {
     "",
     active
       ? locale === "fr"
-        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)}` +
-          (active.jobId ? " (Traitement)" : " (Initialisation)")
-        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)}` +
-          (active.jobId ? " (Processing)" : " (Initializing)")
+        ? `▶️ En cours: #${active.requestId} · ${getRequestTypeLabel(active)} ` +
+          (active.jobId
+            ? `(<a href="${appConfig.baseUrl}/track/${active.jobId}">Suivre</a>)`
+            : "(Initialisation)")
+        : `▶️ Active: #${active.requestId} · ${getRequestTypeLabel(active)} ` +
+          (active.jobId
+            ? `(<a href="${appConfig.baseUrl}/track/${active.jobId}">Track</a>)`
+            : "(Initializing)")
       : locale === "fr"
         ? "▶️ En cours: aucun job actif"
         : "▶️ Active: no job processing right now",
@@ -1305,10 +1315,11 @@ function userQueueMessage(userId: number, locale: AppLocale) {
     "",
     ...queue
       .slice(0, 8)
-      .map(
-        (request, index) =>
-          `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · ${request.url}`,
-      ),
+      .map((request, index) => {
+        const trackUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(request.url)}`;
+        const trackLabel = locale === "fr" ? "Suivre" : "Track";
+        return `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · <a href="${trackUrl}">${trackLabel}</a>`;
+      }),
   );
 
   if (queue.length > 8) {
