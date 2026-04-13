@@ -90,6 +90,7 @@ function helpMessage(locale: AppLocale, admin = false) {
     "/queue",
     "/language",
     "/support",
+    "/status",
   ];
 
   const lines = [

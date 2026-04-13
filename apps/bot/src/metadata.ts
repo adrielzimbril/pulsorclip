@@ -56,6 +56,7 @@ const publicEnglishBaseCommands: BotCommand[] = [
 
 const publicEnglishCommands: BotCommand[] = [
   ...publicEnglishBaseCommands,
+  { command: "status", description: "🟢 View Bot services availability" },
   { command: "queue", description: "📦 View your active jobs and queue" },
 ];
 
@@ -71,6 +72,7 @@ const publicFrenchBaseCommands: BotCommand[] = [
 
 const publicFrenchCommands: BotCommand[] = [
   ...publicFrenchBaseCommands,
+  { command: "status", description: "🟢 Voir l'état de disponibilité du bot" },
   { command: "queue", description: "📦 Voir tes tâches et ta file d'attente" },
 ];
 
