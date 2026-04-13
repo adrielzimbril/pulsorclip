@@ -54,10 +54,12 @@ export const facebookFallback: FallbackHandler = {
       ];
 
       let resolvedUrl: string | null = null;
+      let matchedPattern: string | null = null;
       for (const pattern of patterns) {
         const match = html.match(pattern);
         if (match) {
           resolvedUrl = match[1];
+          matchedPattern = pattern.source;
           break;
         }
       }
@@ -73,8 +75,15 @@ export const facebookFallback: FallbackHandler = {
       );
 
       if (!resolvedUrl) {
+        logServer("warn", "fallbacks.facebook.no_url_found", {
+          attemptedPatterns: patterns.map((p) => p.source),
+        });
         throw new Error("No video URL found in Facebook page");
       }
+
+      logServer("info", "fallbacks.facebook.pattern_matched", {
+        matchedPattern,
+      });
 
       // Decode URL if needed
       const decodedUrl = resolvedUrl

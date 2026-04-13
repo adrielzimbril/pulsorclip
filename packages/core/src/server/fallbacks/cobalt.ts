@@ -119,6 +119,7 @@ export const cobaltFallback: FallbackHandler = {
     // All instances failed
     logServer("warn", "fallbacks.cobalt.all_instances_failed", {
       platform,
+      attemptedInstances: COBALT_INSTANCES,
       error: lastError?.message,
     });
     throw lastError || new Error("All Cobalt instances failed");
@@ -150,6 +151,7 @@ export const cobaltFallback: FallbackHandler = {
 
     logServer("warn", "fallbacks.cobalt.download_all_failed", {
       platform,
+      attemptedInstances: COBALT_INSTANCES,
       error: lastError?.message,
     });
     return {

@@ -74,7 +74,7 @@ export function VideoPlayerModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-5xl overflow-hidden rounded-[32px] border border-line bg-surface shadow-2xl"
+            className="relative w-full max-w-5xl max-h-[90dvh] overflow-hidden rounded-[32px] border border-line bg-surface shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-line bg-surface/50 px-6 py-4 backdrop-blur-sm">

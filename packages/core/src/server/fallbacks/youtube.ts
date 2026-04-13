@@ -160,6 +160,12 @@ export const youtubeFallback: FallbackHandler = {
         });
       }
 
+      logServer("error", "fallbacks.youtube.all_failed", {
+        attemptedInvidiousInstances: INVIDIOUS_INSTANCES,
+        triedNoembed: true,
+        lastError: lastError?.message,
+      });
+
       throw lastError || new Error("All YouTube fallbacks failed");
     } catch (err) {
       logServer("warn", "fallbacks.youtube.fetch_failed", {
