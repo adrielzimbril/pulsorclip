@@ -28,6 +28,12 @@ import {
   deleteStoredThumbnail,
 } from "./runtime-db";
 import { getSourceProfile } from "./source-adapters";
+import {
+  allFallbacks,
+  executeFallbacks,
+  type FallbackMediaInfo,
+  type FallbackDownloadResult,
+} from "./fallbacks/index";
 import type {
   DownloadJob,
   DownloadRequestPayload,
@@ -1468,6 +1474,30 @@ export async function fetchThumbnailBuffer(
   }
 }
 
+async function getResolvedUrlsViaFallbacks(
+  url: string,
+  platform: string,
+): Promise<{ resolvedUrl?: string; resolvedVideoUrl?: string }> {
+  try {
+    const fallbackInfo = await executeFallbacks<FallbackMediaInfo>(
+      allFallbacks,
+      url,
+      platform,
+      "fetchInfo",
+    );
+    return {
+      resolvedUrl: fallbackInfo.resolvedUrl,
+      resolvedVideoUrl: fallbackInfo.resolvedVideoUrl,
+    };
+  } catch (err) {
+    logServer("warn", "media.info.fallbacks.all_failed", {
+      platform,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {};
+  }
+}
+
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   const url = await expandUrl(rawUrl);
   const allowPlaylistInfo = isYoutubePlaylistUrl(url);
@@ -1647,6 +1677,24 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       }
     }
 
+    // Fallback for resolved URLs: If yt-dlp didn't provide valid resolved URLs, try fallbacks
+    if (!mediaInfo.resolvedUrl && !mediaInfo.resolvedVideoUrl) {
+      try {
+        const fallbackUrls = await getResolvedUrlsViaFallbacks(
+          url,
+          sourceProfile.platform,
+        );
+        if (fallbackUrls.resolvedUrl) {
+          mediaInfo.resolvedUrl = fallbackUrls.resolvedUrl;
+        }
+        if (fallbackUrls.resolvedVideoUrl) {
+          mediaInfo.resolvedVideoUrl = fallbackUrls.resolvedVideoUrl;
+        }
+      } catch {
+        // Fallback failed, continue without resolved URLs
+      }
+    }
+
     return normalizeMediaInfo(mediaInfo);
   } catch (err) {
     if (url.includes("threads.net") || url.includes("threads.com")) {
@@ -1776,25 +1824,65 @@ export async function executeDownload(jobId: string) {
       });
 
       if (downloadResult.exitCode !== 0) {
-        job.status = "error";
-        job.error = simplifyError(downloadResult.stderr);
-        job.updatedAt = Date.now();
-        logServer("error", "media.download.fetch.failed", {
+        // Try fallbacks for download URL
+        logServer("info", "media.download.ytdlp_failed.trying_fallbacks", {
           jobId: job.id,
           platform: sourceProfile.platform,
-          url: urlForLogs(job.url),
-          exitCode: downloadResult.exitCode,
-          stderr: downloadResult.stderr.slice(-2000),
         });
 
-        // Log to console for direct visibility in VPS logs
-        console.error(
-          `[CRITICAL] yt-dlp failed for job ${job.id}. Stderr:`,
-          downloadResult.stderr,
-        );
+        try {
+          const fallbackResult = await executeFallbacks<FallbackDownloadResult>(
+            allFallbacks,
+            jobUrl,
+            sourceProfile.platform,
+            "getDownloadUrl",
+          );
 
-        updateJobProgress(job, 0, "❌ Error while processing");
-        return;
+          if (fallbackResult.success && fallbackResult.resolvedUrl) {
+            logServer("info", "media.download.fallback.success", {
+              jobId: job.id,
+              platform: sourceProfile.platform,
+              fallbackUrl: fallbackResult.resolvedUrl.substring(0, 100),
+            });
+
+            // Download using fallback URL
+            updateJobProgress(job, 10, "Downloading via fallback...");
+            const directExt = job.mode === "audio" ? "mp3" : "mp4";
+            const directPath = join(tempDir, `source.${directExt}`);
+            await downloadDirectFile(
+              job,
+              fallbackResult.resolvedUrl,
+              directPath,
+              signal,
+            );
+          } else {
+            throw new Error("Fallback download URL not available");
+          }
+        } catch (fallbackErr) {
+          job.status = "error";
+          job.error = simplifyError(downloadResult.stderr);
+          job.updatedAt = Date.now();
+          logServer("error", "media.download.fetch.failed", {
+            jobId: job.id,
+            platform: sourceProfile.platform,
+            url: urlForLogs(job.url),
+            exitCode: downloadResult.exitCode,
+            stderr: downloadResult.stderr.slice(-2000),
+            fallbackError:
+              fallbackErr instanceof Error
+                ? fallbackErr.message
+                : String(fallbackErr),
+          });
+
+          // Log to console for direct visibility in VPS logs
+          console.error(
+            `[CRITICAL] yt-dlp failed for job ${job.id}. Stderr:`,
+            downloadResult.stderr,
+          );
+
+          updateJobProgress(job, 0, "❌ Error while processing");
+          return;
+        }
       }
     }
 
