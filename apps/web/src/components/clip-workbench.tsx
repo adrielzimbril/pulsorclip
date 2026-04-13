@@ -88,6 +88,7 @@ export function ClipWorkbench({
     title: string;
     resolvedVideoUrl?: string;
     platform?: string;
+    sourceUrl?: string;
   } | null>(null);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
@@ -694,6 +695,7 @@ export function ClipWorkbench({
         title={previewVideo?.title}
         resolvedVideoUrl={previewVideo?.resolvedVideoUrl}
         platform={previewVideo?.platform}
+        sourceUrl={previewVideo?.sourceUrl}
       />
 
       <section
@@ -990,8 +992,20 @@ export function ClipWorkbench({
                 mode={downloadMode}
                 onDownload={() => card.jobId && openDownload(card.jobId)}
                 onPrepare={() => void prepareDownload(card)}
-                onPreview={(src, title, resolvedVideoUrl, platform) =>
-                  setPreviewVideo({ src, title, resolvedVideoUrl, platform })
+                onPreview={(
+                  src,
+                  title,
+                  resolvedVideoUrl,
+                  platform,
+                  sourceUrl,
+                ) =>
+                  setPreviewVideo({
+                    src,
+                    title,
+                    resolvedVideoUrl,
+                    platform,
+                    sourceUrl,
+                  })
                 }
                 onSelectContainer={(container) =>
                   updateCard(card.id, (current) => ({

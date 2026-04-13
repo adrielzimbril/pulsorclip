@@ -133,6 +133,7 @@ export function MediaCard({
     title: string,
     resolvedVideoUrl?: string,
     platform?: string,
+    sourceUrl?: string,
   ) => void;
 }) {
   const selectedOptions =

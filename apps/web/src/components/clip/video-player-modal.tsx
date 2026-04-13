@@ -12,6 +12,7 @@ interface VideoPlayerModalProps {
   title?: string;
   resolvedVideoUrl?: string;
   platform?: string;
+  sourceUrl?: string;
 }
 
 export function VideoPlayerModal({
@@ -21,6 +22,7 @@ export function VideoPlayerModal({
   title,
   resolvedVideoUrl,
   platform,
+  sourceUrl,
 }: VideoPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isYouTube, setIsYouTube] = useState(false);
@@ -32,6 +34,8 @@ export function VideoPlayerModal({
       platform === "youtube" ||
       src.includes("youtube.com") ||
       src.includes("youtu.be") ||
+      sourceUrl?.includes("youtube.com") ||
+      sourceUrl?.includes("youtu.be") ||
       (resolvedVideoUrl &&
         (resolvedVideoUrl.includes("youtube.com") ||
           resolvedVideoUrl.includes("youtu.be"))) ||
@@ -41,7 +45,7 @@ export function VideoPlayerModal({
 
     if (isYoutube) {
       // Extract YouTube video ID for embed
-      const urlToUse = resolvedVideoUrl || src;
+      const urlToUse = sourceUrl || resolvedVideoUrl || src;
       const videoIdMatch = urlToUse.match(
         /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
       );
@@ -51,7 +55,7 @@ export function VideoPlayerModal({
         console.log("YouTube embed URL:", embedUrl);
       }
     }
-  }, [src, resolvedVideoUrl, platform]);
+  }, [src, resolvedVideoUrl, platform, sourceUrl]);
 
   useEffect(() => {
     if (isOpen && videoRef.current && !isYouTube) {
@@ -96,7 +100,7 @@ export function VideoPlayerModal({
 
             {/* Video Container */}
             <div className="aspect-video w-full h-full bg-black">
-              {isYouTube && youtubeEmbedUrl ? (
+              {isYouTube ? (
                 <iframe
                   src={youtubeEmbedUrl}
                   className="w-full h-full"

@@ -1595,10 +1595,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
           audioOptions: [],
           resolvedUrl: fallbackInfo.resolvedUrl,
           sourceUrl: url,
-          resolvedVideoUrl:
-            sourceProfile.platform === "youtube"
-              ? url
-              : fallbackInfo.resolvedVideoUrl,
+          resolvedVideoUrl: fallbackInfo.resolvedVideoUrl,
           width: fallbackInfo.width,
           height: fallbackInfo.height,
           images,
@@ -1728,26 +1725,23 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
         typeof parsed.url === "string" ? normalizeUrl(parsed.url) : undefined,
       resolvedVideoUrl:
         // For Facebook, use HD format if available, otherwise SD
-        sourceProfile.platform === "youtube"
-          ? url
-          : sourceProfile.platform === "facebook" &&
-              Array.isArray(parsed.formats) &&
-              parsed.formats.length > 0
-            ? (() => {
-                const hdFormat = parsed.formats.find(
-                  (f: any) => f.format_id === "hd" || f.quality === -2,
-                );
-                const sdFormat = parsed.formats.find(
-                  (f: any) => f.format_id === "sd" || f.quality === -3,
-                );
-                const formatUrl = (hdFormat || sdFormat)?.url;
-                return formatUrl
-                  ? normalizeUrl(formatUrl as string)
-                  : undefined;
-              })()
-            : typeof parsed.url === "string"
-              ? normalizeUrl(parsed.url)
-              : undefined,
+        sourceProfile.platform === "facebook" &&
+        Array.isArray(parsed.formats) &&
+        parsed.formats.length > 0
+          ? (() => {
+              const hdFormat = parsed.formats.find(
+                (f: any) => f.format_id === "hd" || f.quality === -2,
+              );
+              const sdFormat = parsed.formats.find(
+                (f: any) => f.format_id === "sd" || f.quality === -3,
+              );
+              const formatUrl = (hdFormat || sdFormat)?.url;
+              return formatUrl ? normalizeUrl(formatUrl as string) : undefined;
+            })()
+          : typeof parsed.url === "string"
+            ? normalizeUrl(parsed.url)
+            : undefined,
+      sourceUrl: sourceProfile.platform === "youtube" ? url : undefined,
     };
 
     // Manual Enrichment: If yt-dlp succeeded but returned generic info, try manual scraping
