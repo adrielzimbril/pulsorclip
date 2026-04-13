@@ -25,18 +25,31 @@ async function fetchFromCobalt(
   const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
   try {
+    // YouTube-specific configuration
+    const requestBody: any = {
+      url: url,
+      vCodec: "h264",
+      vQuality: "max",
+      aFormat: "mp3",
+    };
+
+    // For YouTube, use specific settings to better handle watch URLs
+    if (platform === "youtube") {
+      requestBody.vCodec = "h264";
+      requestBody.vQuality = "1080";
+      requestBody.vFormat = "mp4";
+      requestBody.aFormat = "mp3";
+      requestBody.dubLang = false;
+      requestBody.vimeoDash = false;
+    }
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        url: url,
-        vCodec: "h264",
-        vQuality: "max",
-        aFormat: "mp3",
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -71,7 +84,7 @@ async function fetchFromCobalt(
 
 export const cobaltFallback: FallbackHandler = {
   name: "cobalt",
-  priority: 10, // High priority as it's a reliable modern API
+  priority: 1, // Highest priority for YouTube as it handles watch URLs better
   canHandle: (url: string, platform: string) => {
     // Cobalt supports: YouTube, TikTok, Instagram, Twitter, Facebook, etc.
     const supportedPlatforms = [

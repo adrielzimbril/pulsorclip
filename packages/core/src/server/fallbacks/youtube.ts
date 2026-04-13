@@ -170,8 +170,25 @@ export const youtubeFallback: FallbackHandler = {
           const data = await fetchFromInvidious(instance, videoId);
 
           // Try formatStreams first, fallback to adaptiveFormats
-          const formatUrl =
-            data.formatStreams?.[0]?.url || data.adaptiveFormats?.[0]?.url;
+          let formatUrl = data.formatStreams?.[0]?.url;
+
+          // If no formatStreams, try adaptiveFormats (YouTube watch videos often use adaptiveFormats)
+          if (
+            !formatUrl &&
+            data.adaptiveFormats &&
+            data.adaptiveFormats.length > 0
+          ) {
+            // Try to find a video-only format (type: "video")
+            const videoFormat = data.adaptiveFormats.find(
+              (f: any) => f.type === "video",
+            );
+            if (videoFormat) {
+              formatUrl = videoFormat.url;
+            } else {
+              // Fallback to first adaptive format
+              formatUrl = data.adaptiveFormats[0].url;
+            }
+          }
 
           logServer("info", "fallbacks.youtube.invidious_success", {
             instance,
@@ -184,6 +201,7 @@ export const youtubeFallback: FallbackHandler = {
             hasResolvedUrl: !!formatUrl,
             usedFormatStreams: !!data.formatStreams?.[0]?.url,
             usedAdaptiveFormats: !!data.adaptiveFormats?.[0]?.url,
+            adaptiveFormatsCount: data.adaptiveFormats?.length || 0,
           });
 
           return {
