@@ -94,8 +94,8 @@ function helpMessage(locale: AppLocale, admin = false) {
 
   const lines = [
     `<b>✨ PulsorClip Premium Guide</b>`,
-    isFr 
-      ? "Extrais des médias avec une qualité studio et un contrôle total." 
+    isFr
+      ? "Extrais des médias avec une qualité studio et un contrôle total."
       : "Extract media with studio quality and total control.",
     "━━━━━━━━━━━━━━",
     `<b>🚀 ${isFr ? "Démarrage Rapide" : "Quick Start"}</b>`,
@@ -138,7 +138,7 @@ function adminHelpMessage(locale: AppLocale) {
 function supportMessage(locale: AppLocale) {
   const isFr = locale === "fr";
   const contact = `@${appConfig.telegramAdminHandle}`;
-  
+
   return [
     `<b>${t(locale, "botSupportTitle")}</b>`,
     "",
@@ -304,7 +304,11 @@ async function sendDeliveredMedia(
 ) {
   const job = getDownloadJob(jobId);
   const file = requireCompletedJob(jobId);
-  logServer("info", "media.download.sending.start", { jobId, filePath: file?.filePath, filename: file?.filename });
+  logServer("info", "media.download.sending.start", {
+    jobId,
+    filePath: file?.filePath,
+    filename: file?.filename,
+  });
   console.log("media.download.sending.info", { job, file });
 
   if (!job || !file?.filePath || !file.filename) {
@@ -313,7 +317,12 @@ async function sendDeliveredMedia(
       t(locale, "botDownloadFailed"),
       trackKeyboard(locale, jobId),
     );
-    logServer("error", "media.download.sending.failed", { reason: "No job or file", jobId, filePath: file?.filePath, filename: file?.filename });
+    logServer("error", "media.download.sending.failed", {
+      reason: "No job or file",
+      jobId,
+      filePath: file?.filePath,
+      filename: file?.filename,
+    });
     return;
   }
 
@@ -323,7 +332,12 @@ async function sendDeliveredMedia(
       t(locale, "botTooLarge"),
       trackKeyboard(locale, jobId),
     );
-    logServer("error", "media.download.sending.failed", { reason: "File too large", jobId, filePath: file?.filePath, filename: file?.filename });
+    logServer("error", "media.download.sending.failed", {
+      reason: "File too large",
+      jobId,
+      filePath: file?.filePath,
+      filename: file?.filename,
+    });
     return;
   }
 
@@ -346,7 +360,12 @@ async function sendDeliveredMedia(
         { source: createReadStream(file.filePath), filename: file.filename },
         options,
       );
-      logServer("info", "media.download.sending.success", { mediaType: "audio", jobId, filePath: file?.filePath, filename: file?.filename });
+      logServer("info", "media.download.sending.success", {
+        mediaType: "audio",
+        jobId,
+        filePath: file?.filePath,
+        filename: file?.filename,
+      });
       return;
     }
 
@@ -356,7 +375,12 @@ async function sendDeliveredMedia(
         { source: createReadStream(file.filePath) },
         options,
       );
-      logServer("info", "media.download.sending.success", { mediaType: "photo", jobId, filePath: file?.filePath, filename: file?.filename });
+      logServer("info", "media.download.sending.success", {
+        mediaType: "photo",
+        jobId,
+        filePath: file?.filePath,
+        filename: file?.filename,
+      });
       return;
     }
 
@@ -366,11 +390,20 @@ async function sendDeliveredMedia(
         { source: createReadStream(filePath), filename },
         options,
       );
-      logServer("info", "media.download.sending.success", { mediaType: "document", jobId, filePath: file?.filePath, filename: file?.filename });
+      logServer("info", "media.download.sending.success", {
+        mediaType: "document",
+        jobId,
+        filePath: file?.filePath,
+        filename: file?.filename,
+      });
     }
 
     try {
-      if (extension === ".mp4" || extension === ".webm" || extension === ".mkv") {
+      if (
+        extension === ".mp4" ||
+        extension === ".webm" ||
+        extension === ".mkv"
+      ) {
         await bot.telegram.sendVideo(
           chatId,
           { source: createReadStream(file.filePath), filename: file.filename },
@@ -379,25 +412,40 @@ async function sendDeliveredMedia(
       } else {
         await sendDocument(file.filePath, file.filename);
       }
-      logServer("info", "media.download.sending.success", { mediaType: "video", jobId, filePath: file?.filePath, filename: file?.filename });
+      logServer("info", "media.download.sending.success", {
+        mediaType: "video",
+        jobId,
+        filePath: file?.filePath,
+        filename: file?.filename,
+      });
     } catch (err) {
-      logServer("error", "media.download.sending.failed", { mediaType: "video", jobId, filePath: file?.filePath, filename: file?.filename, error: err });
+      logServer("error", "media.download.sending.failed", {
+        mediaType: "video",
+        jobId,
+        filePath: file?.filePath,
+        filename: file?.filename,
+        error: err,
+      });
       // Fallback to document, also wrapped in try-catch to prevent crash
       await sendDocument(file.filePath, file.filename);
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    logServer("error", "bot.delivery.failed", { jobId, chatId, error: errorMsg });
-    
+    logServer("error", "bot.delivery.failed", {
+      jobId,
+      chatId,
+      error: errorMsg,
+    });
+
     // Final notification if everything fails
     await bot.telegram.sendMessage(
       chatId,
       t(locale, "botDeliveryFailedTimeout", {
-        url: `${appConfig.baseUrl}/track/${jobId}`
+        url: `${appConfig.baseUrl}/track/${jobId}`,
       }),
-      { ...trackKeyboard(locale, jobId), parse_mode: "HTML" }
+      { ...trackKeyboard(locale, jobId), parse_mode: "HTML" },
     );
-    
+
     throw err; // Re-throw so trackJobInChat knows it failed
   }
 }
@@ -944,7 +992,10 @@ async function trackJobInChat(
         await sendDeliveredMedia(bot, ctx.chat.id, choice.locale, jobId, title);
         logServer("info", "media.download.delivery.success", { jobId });
       } catch (err) {
-        logServer("error", "media.download.delivery.failed", { jobId, error: err });
+        logServer("error", "media.download.delivery.failed", {
+          jobId,
+          error: err,
+        });
         // Error is already reported to user inside sendDeliveredMedia
       }
       void processNextInQueue(bot, ctx.from?.id, ctx);
@@ -1354,13 +1405,11 @@ function userQueueMessage(userId: number, locale: AppLocale) {
 
   lines.push(
     "",
-    ...queue
-      .slice(0, 8)
-      .map((request, index) => {
-        const trackUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(request.url)}`;
-        const trackLabel = locale === "fr" ? "Suivre" : "Track";
-        return `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · <a href="${trackUrl}">${trackLabel}</a>`;
-      }),
+    ...queue.slice(0, 8).map((request, index) => {
+      const trackUrl = `${appConfig.baseUrl}?url=${encodeURIComponent(request.url)}`;
+      const trackLabel = locale === "fr" ? "Suivre" : "Track";
+      return `${index + 1}. #${request.requestId} · ${getRequestTypeLabel(request)} · <a href="${trackUrl}">${trackLabel}</a>`;
+    }),
   );
 
   if (queue.length > 8) {
@@ -1420,7 +1469,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(userId, ctx.from?.language_code);
     rememberUser(userId);
     await sendPresence(ctx, "typing");
-    
+
     const message = helpMessage(locale, isAdmin(userId));
     await ctx.reply(message, {
       ...webKeyboard(locale),
@@ -1457,7 +1506,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(await getServerHealthText(locale, true), { ...webKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(await getServerHealthText(locale, true), {
+      ...webKeyboard(locale),
+      parse_mode: "HTML",
+    });
   });
 
   bot.command("users", async (ctx) => {
@@ -1468,19 +1520,22 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    
+
     const userIds = getAllStoredUserIds();
     const summary = getDailySummary();
-    
-    await ctx.reply(t(locale, "botUsersCountAdmin", { 
-      total: userIds.length, 
-      today: summary.botUsers,
-      botJobs: summary.downloadsCompleted.bot,
-      webJobs: summary.downloadsCompleted.web,
-    }), {
-      ...webKeyboard(locale),
-      parse_mode: "HTML",
-    });
+
+    await ctx.reply(
+      t(locale, "botUsersCountAdmin", {
+        total: userIds.length,
+        today: summary.botUsers,
+        botJobs: summary.downloadsCompleted.bot,
+        webJobs: summary.downloadsCompleted.web,
+      }),
+      {
+        ...webKeyboard(locale),
+        parse_mode: "HTML",
+      },
+    );
   });
 
   bot.command("queue", async (ctx) => {
@@ -1499,14 +1554,17 @@ export function registerBotHandlers(bot: Telegraf) {
 
     if (isAdmin(ctx.from?.id)) {
       const serverSnapshot = await getQueueSnapshotText(locale);
-      await ctx.reply(
-        [personalMessage, "", serverSnapshot].join("\n"),
-        { ...userQueueKeyboard(userId, locale), parse_mode: "HTML" }
-      );
+      await ctx.reply([personalMessage, "", serverSnapshot].join("\n"), {
+        ...userQueueKeyboard(userId, locale),
+        parse_mode: "HTML",
+      });
       return;
     }
 
-    await ctx.reply(personalMessage, { ...userQueueKeyboard(userId, locale), parse_mode: "HTML" });
+    await ctx.reply(personalMessage, {
+      ...userQueueKeyboard(userId, locale),
+      parse_mode: "HTML",
+    });
   });
 
   bot.command("queuestatus", async (ctx) => {
@@ -1517,7 +1575,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    await ctx.reply(await getQueueSnapshotText(locale), { ...webKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(await getQueueSnapshotText(locale), {
+      ...webKeyboard(locale),
+      parse_mode: "HTML",
+    });
   });
 
   bot.command("formats", async (ctx) => {
@@ -1538,7 +1599,10 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendHealthSnapshot(bot, locale);
-    await ctx.reply(t(locale, "botHealthSent"), { ...webKeyboard(locale), parse_mode: "HTML" });
+    await ctx.reply(t(locale, "botHealthSent"), {
+      ...webKeyboard(locale),
+      parse_mode: "HTML",
+    });
   });
 
   bot.command("report", async (ctx) => {
@@ -1566,7 +1630,7 @@ export function registerBotHandlers(bot: Telegraf) {
     const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
     rememberUser(ctx.from?.id);
     await sendPresence(ctx, "typing");
-    
+
     await ctx.reply(supportMessage(locale), {
       ...supportKeyboard(locale),
       parse_mode: "HTML",
@@ -1575,33 +1639,80 @@ export function registerBotHandlers(bot: Telegraf) {
 
   bot.command("broadcast", async (ctx) => {
     const userId = ctx.from?.id;
-    if (!isAdmin(userId)) return;
+    logServer("info", "bot.broadcast.start", {
+      userId,
+      isAdmin: isAdmin(userId),
+    });
+
+    if (!isAdmin(userId)) {
+      logServer("warn", "bot.broadcast.unauthorized", { userId });
+      return;
+    }
 
     rememberUser(userId);
     const locale = localeForTelegram(userId, ctx.from?.language_code);
-    
+
     // Support both direct text and captions
-    const text = (ctx.message.text || (ctx.message as any).caption || "").split(/\s+/).slice(1).join(" ").trim();
+    const text = (ctx.message.text || (ctx.message as any).caption || "")
+      .split(/\s+/)
+      .slice(1)
+      .join(" ")
+      .trim();
     const replyTo = ctx.message.reply_to_message;
-    
+
     // Detect if the message itself is a media message (e.g. photo with /broadcast caption)
-    const hasMedia = !!(ctx.message as any).photo || !!(ctx.message as any).video || !!(ctx.message as any).document || !!(ctx.message as any).audio || !!(ctx.message as any).animation;
+    const hasMedia =
+      !!(ctx.message as any).photo ||
+      !!(ctx.message as any).video ||
+      !!(ctx.message as any).document ||
+      !!(ctx.message as any).audio ||
+      !!(ctx.message as any).animation;
+
+    logServer("info", "bot.broadcast.params", {
+      text: text ? text.substring(0, 100) : "(empty)",
+      hasReplyTo: !!replyTo,
+      hasMedia,
+      messageType: (ctx.message as any).photo
+        ? "photo"
+        : (ctx.message as any).video
+          ? "video"
+          : (ctx.message as any).document
+            ? "document"
+            : (ctx.message as any).audio
+              ? "audio"
+              : (ctx.message as any).animation
+                ? "animation"
+                : "text",
+    });
 
     if (!text && !replyTo && !hasMedia) {
+      logServer("warn", "bot.broadcast.no_content");
       await ctx.reply(t(locale, "botBroadcastUsage"), { parse_mode: "HTML" });
       return;
     }
 
     // Exclude sender from target list
-    const userIds = getAllStoredUserIds().filter(uid => uid !== userId);
-    
+    const allUserIds = getAllStoredUserIds();
+    const userIds = allUserIds.filter((uid) => uid !== userId);
+
+    logServer("info", "bot.broadcast.targets", {
+      totalUsers: allUserIds.length,
+      targetUsers: userIds.length,
+      excludedSender: userId,
+    });
+
     if (userIds.length === 0) {
+      logServer("warn", "bot.broadcast.no_targets");
       await ctx.reply("No other users to broadcast to.");
       return;
     }
 
     const header = t(locale, "botBroadcastStarted", { count: userIds.length });
-    const statusMsg = await ctx.reply(`${header}\n\n⏳ Progression : 0/${userIds.length}`);
+    const statusMsg = await ctx.reply(
+      `${header}\n\n⏳ Progression : 0/${userIds.length}`,
+    );
+
+    logServer("info", "bot.broadcast.started", { targetCount: userIds.length });
 
     let success = 0;
     let failed = 0;
@@ -1610,13 +1721,22 @@ export function registerBotHandlers(bot: Telegraf) {
       const uid = userIds[i];
       try {
         const msg = ctx.message as any;
+        let messageType = "unknown";
+
         // 1. Reply broadcast (forward original message)
         if (replyTo) {
+          messageType = "reply_forward";
+          logServer("debug", "bot.broadcast.sending.reply", {
+            uid,
+            replyToMessageId: replyTo.message_id,
+          });
           await bot.telegram.copyMessage(uid, ctx.chat.id, replyTo.message_id);
         }
         // 2. PHOTO
         else if (msg.photo) {
+          messageType = "photo";
           const fileId = msg.photo.at(-1).file_id;
+          logServer("debug", "bot.broadcast.sending.photo", { uid, fileId });
           await bot.telegram.sendPhoto(uid, fileId, {
             caption: text || undefined,
             parse_mode: "HTML",
@@ -1624,6 +1744,11 @@ export function registerBotHandlers(bot: Telegraf) {
         }
         // 3. VIDEO
         else if (msg.video) {
+          messageType = "video";
+          logServer("debug", "bot.broadcast.sending.video", {
+            uid,
+            fileId: msg.video.file_id,
+          });
           await bot.telegram.sendVideo(uid, msg.video.file_id, {
             caption: text || undefined,
             parse_mode: "HTML",
@@ -1631,6 +1756,11 @@ export function registerBotHandlers(bot: Telegraf) {
         }
         // 4. DOCUMENT (PDF, ZIP, etc.)
         else if (msg.document) {
+          messageType = "document";
+          logServer("debug", "bot.broadcast.sending.document", {
+            uid,
+            fileId: msg.document.file_id,
+          });
           await bot.telegram.sendDocument(uid, msg.document.file_id, {
             caption: text || undefined,
             parse_mode: "HTML",
@@ -1638,6 +1768,11 @@ export function registerBotHandlers(bot: Telegraf) {
         }
         // 5. AUDIO
         else if (msg.audio) {
+          messageType = "audio";
+          logServer("debug", "bot.broadcast.sending.audio", {
+            uid,
+            fileId: msg.audio.file_id,
+          });
           await bot.telegram.sendAudio(uid, msg.audio.file_id, {
             caption: text || undefined,
             parse_mode: "HTML",
@@ -1645,6 +1780,11 @@ export function registerBotHandlers(bot: Telegraf) {
         }
         // 6. ANIMATION (GIF)
         else if (msg.animation) {
+          messageType = "animation";
+          logServer("debug", "bot.broadcast.sending.animation", {
+            uid,
+            fileId: msg.animation.file_id,
+          });
           await bot.telegram.sendAnimation(uid, msg.animation.file_id, {
             caption: text || undefined,
             parse_mode: "HTML",
@@ -1652,34 +1792,69 @@ export function registerBotHandlers(bot: Telegraf) {
         }
         // 7. TEXT ONLY
         else {
+          messageType = "text";
+          logServer("debug", "bot.broadcast.sending.text", {
+            uid,
+            textLength: text?.length || 0,
+          });
           await bot.telegram.sendMessage(uid, text, {
             parse_mode: "HTML",
           });
         }
+
         success++;
+        logServer("debug", "bot.broadcast.success", {
+          uid,
+          messageType,
+          progress: `${i + 1}/${userIds.length}`,
+        });
       } catch (err) {
         failed++;
+        const errorMsg = err instanceof Error ? err.message : String(err);
         logServer("warn", "bot.broadcast.failed", {
           uid,
-          error: String(err),
+          error: errorMsg,
+          progress: `${i + 1}/${userIds.length}`,
+          successCount: success,
+          failedCount: failed,
         });
       }
-      
+
       // Update progress every 20 users
       if ((i + 1) % 20 === 0 || i === userIds.length - 1) {
-        await bot.telegram.editMessageText(
-          ctx.chat.id,
-          statusMsg.message_id,
-          undefined,
-          `${header}\n\n⏳ Progression : ${i + 1}/${userIds.length}\n✅ ${success} | ❌ ${failed}`
-        ).catch(() => {});
+        logServer("info", "bot.broadcast.progress", {
+          current: i + 1,
+          total: userIds.length,
+          success,
+          failed,
+        });
+        await bot.telegram
+          .editMessageText(
+            ctx.chat.id,
+            statusMsg.message_id,
+            undefined,
+            `${header}\n\n⏳ Progression : ${i + 1}/${userIds.length}\n✅ ${success} | ❌ ${failed}`,
+          )
+          .catch((editErr) => {
+            logServer("warn", "bot.broadcast.status_update_failed", {
+              error: String(editErr),
+            });
+          });
       }
 
       // Respect Telegram rate limits (~30/s)
       await new Promise((r) => setTimeout(r, 60));
     }
 
-    await ctx.reply(t(locale, "botBroadcastCompleted", { success, failed }), { parse_mode: "HTML" });
+    logServer("info", "bot.broadcast.completed", {
+      total: userIds.length,
+      success,
+      failed,
+      adminId: userId,
+    });
+    await ctx.reply(t(locale, "botBroadcastCompleted", { success, failed }), {
+      parse_mode: "HTML",
+    });
   });
 
   bot.command("video", async (ctx) => {
