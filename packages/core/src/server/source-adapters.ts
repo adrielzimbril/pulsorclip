@@ -23,12 +23,15 @@ type SourceAdapterRule = {
 const SOURCE_ADAPTERS: SourceAdapterRule[] = [
   {
     platform: "tiktok",
-    test: (url) => url.includes("tiktok.com/") || url.includes("vt.tiktok.com/"),
+    test: (url) =>
+      url.includes("tiktok.com/") || url.includes("vt.tiktok.com/"),
     extractorArgs: (url) => [
       "--extractor-args",
       "tiktok:app_info=7355728856979392262",
       "--referer",
-      url.includes("/story/") ? "https://www.tiktok.com/" : "https://www.tiktok.com/",
+      url.includes("/story/")
+        ? "https://www.tiktok.com/"
+        : "https://www.tiktok.com/",
     ],
     note: "TikTok: Support for standard videos and Stories (Referer binding).",
   },
@@ -47,7 +50,12 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
     extractorArgs: (url) =>
       url.includes("/stories/")
         ? ["--referer", "https://www.instagram.com/stories/"]
-        : [],
+        : [
+            "--extractor-args",
+            "instagram:video_formats=hd,sd",
+            "--format",
+            "bestvideo+bestaudio/best",
+          ],
   },
   {
     platform: "facebook",
@@ -63,14 +71,14 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
   {
     platform: "x",
     test: (url) => url.includes("x.com/") || url.includes("twitter.com/"),
-    extractorArgs: [
-      "--extractor-args",
-      "twitter:api=syndication",
-    ],
+    extractorArgs: ["--extractor-args", "twitter:api=syndication"],
   },
   {
     platform: "youtube",
-    test: (url) => url.includes("youtube.com/") || url.includes("youtu.be/") || url.includes("music.youtube.com/"),
+    test: (url) =>
+      url.includes("youtube.com/") ||
+      url.includes("youtu.be/") ||
+      url.includes("music.youtube.com/"),
     extractorArgs: [
       "--extractor-args",
       // Use mweb+ios+tv_embedded as a fallback chain — avoids bot-detection on VPS
@@ -98,9 +106,10 @@ export function getSourceProfile(url: string): SourceProfile {
 
   let extractorArgs: string[] = [];
   if (matched.extractorArgs) {
-    extractorArgs = typeof matched.extractorArgs === "function" 
-      ? matched.extractorArgs(normalizedUrl) 
-      : matched.extractorArgs;
+    extractorArgs =
+      typeof matched.extractorArgs === "function"
+        ? matched.extractorArgs(normalizedUrl)
+        : matched.extractorArgs;
   }
 
   return {

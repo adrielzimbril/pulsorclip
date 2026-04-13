@@ -420,13 +420,7 @@ export function MediaCard({
               className="btn-outline w-full sm:w-auto"
               disabled={!canDownload && !card.resolvedUrl}
               onClick={() => {
-                if (card.resolvedUrl) {
-                  // Direct streaming download
-                  const filename = `${card.title || "media"}.${mode === "audio" ? "mp3" : "mp4"}`;
-                  window.location.href = `/api/stream?url=${encodeURIComponent(card.resolvedUrl)}&download=1&filename=${encodeURIComponent(filename)}`;
-                } else if (canDownload) {
-                  onDownload();
-                }
+                onDownload();
               }}
               type="button"
             >

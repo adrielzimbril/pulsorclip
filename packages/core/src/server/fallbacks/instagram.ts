@@ -31,7 +31,11 @@ export const instagramFallback: FallbackHandler = {
       const html = await response.text();
 
       // Extract video URL from Instagram's embedded JSON
-      const videoUrlMatch = html.match(/"video_url":"([^"]+)"/);
+      // Try multiple patterns to get the best quality video with audio
+      const videoUrlMatch =
+        html.match(/"video_url":"([^"]+)"/) ||
+        html.match(/"video_versions":\[{"url":"([^"]+)"/) ||
+        html.match(/"url":"([^"]+\.mp4[^"]*)"/);
       const displayUrlMatch = html.match(/"display_url":"([^"]+)"/);
 
       // Extract title/description
@@ -85,7 +89,11 @@ export const instagramFallback: FallbackHandler = {
       }
 
       const html = await response.text();
-      const videoUrlMatch = html.match(/"video_url":"([^"]+)"/);
+      // Try multiple patterns to get the best quality video with audio
+      const videoUrlMatch =
+        html.match(/"video_url":"([^"]+)"/) ||
+        html.match(/"video_versions":\[{"url":"([^"]+)"/) ||
+        html.match(/"url":"([^"]+\.mp4[^"]*)"/);
       const displayUrlMatch = html.match(/"display_url":"([^"]+)"/);
 
       const resolvedUrl = videoUrlMatch?.[1] || displayUrlMatch?.[1];

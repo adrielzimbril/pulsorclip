@@ -1176,6 +1176,17 @@ export async function scrapeTikTokCarousel(url: string): Promise<MediaInfo> {
 }
 
 async function expandUrl(url: string): Promise<string> {
+  // Normalize Facebook share URLs: replace /p/ with /r/ and clean up double slashes
+  let normalizedUrl = url;
+  if (url.includes("facebook.com/share/p/")) {
+    normalizedUrl = url.replace(
+      /facebook\.com\/share\/p\//,
+      "facebook.com/share/r/",
+    );
+  }
+  // Clean up any double slashes that might result
+  normalizedUrl = normalizedUrl.replace(/([^:])\/\//g, "$1/");
+
   const needsExpansion = [
     "vt.tiktok.com",
     "vm.tiktok.com",
@@ -1183,14 +1194,14 @@ async function expandUrl(url: string): Promise<string> {
     "t.co",
     "facebook.com/share",
     "fb.watch",
-  ].some((pattern) => url.includes(pattern));
+  ].some((pattern) => normalizedUrl.includes(pattern));
 
   if (!needsExpansion) {
-    return url;
+    return normalizedUrl;
   }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(normalizedUrl, {
       method: "GET", // Use GET to ensure we follow all levels of redirects
       redirect: "follow",
       headers: {
@@ -1198,7 +1209,7 @@ async function expandUrl(url: string): Promise<string> {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
     });
-    return response.url || url;
+    return response.url || normalizedUrl;
   } catch {
     return url;
   }
@@ -1835,17 +1846,31 @@ export async function executeDownload(jobId: string) {
     return;
   }
 
+  // Normalize Facebook share URLs: replace /p/ with /r/ and clean up double slashes
+  function normalizeFacebookUrl(url: string): string {
+    let normalized = url;
+    if (url.includes("facebook.com/share/p/")) {
+      normalized = url.replace(
+        /facebook\.com\/share\/p\//,
+        "facebook.com/share/r/",
+      );
+    }
+    // Clean up any double slashes that might result
+    normalized = normalized.replace(/([^:])\/\//g, "$1/");
+    return normalized;
+  }
+
   // For video mode, use resolvedVideoUrl if available, otherwise resolvedUrl or url
   // For audio mode, use resolvedUrl if available, otherwise url
   let jobUrl: string;
   const isDirect = !!job.resolvedUrl || !!job.resolvedVideoUrl;
 
   if (job.mode === "video" && job.resolvedVideoUrl) {
-    jobUrl = job.resolvedVideoUrl;
+    jobUrl = normalizeFacebookUrl(job.resolvedVideoUrl);
   } else if (job.resolvedUrl) {
-    jobUrl = job.resolvedUrl;
+    jobUrl = normalizeFacebookUrl(job.resolvedUrl);
   } else {
-    jobUrl = job.url;
+    jobUrl = normalizeFacebookUrl(job.url);
   }
 
   const tempDir = getJobTempDir(jobId);

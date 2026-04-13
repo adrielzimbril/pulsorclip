@@ -3,7 +3,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
-import Video from "next-video";
 
 interface VideoPlayerModalProps {
   isOpen: boolean;
@@ -100,7 +99,7 @@ export function VideoPlayerModal({
             </div>
 
             {/* Video Container */}
-            <div className="aspect-video w-full h-full bg-black">
+            <div className="flex! relative! aspect-video w-full h-full max-h-[84dvh] bg-black">
               {isYouTube ? (
                 <iframe
                   src={youtubeEmbedUrl}
@@ -109,14 +108,14 @@ export function VideoPlayerModal({
                   allowFullScreen
                 />
               ) : (
-                <Video
-                  ref={videoRef}
+                <video
                   src={`/api/stream?url=${encodeURIComponent(src)}`}
                   controls
                   loop
                   preload="auto"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full max-h-[84dvh] object-contain"
                   playsInline
+                  translate="yes"
                 />
               )}
             </div>
