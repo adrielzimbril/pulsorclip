@@ -824,7 +824,7 @@ export function ClipWorkbench({
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
                 className="btn-accent w-full sm:w-auto"
-                disabled={isFetching}
+                disabled={isFetching || !activeInput.trim()}
                 onClick={() => void inspectCurrentInput()}
                 type="button"
               >

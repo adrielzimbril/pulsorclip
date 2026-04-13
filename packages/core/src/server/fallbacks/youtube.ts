@@ -37,11 +37,23 @@ function extractYouTubeVideoId(url: string): string | null {
     /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
   ];
 
+  let matchedPattern: string | null = null;
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match) return match[1];
+    if (match) {
+      matchedPattern = pattern.source;
+      logServer("info", "fallbacks.youtube.url_matched", {
+        url: url.substring(0, 100),
+        matchedPattern,
+        videoId: match[1],
+      });
+      return match[1];
+    }
   }
 
+  logServer("warn", "fallbacks.youtube.no_pattern_matched", {
+    url: url.substring(0, 100),
+  });
   return null;
 }
 
@@ -54,6 +66,12 @@ async function fetchFromInvidious(
 
   try {
     const apiUrl = `${instance}/api/v1/videos/${videoId}`;
+    logServer("debug", "fallbacks.youtube.fetching_invidious", {
+      instance,
+      videoId,
+      apiUrl,
+    });
+
     const response = await fetch(apiUrl, {
       signal: controller.signal,
     });
@@ -61,12 +79,36 @@ async function fetchFromInvidious(
     clearTimeout(timeout);
 
     if (!response.ok) {
+      logServer("warn", "fallbacks.youtube.invidious_http_error", {
+        instance,
+        videoId,
+        status: response.status,
+        statusText: response.statusText,
+      });
       throw new Error(`HTTP ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    logServer("debug", "fallbacks.youtube.invidious_response", {
+      instance,
+      videoId,
+      hasTitle: !!data.title,
+      hasFormatStreams: !!data.formatStreams && data.formatStreams.length > 0,
+      formatStreamsCount: data.formatStreams?.length || 0,
+      hasAdaptiveFormats:
+        !!data.adaptiveFormats && data.adaptiveFormats.length > 0,
+      adaptiveFormatsCount: data.adaptiveFormats?.length || 0,
+      isLive: data.liveNow || false,
+    });
+
+    return data;
   } catch (err) {
     clearTimeout(timeout);
+    logServer("warn", "fallbacks.youtube.invidious_fetch_error", {
+      instance,
+      videoId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     throw err;
   }
 }
@@ -127,11 +169,21 @@ export const youtubeFallback: FallbackHandler = {
         try {
           const data = await fetchFromInvidious(instance, videoId);
 
+          // Try formatStreams first, fallback to adaptiveFormats
+          const formatUrl =
+            data.formatStreams?.[0]?.url || data.adaptiveFormats?.[0]?.url;
+
           logServer("info", "fallbacks.youtube.invidious_success", {
             instance,
             videoId,
             hasTitle: !!data.title,
-            hasResolvedUrl: !!data.formatStreams?.[0]?.url,
+            hasFormatStreams:
+              !!data.formatStreams && data.formatStreams.length > 0,
+            hasAdaptiveFormats:
+              !!data.adaptiveFormats && data.adaptiveFormats.length > 0,
+            hasResolvedUrl: !!formatUrl,
+            usedFormatStreams: !!data.formatStreams?.[0]?.url,
+            usedAdaptiveFormats: !!data.adaptiveFormats?.[0]?.url,
           });
 
           return {
@@ -139,8 +191,8 @@ export const youtubeFallback: FallbackHandler = {
             thumbnail: data.videoThumbnails?.[0]?.url,
             duration: data.lengthSeconds,
             uploader: data.author,
-            resolvedUrl: data.formatStreams?.[0]?.url,
-            resolvedVideoUrl: data.formatStreams?.[0]?.url,
+            resolvedUrl: formatUrl,
+            resolvedVideoUrl: formatUrl,
             width: data.width,
             height: data.height,
           };

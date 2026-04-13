@@ -34,7 +34,8 @@ export function VideoPlayerModal({
       src.includes("youtu.be") ||
       (resolvedVideoUrl &&
         (resolvedVideoUrl.includes("youtube.com") ||
-          resolvedVideoUrl.includes("youtu.be")));
+          resolvedVideoUrl.includes("youtu.be"))) ||
+      false;
 
     setIsYouTube(isYoutube);
 
@@ -45,7 +46,9 @@ export function VideoPlayerModal({
         /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
       );
       if (videoIdMatch) {
-        setYoutubeEmbedUrl(`https://www.youtube.com/embed/${videoIdMatch[1]}`);
+        const embedUrl = `https://www.youtube.com/embed/${videoIdMatch[1]}`;
+        setYoutubeEmbedUrl(embedUrl);
+        console.log("YouTube embed URL:", embedUrl);
       }
     }
   }, [src, resolvedVideoUrl, platform]);

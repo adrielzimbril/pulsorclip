@@ -42,6 +42,8 @@ export type MediaInfo = {
   audioOptions: MediaOption[];
   /** Present when the URL resolves to a photo gallery (carousel). */
   images?: string[];
+  /** The original source URL before any resolution/redirects. */
+  sourceUrl?: string;
   /** A direct audio URL found during scraping/analysis (e.g. tikwm music URL). */
   resolvedUrl?: string | null;
   /** A direct video URL found during scraping/analysis (e.g. tikwm play URL). Distinct from resolvedUrl which is audio. */
