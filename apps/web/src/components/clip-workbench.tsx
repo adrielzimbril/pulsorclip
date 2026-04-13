@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppLocale, DownloadMode, MediaInfo, AudioContainer, VideoContainer, PlaylistEntry } from "@pulsorclip/core/shared";
+import type {
+  AppLocale,
+  DownloadMode,
+  MediaInfo,
+  AudioContainer,
+  VideoContainer,
+  PlaylistEntry,
+} from "@pulsorclip/core/shared";
 import { t } from "@pulsorclip/core/i18n";
 import { MediaCard } from "./clip/media-card";
 import { SupportedPlatformsModal } from "./clip/supported-platforms-modal";
@@ -12,7 +19,11 @@ import { VideoPlayerModal } from "./clip/video-player-modal";
 import { externalLinks } from "@/lib/external-links";
 
 type WorkspaceView = "normal" | "bulk";
-type PlaylistModalState = { title: string; count: number; entries: PlaylistEntry[] };
+type PlaylistModalState = {
+  title: string;
+  count: number;
+  entries: PlaylistEntry[];
+};
 type QueueJob = {
   id: string;
   title: string;
@@ -29,7 +40,14 @@ type QueueJob = {
 
 function parseUrls(raw: string) {
   const urlPattern = /^https?:\/\//i;
-  return [...new Set(raw.split(/[\s,]+/).map((value) => value.trim()).filter((value) => urlPattern.test(value)))];
+  return [
+    ...new Set(
+      raw
+        .split(/[\s,]+/)
+        .map((value) => value.trim())
+        .filter((value) => urlPattern.test(value)),
+    ),
+  ];
 }
 
 export function ClipWorkbench({
@@ -48,15 +66,29 @@ export function ClipWorkbench({
   const [isFetching, setIsFetching] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tiktokCarousel, setTiktokCarousel] = useState<{ images: string[]; title: string; postId: string; audioUrl?: string } | null>(null);
-  const [playlistModal, setPlaylistModal] = useState<PlaylistModalState | null>(null);
+  const [tiktokCarousel, setTiktokCarousel] = useState<{
+    images: string[];
+    title: string;
+    postId: string;
+    audioUrl?: string;
+  } | null>(null);
+  const [playlistModal, setPlaylistModal] = useState<PlaylistModalState | null>(
+    null,
+  );
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
-  const [selectedPlaylistEntries, setSelectedPlaylistEntries] = useState<Set<string>>(new Set());
+  const [selectedPlaylistEntries, setSelectedPlaylistEntries] = useState<
+    Set<string>
+  >(new Set());
   const [isZipping, setIsZipping] = useState(false);
   const [isQueueingPlaylist, setIsQueueingPlaylist] = useState(false);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [serverQueue, setServerQueue] = useState<QueueJob[]>([]);
-  const [previewVideo, setPreviewVideo] = useState<{ src: string; title: string } | null>(null);
+  const [previewVideo, setPreviewVideo] = useState<{
+    src: string;
+    title: string;
+    resolvedVideoUrl?: string;
+    platform?: string;
+  } | null>(null);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const alertedErrorsRef = useRef<Set<string>>(new Set());
 
@@ -106,7 +138,11 @@ export function ClipWorkbench({
     const nextAlerted = new Set(alertedErrorsRef.current);
 
     for (const card of cards) {
-      if ((card.status === "error" || card.status === "info-error") && card.error && !nextAlerted.has(card.id)) {
+      if (
+        (card.status === "error" || card.status === "info-error") &&
+        card.error &&
+        !nextAlerted.has(card.id)
+      ) {
         nextAlerted.add(card.id);
         setNotice(card.error);
       }
@@ -116,17 +152,29 @@ export function ClipWorkbench({
   }, [cards]);
 
   const activeInput = view === "normal" ? normalInput : bulkInput;
-  const visibleCards = useMemo(() => (view === "normal" ? cards.slice(0, 1) : cards), [cards, view]);
-  const canPrepareAll = useMemo(() => visibleCards.some((card) => card.status === "ready"), [visibleCards]);
-  const queueSummary = useMemo(() => ({
-    queued: serverQueue.filter((job) => job.status === "queued").length,
-    downloading: serverQueue.filter((job) => job.status === "downloading").length,
-    done: serverQueue.filter((job) => job.status === "done").length,
-    error: serverQueue.filter((job) => job.status === "error").length,
-  }), [serverQueue]);
+  const visibleCards = useMemo(
+    () => (view === "normal" ? cards.slice(0, 1) : cards),
+    [cards, view],
+  );
+  const canPrepareAll = useMemo(
+    () => visibleCards.some((card) => card.status === "ready"),
+    [visibleCards],
+  );
+  const queueSummary = useMemo(
+    () => ({
+      queued: serverQueue.filter((job) => job.status === "queued").length,
+      downloading: serverQueue.filter((job) => job.status === "downloading")
+        .length,
+      done: serverQueue.filter((job) => job.status === "done").length,
+      error: serverQueue.filter((job) => job.status === "error").length,
+    }),
+    [serverQueue],
+  );
 
   function updateCard(id: string, updater: (current: ClipCard) => ClipCard) {
-    setCards((current) => current.map((card) => (card.id === id ? updater(card) : card)));
+    setCards((current) =>
+      current.map((card) => (card.id === id ? updater(card) : card)),
+    );
   }
 
   async function cancelQueuedJob(jobId: string) {
@@ -141,15 +189,21 @@ export function ClipWorkbench({
 
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-      setNotice(payload.error || t(locale, "queueCancelFailed"));
-      return;
-    }
+        setNotice(payload.error || t(locale, "queueCancelFailed"));
+        return;
+      }
 
       setNotice(t(locale, "cancelledQueueItem"));
       setServerQueue((current) =>
         current.map((job) =>
           job.id === jobId
-            ? { ...job, status: "error", error: "Cancelled by user before processing started.", progressLabel: "Cancelled", queuePosition: 0 }
+            ? {
+                ...job,
+                status: "error",
+                error: "Cancelled by user before processing started.",
+                progressLabel: "Cancelled",
+                queuePosition: 0,
+              }
             : job,
         ),
       );
@@ -184,7 +238,13 @@ export function ClipWorkbench({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      const data = (await res.json()) as { images?: string[]; title?: string; postId?: string; audioUrl?: string; error?: string };
+      const data = (await res.json()) as {
+        images?: string[];
+        title?: string;
+        postId?: string;
+        audioUrl?: string;
+        error?: string;
+      };
       if (!res.ok || data.error || !data.images?.length) {
         setNotice(data.error || t(locale, "carouselError"));
         return;
@@ -210,7 +270,10 @@ export function ClipWorkbench({
       const res = await fetch("/api/tiktok-zip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrls: [...selectedImages], title: tiktokCarousel.title }),
+        body: JSON.stringify({
+          imageUrls: [...selectedImages],
+          title: tiktokCarousel.title,
+        }),
       });
       if (!res.ok) {
         const err = (await res.json()) as { error?: string };
@@ -249,8 +312,10 @@ export function ClipWorkbench({
 
   function downloadAllDirectly() {
     if (!tiktokCarousel || selectedImages.size === 0) return;
-    const imagesToDownload = tiktokCarousel.images.filter(img => selectedImages.has(img));
-    
+    const imagesToDownload = tiktokCarousel.images.filter((img) =>
+      selectedImages.has(img),
+    );
+
     imagesToDownload.forEach((url, i) => {
       setTimeout(() => {
         downloadSingleImage(url, i);
@@ -284,7 +349,9 @@ export function ClipWorkbench({
       return;
     }
 
-    const selectedEntries = playlistModal.entries.filter((entry) => selectedPlaylistEntries.has(entry.url));
+    const selectedEntries = playlistModal.entries.filter((entry) =>
+      selectedPlaylistEntries.has(entry.url),
+    );
     const playlistCards = buildPlaylistCards(selectedEntries);
 
     setIsQueueingPlaylist(true);
@@ -299,14 +366,22 @@ export function ClipWorkbench({
       }
 
       for (const card of playlistCards) {
-        await prepareDownload({
-          ...card,
-          videoExt: mode === "video" ? "mp4" : card.videoExt,
-          audioExt: mode === "audio" ? "mp3" : card.audioExt,
-        }, mode);
+        await prepareDownload(
+          {
+            ...card,
+            videoExt: mode === "video" ? "mp4" : card.videoExt,
+            audioExt: mode === "audio" ? "mp3" : card.audioExt,
+          },
+          mode,
+        );
       }
 
-      setNotice(t(locale, "playlistQueued").replace("{count}", String(selectedEntries.length)));
+      setNotice(
+        t(locale, "playlistQueued").replace(
+          "{count}",
+          String(selectedEntries.length),
+        ),
+      );
     } finally {
       setIsQueueingPlaylist(false);
     }
@@ -351,27 +426,46 @@ export function ClipWorkbench({
             body: JSON.stringify({ url: card.url }),
           });
 
-          const payload = (await response.json()) as Partial<MediaInfo> & { error?: string };
+          const payload = (await response.json()) as Partial<MediaInfo> & {
+            error?: string;
+          };
 
           // Generic image gallery: if /api/info returns images[], open carousel modal
           // BUT: for Threads, we prioritize the regular workbench if video is present
-          const isThreads = card.url.includes("threads.net") || card.url.includes("threads.com");
-          const hasVideo = payload.videoOptions && payload.videoOptions.length > 0;
+          const isThreads =
+            card.url.includes("threads.net") ||
+            card.url.includes("threads.com");
+          const hasVideo =
+            payload.videoOptions && payload.videoOptions.length > 0;
 
-          if (response.ok && payload.playlist?.entries && payload.playlist.entries.length > 0) {
+          if (
+            response.ok &&
+            payload.playlist?.entries &&
+            payload.playlist.entries.length > 0
+          ) {
             setCards([]);
             setIsFetching(false);
             setPlaylistModal({
-              title: payload.playlist.title || payload.title || t(locale, "playlistTitle"),
+              title:
+                payload.playlist.title ||
+                payload.title ||
+                t(locale, "playlistTitle"),
               count: payload.playlist.count || payload.playlist.entries.length,
               entries: payload.playlist.entries,
             });
-            setSelectedPlaylistEntries(new Set(payload.playlist.entries.map((entry) => entry.url)));
+            setSelectedPlaylistEntries(
+              new Set(payload.playlist.entries.map((entry) => entry.url)),
+            );
             setNotice(t(locale, "playlistDetected"));
             return;
           }
 
-          if (response.ok && payload.images && payload.images.length > 0 && (!isThreads || !hasVideo)) {
+          if (
+            response.ok &&
+            payload.images &&
+            payload.images.length > 0 &&
+            (!isThreads || !hasVideo)
+          ) {
             setCards([]);
             setIsFetching(false);
             setTiktokCarousel({
@@ -384,7 +478,10 @@ export function ClipWorkbench({
           }
 
           // TikTok carousel fallback: when yt-dlp returns Unsupported URL, try our scraper
-          if ((!response.ok || payload.error === "Unsupported URL") && isTikTokUrl(card.url)) {
+          if (
+            (!response.ok || payload.error === "Unsupported URL") &&
+            isTikTokUrl(card.url)
+          ) {
             setCards([]);
             setIsFetching(false);
             void fetchTikTokCarousel(card.url);
@@ -448,7 +545,10 @@ export function ClipWorkbench({
       progressLabel: t(locale, "queuedDownload"),
     }));
 
-    const formatId = activeMode === "video" ? card.selectedVideoFormatId : card.selectedAudioFormatId;
+    const formatId =
+      activeMode === "video"
+        ? card.selectedVideoFormatId
+        : card.selectedAudioFormatId;
     const targetExt = activeMode === "video" ? card.videoExt : card.audioExt;
     const directUrl =
       activeMode === "video"
@@ -472,7 +572,10 @@ export function ClipWorkbench({
         }),
       });
 
-      const payload = (await response.json()) as { error?: string; jobId?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        jobId?: string;
+      };
 
       if (!response.ok || !payload.jobId) {
         updateCard(card.id, (current) => ({
@@ -491,7 +594,9 @@ export function ClipWorkbench({
       }));
 
       const interval = window.setInterval(async () => {
-        const statusResponse = await fetch(`/api/status/${jobId}`, { cache: "no-store" });
+        const statusResponse = await fetch(`/api/status/${jobId}`, {
+          cache: "no-store",
+        });
         const statusPayload = (await statusResponse.json()) as {
           status?: "queued" | "downloading" | "done" | "error";
           progress?: number;
@@ -521,7 +626,8 @@ export function ClipWorkbench({
             status: "done",
             filename: statusPayload.filename || current.filename,
             progress: statusPayload.progress ?? 100,
-            progressLabel: statusPayload.progressLabel || t(locale, "statusReadyMessage"),
+            progressLabel:
+              statusPayload.progressLabel || t(locale, "statusReadyMessage"),
             queuePosition: 0,
           }));
           return;
@@ -535,7 +641,8 @@ export function ClipWorkbench({
             status: "error",
             error: statusPayload.error || "Download job failed",
             progress: statusPayload.progress ?? current.progress,
-            progressLabel: statusPayload.progressLabel || t(locale, "statusErrorMessage"),
+            progressLabel:
+              statusPayload.progressLabel || t(locale, "statusErrorMessage"),
             queuePosition: statusPayload.queuePosition ?? current.queuePosition,
           }));
           return;
@@ -569,22 +676,38 @@ export function ClipWorkbench({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:max-w-[1320px] lg:px-8" id="top">
-      <SupportedPlatformsModal locale={locale} onClose={() => setShowPlatforms(false)} open={showPlatforms} />
+    <main
+      className="mx-auto flex min-h-screen w-full flex-col gap-4 px-2 py-2 sm:gap-6 sm:px-4 sm:py-4 lg:max-w-[1320px] lg:px-8"
+      id="top"
+    >
+      <SupportedPlatformsModal
+        locale={locale}
+        onClose={() => setShowPlatforms(false)}
+        open={showPlatforms}
+      />
       <SiteHeader locale={locale} onLocaleChange={setLocale} />
-      
-      <VideoPlayerModal 
-        isOpen={!!previewVideo} 
-        onClose={() => setPreviewVideo(null)} 
-        src={previewVideo?.src || ""} 
-        title={previewVideo?.title} 
+
+      <VideoPlayerModal
+        isOpen={!!previewVideo}
+        onClose={() => setPreviewVideo(null)}
+        src={previewVideo?.src || ""}
+        title={previewVideo?.title}
+        resolvedVideoUrl={previewVideo?.resolvedVideoUrl}
+        platform={previewVideo?.platform}
       />
 
-      <section className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[32px] sm:p-6" id="workspace">
+      <section
+        className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[32px] sm:p-6"
+        id="workspace"
+      >
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "workspaceTitle")}</p>
-            <h2 className="mt-2 max-w-4xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{t(locale, "workspaceBody")}</h2>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">
+              {t(locale, "workspaceTitle")}
+            </p>
+            <h2 className="mt-2 max-w-4xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+              {t(locale, "workspaceBody")}
+            </h2>
           </div>
 
           <div className="grid gap-3 sm:flex sm:flex-wrap">
@@ -596,7 +719,9 @@ export function ClipWorkbench({
                   onClick={() => setView(currentView)}
                   type="button"
                 >
-                  {currentView === "normal" ? t(locale, "normalMode") : t(locale, "bulkMode")}
+                  {currentView === "normal"
+                    ? t(locale, "normalMode")
+                    : t(locale, "bulkMode")}
                 </button>
               ))}
             </div>
@@ -609,7 +734,9 @@ export function ClipWorkbench({
                   onClick={() => setDownloadMode(currentMode)}
                   type="button"
                 >
-                  {currentMode === "video" ? t(locale, "modeVideo") : t(locale, "modeAudio")}
+                  {currentMode === "video"
+                    ? t(locale, "modeVideo")
+                    : t(locale, "modeAudio")}
                 </button>
               ))}
             </div>
@@ -619,8 +746,16 @@ export function ClipWorkbench({
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
           <div className="rounded-[22px] border border-line bg-background p-4 sm:rounded-[28px] sm:p-5">
             <div className="space-y-2">
-              <p className="text-base font-semibold">{view === "normal" ? t(locale, "normalTitle") : t(locale, "bulkTitle")}</p>
-              <p className="text-sm leading-7 text-muted">{view === "normal" ? t(locale, "normalBody") : t(locale, "bulkBody")}</p>
+              <p className="text-base font-semibold">
+                {view === "normal"
+                  ? t(locale, "normalTitle")
+                  : t(locale, "bulkTitle")}
+              </p>
+              <p className="text-sm leading-7 text-muted">
+                {view === "normal"
+                  ? t(locale, "normalBody")
+                  : t(locale, "bulkBody")}
+              </p>
             </div>
 
             <div className="mt-5">
@@ -629,7 +764,10 @@ export function ClipWorkbench({
                   <input
                     className="input-field pr-28"
                     onChange={(event) => setNormalInput(event.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !isFetching) void inspectCurrentInput(); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isFetching)
+                        void inspectCurrentInput();
+                    }}
                     placeholder="https://youtube.com/watch?v=... or TikTok, X, Threads..."
                     value={normalInput}
                   />
@@ -639,7 +777,9 @@ export function ClipWorkbench({
                       try {
                         const text = await navigator.clipboard.readText();
                         if (text) setNormalInput(text);
-                      } catch { /* clipboard permission denied */ }
+                      } catch {
+                        /* clipboard permission denied */
+                      }
                     }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-line bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-accent hover:text-accent"
                     title="Paste from clipboard"
@@ -653,7 +793,9 @@ export function ClipWorkbench({
                   <textarea
                     className="min-h-48 w-full resize-none rounded-[18px] border border-line bg-surface px-4 py-4 pr-24 text-sm leading-7 outline-none transition focus:border-foreground"
                     onChange={(event) => setBulkInput(event.target.value)}
-                    placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."}
+                    placeholder={
+                      "https://www.youtube.com/watch?v=...\nhttps://www.tiktok.com/@..."
+                    }
                     value={bulkInput}
                   />
                   <button
@@ -661,8 +803,13 @@ export function ClipWorkbench({
                     onClick={async () => {
                       try {
                         const text = await navigator.clipboard.readText();
-                        if (text) setBulkInput((prev) => prev ? `${prev}\n${text}` : text);
-                      } catch { /* clipboard permission denied */ }
+                        if (text)
+                          setBulkInput((prev) =>
+                            prev ? `${prev}\n${text}` : text,
+                          );
+                      } catch {
+                        /* clipboard permission denied */
+                      }
                     }}
                     className="absolute right-3 top-3 rounded-full border border-line bg-surface-muted px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-foreground hover:text-foreground"
                     title={t(locale, "pasteFromClipboard")}
@@ -681,7 +828,11 @@ export function ClipWorkbench({
                 onClick={() => void inspectCurrentInput()}
                 type="button"
               >
-                {isFetching ? t(locale, "inspecting") : view === "normal" ? t(locale, "inspect") : t(locale, "inspectBulk")}
+                {isFetching
+                  ? t(locale, "inspecting")
+                  : view === "normal"
+                    ? t(locale, "inspect")
+                    : t(locale, "inspectBulk")}
               </button>
               <button
                 className="btn-outline w-full sm:w-auto"
@@ -700,18 +851,27 @@ export function ClipWorkbench({
             )}
 
             <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4">
-              <p className="text-sm font-semibold">{t(locale, "patienceTitle")}</p>
-              <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "patienceBody")}</p>
+              <p className="text-sm font-semibold">
+                {t(locale, "patienceTitle")}
+              </p>
+              <p className="mt-2 text-sm leading-7 text-muted">
+                {t(locale, "patienceBody")}
+              </p>
             </div>
 
             <div className="mt-5 rounded-[20px] border border-line bg-surface px-4 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">{t(locale, "webQueueTitle")}</p>
+                  <p className="text-sm font-semibold">
+                    {t(locale, "webQueueTitle")}
+                  </p>
                   <p className="mt-1 text-sm text-muted">
                     {t(locale, "webQueueSummary")
                       .replace("{queued}", String(queueSummary.queued))
-                      .replace("{downloading}", String(queueSummary.downloading))
+                      .replace(
+                        "{downloading}",
+                        String(queueSummary.downloading),
+                      )
                       .replace("{done}", String(queueSummary.done))
                       .replace("{error}", String(queueSummary.error))}
                   </p>
@@ -737,21 +897,34 @@ export function ClipWorkbench({
               {serverQueue.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {serverQueue.slice(0, 8).map((job) => (
-                    <div className="rounded-[16px] border border-line bg-background px-3 py-3" key={job.id}>
+                    <div
+                      className="rounded-[16px] border border-line bg-background px-3 py-3"
+                      key={job.id}
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{job.title || `Job ${job.id}`}</p>
+                          <p className="truncate text-sm font-semibold">
+                            {job.title || `Job ${job.id}`}
+                          </p>
                           <p className="mt-1 text-xs text-muted">
                             {job.mode.toUpperCase()} · {job.status}
-                            {job.status === "queued" && job.queuePosition ? ` · #${job.queuePosition}` : ""}
+                            {job.status === "queued" && job.queuePosition
+                              ? ` · #${job.queuePosition}`
+                              : ""}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <a className="btn-outline px-3 py-2 text-xs" href={`/track/${job.id}`}>
+                          <a
+                            className="btn-outline px-3 py-2 text-xs"
+                            href={`/track/${job.id}`}
+                          >
                             {t(locale, "botOpenWeb")}
                           </a>
                           {job.status === "done" ? (
-                            <a className="btn-outline px-3 py-2 text-xs" href={`/api/file/${job.id}`}>
+                            <a
+                              className="btn-outline px-3 py-2 text-xs"
+                              href={`/api/file/${job.id}`}
+                            >
                               {t(locale, "download")}
                             </a>
                           ) : null}
@@ -766,24 +939,38 @@ export function ClipWorkbench({
                           ) : null}
                         </div>
                       </div>
-                      <p className="mt-2 line-clamp-1 text-xs text-muted">{job.url}</p>
-                      <p className="mt-2 text-xs text-muted">{job.error || job.progressLabel || `${job.progress}%`}</p>
+                      <p className="mt-2 line-clamp-1 text-xs text-muted">
+                        {job.url}
+                      </p>
+                      <p className="mt-2 text-xs text-muted">
+                        {job.error || job.progressLabel || `${job.progress}%`}
+                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-muted">{t(locale, "noWebQueueJobs")}</p>
+                <p className="mt-4 text-sm text-muted">
+                  {t(locale, "noWebQueueJobs")}
+                </p>
               )}
             </div>
 
             <div className="mt-5 hidden gap-3 sm:grid-cols-2 lg:grid">
               <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
-                <p className="text-sm font-semibold">{t(locale, "normalStrategyTitle")}</p>
-                <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "normalStrategyBody")}</p>
+                <p className="text-sm font-semibold">
+                  {t(locale, "normalStrategyTitle")}
+                </p>
+                <p className="mt-2 text-sm leading-7 text-muted">
+                  {t(locale, "normalStrategyBody")}
+                </p>
               </div>
               <div className="rounded-[20px] border border-line bg-surface px-4 py-4">
-                <p className="text-sm font-semibold">{t(locale, "bulkStrategyTitle")}</p>
-                <p className="mt-2 text-sm leading-7 text-muted">{t(locale, "bulkStrategyBody")}</p>
+                <p className="text-sm font-semibold">
+                  {t(locale, "bulkStrategyTitle")}
+                </p>
+                <p className="mt-2 text-sm leading-7 text-muted">
+                  {t(locale, "bulkStrategyBody")}
+                </p>
               </div>
             </div>
           </div>
@@ -803,19 +990,33 @@ export function ClipWorkbench({
                 mode={downloadMode}
                 onDownload={() => card.jobId && openDownload(card.jobId)}
                 onPrepare={() => void prepareDownload(card)}
-                onPreview={(src, title) => setPreviewVideo({ src, title })}
+                onPreview={(src, title, resolvedVideoUrl, platform) =>
+                  setPreviewVideo({ src, title, resolvedVideoUrl, platform })
+                }
                 onSelectContainer={(container) =>
                   updateCard(card.id, (current) => ({
                     ...current,
-                    videoExt: downloadMode === "video" ? (container as VideoContainer) : current.videoExt,
-                    audioExt: downloadMode === "audio" ? (container as AudioContainer) : current.audioExt,
+                    videoExt:
+                      downloadMode === "video"
+                        ? (container as VideoContainer)
+                        : current.videoExt,
+                    audioExt:
+                      downloadMode === "audio"
+                        ? (container as AudioContainer)
+                        : current.audioExt,
                   }))
                 }
                 onSelectFormat={(formatId) =>
                   updateCard(card.id, (current) => ({
                     ...current,
-                    selectedVideoFormatId: downloadMode === "video" ? formatId : current.selectedVideoFormatId,
-                    selectedAudioFormatId: downloadMode === "audio" ? formatId : current.selectedAudioFormatId,
+                    selectedVideoFormatId:
+                      downloadMode === "video"
+                        ? formatId
+                        : current.selectedVideoFormatId,
+                    selectedAudioFormatId:
+                      downloadMode === "audio"
+                        ? formatId
+                        : current.selectedAudioFormatId,
                   }))
                 }
               />
@@ -824,10 +1025,15 @@ export function ClipWorkbench({
         </div>
       </section>
 
-      <section className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[28px] sm:p-5" id="overview">
+      <section
+        className="rounded-[20px] border border-line bg-surface p-3 sm:rounded-[28px] sm:p-5"
+        id="overview"
+      >
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="max-w-4xl">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "tagline")}</p>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">
+              {t(locale, "tagline")}
+            </p>
             <h1 className="mt-3 max-w-4xl text-xl font-semibold leading-tight tracking-[-0.04em] sm:text-4xl">
               {t(locale, "heroTitle")}
             </h1>
@@ -837,7 +1043,11 @@ export function ClipWorkbench({
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
-                onClick={() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={() =>
+                  document
+                    .getElementById("workspace")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
                 type="button"
               >
                 {t(locale, "navWorkspace")}
@@ -862,10 +1072,17 @@ export function ClipWorkbench({
           </div>
 
           <div className="rounded-[24px] border border-line bg-background p-5">
-            <p className="text-sm font-semibold">{t(locale, "heroStatusTitle")}</p>
-            <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "heroStatusBody")}</p>
+            <p className="text-sm font-semibold">
+              {t(locale, "heroStatusTitle")}
+            </p>
+            <p className="mt-3 text-sm leading-7 text-muted">
+              {t(locale, "heroStatusBody")}
+            </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Link className="rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq#error-ytdlp-bot-check">
+              <Link
+                className="rounded-full border border-line px-4 py-3 text-sm font-semibold"
+                href="/faq#error-ytdlp-bot-check"
+              >
                 {t(locale, "heroStatusCta")}
               </Link>
               <button
@@ -882,30 +1099,43 @@ export function ClipWorkbench({
 
       <section className="grid gap-4" id="platforms">
         <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[28px] sm:p-5">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">{t(locale, "supportSectionTitle")}</p>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">{t(locale, "supportSectionBody")}</p>
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">
+            {t(locale, "supportSectionTitle")}
+          </p>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
+            {t(locale, "supportSectionBody")}
+          </p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
-          <p className="text-sm font-semibold">{t(locale, "supportedSitesTitle")}</p>
-          <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "supportedSitesBody")}</p>
-          <button
-            className="mt-5 rounded-full border border-line px-4 py-3 text-sm font-semibold"
-            onClick={() => setShowPlatforms(true)}
-            type="button"
-          >
-            {t(locale, "supportedSitesCta")}
-          </button>
-        </div>
+          <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
+            <p className="text-sm font-semibold">
+              {t(locale, "supportedSitesTitle")}
+            </p>
+            <p className="mt-3 text-sm leading-7 text-muted">
+              {t(locale, "supportedSitesBody")}
+            </p>
+            <button
+              className="mt-5 rounded-full border border-line px-4 py-3 text-sm font-semibold"
+              onClick={() => setShowPlatforms(true)}
+              type="button"
+            >
+              {t(locale, "supportedSitesCta")}
+            </button>
+          </div>
 
-        <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
-          <p className="text-sm font-semibold">{t(locale, "faqCardTitle")}</p>
-          <p className="mt-3 text-sm leading-7 text-muted">{t(locale, "faqCardBody")}</p>
-          <Link className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold" href="/faq">
-            {t(locale, "faqCardCta")}
-          </Link>
-        </div>
+          <div className="rounded-[24px] border border-line bg-surface p-4 sm:rounded-[32px] sm:p-6">
+            <p className="text-sm font-semibold">{t(locale, "faqCardTitle")}</p>
+            <p className="mt-3 text-sm leading-7 text-muted">
+              {t(locale, "faqCardBody")}
+            </p>
+            <Link
+              className="mt-5 inline-flex rounded-full border border-line px-4 py-3 text-sm font-semibold"
+              href="/faq"
+            >
+              {t(locale, "faqCardCta")}
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -931,7 +1161,8 @@ export function ClipWorkbench({
                   {playlistModal.title}
                 </h2>
                 <p className="mt-1 text-xs text-muted">
-                  {selectedPlaylistEntries.size} / {playlistModal.entries.length} {t(locale, "itemsSelected")}
+                  {selectedPlaylistEntries.size} /{" "}
+                  {playlistModal.entries.length} {t(locale, "itemsSelected")}
                 </p>
               </div>
               <button
@@ -972,21 +1203,34 @@ export function ClipWorkbench({
                       </div>
                       {entry.thumbnail ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={entry.thumbnail} alt="" className="h-16 w-28 rounded-xl object-cover" />
+                        <img
+                          src={entry.thumbnail}
+                          alt=""
+                          className="h-16 w-28 rounded-xl object-cover"
+                        />
                       ) : (
                         <div className="flex h-16 w-28 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-muted text-[11px] font-semibold uppercase text-muted">
                           YouTube
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-semibold">{entry.title}</p>
+                        <p className="line-clamp-2 text-sm font-semibold">
+                          {entry.title}
+                        </p>
                         <p className="mt-1 text-xs text-muted">
-                          {[entry.uploader, entry.duration ? `${Math.floor(entry.duration / 60)}:${String(entry.duration % 60).padStart(2, "0")}` : null]
+                          {[
+                            entry.uploader,
+                            entry.duration
+                              ? `${Math.floor(entry.duration / 60)}:${String(entry.duration % 60).padStart(2, "0")}`
+                              : null,
+                          ]
                             .filter(Boolean)
                             .join(" • ")}
                         </p>
                       </div>
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${isSelected ? "border-foreground bg-foreground text-background" : "border-line text-muted"}`}>
+                      <div
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${isSelected ? "border-foreground bg-foreground text-background" : "border-line text-muted"}`}
+                      >
                         {isSelected ? "✓" : ""}
                       </div>
                     </button>
@@ -1000,7 +1244,13 @@ export function ClipWorkbench({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedPlaylistEntries(new Set(playlistModal.entries.map((entry) => entry.url)))}
+                    onClick={() =>
+                      setSelectedPlaylistEntries(
+                        new Set(
+                          playlistModal.entries.map((entry) => entry.url),
+                        ),
+                      )
+                    }
                     className="btn-outline px-4 py-2 text-xs"
                   >
                     {t(locale, "selectAll")}
@@ -1017,19 +1267,25 @@ export function ClipWorkbench({
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={selectedPlaylistEntries.size === 0 || isQueueingPlaylist}
+                    disabled={
+                      selectedPlaylistEntries.size === 0 || isQueueingPlaylist
+                    }
                     onClick={() => void queuePlaylistSelection("audio")}
                     className="btn-outline px-4 py-2 text-xs"
                   >
-                    {t(locale, "queueSelectedAudio")} ({selectedPlaylistEntries.size})
+                    {t(locale, "queueSelectedAudio")} (
+                    {selectedPlaylistEntries.size})
                   </button>
                   <button
                     type="button"
-                    disabled={selectedPlaylistEntries.size === 0 || isQueueingPlaylist}
+                    disabled={
+                      selectedPlaylistEntries.size === 0 || isQueueingPlaylist
+                    }
                     onClick={() => void queuePlaylistSelection("video")}
                     className="btn-primary px-4 py-2 text-xs"
                   >
-                    {t(locale, "queueSelectedVideo")} ({selectedPlaylistEntries.size})
+                    {t(locale, "queueSelectedVideo")} (
+                    {selectedPlaylistEntries.size})
                   </button>
                 </div>
               </div>
@@ -1063,7 +1319,11 @@ export function ClipWorkbench({
                   {tiktokCarousel.title}
                 </h2>
                 <p className="mt-1 text-xs text-muted">
-                  {selectedImages.size} / {tiktokCarousel.images.length} {selectedImages.size <= 1 ? t(locale, "imageSelected") : t(locale, "imagesSelected")} — {t(locale, "clickToToggle")}
+                  {selectedImages.size} / {tiktokCarousel.images.length}{" "}
+                  {selectedImages.size <= 1
+                    ? t(locale, "imageSelected")
+                    : t(locale, "imagesSelected")}{" "}
+                  — {t(locale, "clickToToggle")}
                 </p>
               </div>
               <button
@@ -1099,7 +1359,9 @@ export function ClipWorkbench({
                         }}
                         className="relative w-full overflow-hidden rounded-xl bg-surface-muted transition"
                         style={{
-                          border: isSelected ? "3px solid var(--foreground)" : "3px solid transparent",
+                          border: isSelected
+                            ? "3px solid var(--foreground)"
+                            : "3px solid transparent",
                           aspectRatio: "9/16",
                         }}
                       >
@@ -1137,7 +1399,9 @@ export function ClipWorkbench({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedImages(new Set(tiktokCarousel.images))}
+                    onClick={() =>
+                      setSelectedImages(new Set(tiktokCarousel.images))
+                    }
                     className="btn-outline px-4 py-2 text-xs"
                   >
                     {t(locale, "selectAll")}
@@ -1162,7 +1426,7 @@ export function ClipWorkbench({
                       {t(locale, "botAudioLabel")}
                     </a>
                   )}
-                  
+
                   <div className="flex">
                     <button
                       type="button"
@@ -1176,15 +1440,27 @@ export function ClipWorkbench({
                       <button
                         type="button"
                         disabled={selectedImages.size === 0 || isZipping}
-                        onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+                        onClick={() =>
+                          setShowDownloadDropdown(!showDownloadDropdown)
+                        }
                         className="btn-primary h-full rounded-l-none border-l border-l-white/20 px-2 flex items-center justify-center transition hover:bg-primary-hover"
                         aria-label="Download options"
                       >
-                        <svg className={`h-4 w-4 transition-transform ${showDownloadDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        <svg
+                          className={`h-4 w-4 transition-transform ${showDownloadDropdown ? "rotate-180" : ""}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
                         </svg>
                       </button>
-                      
+
                       {showDownloadDropdown && (
                         <div className="absolute bottom-full right-0 mb-2 w-48 overflow-hidden rounded-xl border border-line bg-surface shadow-xl shadow-black/10">
                           <button
@@ -1195,8 +1471,18 @@ export function ClipWorkbench({
                             }}
                             className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold hover:bg-surface-muted transition"
                           >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                              />
                             </svg>
                             {t(locale, "downloadAsZipOption")}
                           </button>
@@ -1208,8 +1494,18 @@ export function ClipWorkbench({
                             }}
                             className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold hover:bg-surface-muted transition"
                           >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" />
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"
+                              />
                             </svg>
                             {t(locale, "downloadAllDirect")}
                           </button>

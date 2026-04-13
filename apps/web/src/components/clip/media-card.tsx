@@ -128,7 +128,12 @@ export function MediaCard({
   onDownload: () => void;
   onSelectFormat: (formatId: string | null) => void;
   onSelectContainer: (container: VideoContainer | AudioContainer) => void;
-  onPreview?: (src: string, title: string) => void;
+  onPreview?: (
+    src: string,
+    title: string,
+    resolvedVideoUrl?: string,
+    platform?: string,
+  ) => void;
 }) {
   const selectedOptions =
     mode === "video" ? card.videoOptions : card.audioOptions;
@@ -206,6 +211,8 @@ export function MediaCard({
                     onPreview(
                       card.resolvedVideoUrl || card.resolvedUrl || "",
                       card.title,
+                      card.resolvedVideoUrl || undefined,
+                      undefined,
                     )
                   }
                   className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-300 group-hover/thumb:opacity-100"
@@ -397,6 +404,8 @@ export function MediaCard({
                   onPreview(
                     card.resolvedVideoUrl || card.resolvedUrl || "",
                     card.title,
+                    card.resolvedVideoUrl || undefined,
+                    undefined,
                   )
                 }
                 type="button"

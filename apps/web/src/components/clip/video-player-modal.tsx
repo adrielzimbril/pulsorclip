@@ -2,13 +2,16 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { Video } from "next-video";
 
 interface VideoPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
   src: string;
   title?: string;
+  resolvedVideoUrl?: string;
+  platform?: string;
 }
 
 export function VideoPlayerModal({
@@ -16,16 +19,44 @@ export function VideoPlayerModal({
   onClose,
   src,
   title,
+  resolvedVideoUrl,
+  platform,
 }: VideoPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isYouTube, setIsYouTube] = useState(false);
+  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string>("");
 
   useEffect(() => {
-    if (isOpen && videoRef.current) {
+    // Check if it's a YouTube video
+    const isYoutube =
+      platform === "youtube" ||
+      src.includes("youtube.com") ||
+      src.includes("youtu.be") ||
+      (resolvedVideoUrl &&
+        (resolvedVideoUrl.includes("youtube.com") ||
+          resolvedVideoUrl.includes("youtu.be")));
+
+    setIsYouTube(isYoutube);
+
+    if (isYoutube) {
+      // Extract YouTube video ID for embed
+      const urlToUse = resolvedVideoUrl || src;
+      const videoIdMatch = urlToUse.match(
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+      );
+      if (videoIdMatch) {
+        setYoutubeEmbedUrl(`https://www.youtube.com/embed/${videoIdMatch[1]}`);
+      }
+    }
+  }, [src, resolvedVideoUrl, platform]);
+
+  useEffect(() => {
+    if (isOpen && videoRef.current && !isYouTube) {
       videoRef.current.play().catch(() => {
         // Auto-play might be blocked by browser
       });
     }
-  }, [isOpen]);
+  }, [isOpen, isYouTube]);
 
   return (
     <AnimatePresence>
@@ -62,15 +93,24 @@ export function VideoPlayerModal({
 
             {/* Video Container */}
             <div className="aspect-video w-full bg-black">
-              <video
-                ref={videoRef}
-                src={`/api/stream?url=${encodeURIComponent(src)}`}
-                controls
-                loop
-                preload="auto"
-                className="w-full h-full object-contain"
-                playsInline
-              />
+              {isYouTube && youtubeEmbedUrl ? (
+                <iframe
+                  src={youtubeEmbedUrl}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  src={`/api/stream?url=${encodeURIComponent(src)}`}
+                  controls
+                  loop
+                  preload="auto"
+                  className="w-full h-full object-contain"
+                  playsInline
+                />
+              )}
             </div>
 
             {/* Footer / Hint */}
