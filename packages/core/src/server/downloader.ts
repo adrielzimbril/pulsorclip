@@ -1239,22 +1239,59 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
     const images: string[] = [];
     if (thumbnail) images.push(thumbnail);
 
-    // Heuristic for finding other images in the post carousel/album
-    const imgRegex = /"https:\/\/scontent\.[^"]+\.jpg[^"]*"/g;
+    // Enhanced carousel/album image extraction
+    // Pattern 1: Facebook's structured data for albums
+    const albumRegex = /"album_images":\s*\[([^\]]+)\]/g;
+    const albumMatch = albumRegex.exec(html);
+    if (albumMatch) {
+      const albumImages = albumMatch[1].match(/"url":\s*"([^"]+)"/g);
+      if (albumImages) {
+        albumImages.forEach((img) => {
+          const url = img.match(/"url":\s*"([^"]+)"/)?.[1];
+          if (url) {
+            const decodedUrl = url.replace(/\\/g, "").replace(/&amp;/g, "&");
+            if (!images.includes(decodedUrl)) {
+              images.push(decodedUrl);
+            }
+          }
+        });
+      }
+    }
+
+    // Pattern 2: Generic image URLs in carousel
+    const imgRegex = /"https:\/\/scontent\.[^"]+\.(jpg|png|webp)[^"]*"/g;
     const matches = html.match(imgRegex);
     if (matches) {
       matches.forEach((m) => {
         const u = m.replace(/"/g, "").replace(/\\/g, "").replace(/&amp;/g, "&");
-        // Filter out common UI icons/tracking pixels by checking for known dimensions or patterns
+        // Filter out common UI icons/tracking pixels
         if (
           !images.includes(u) &&
           !u.includes("/cp0/") &&
-          !u.includes("/p100x100/")
+          !u.includes("/p100x100/") &&
+          !u.includes("/p50x50/") &&
+          !u.includes("/p32x32/") &&
+          u.includes("scontent")
         ) {
           images.push(u);
         }
       });
     }
+
+    // Pattern 3: Open Graph images
+    const ogImageRegex = /<meta property="og:image" content="([^"]+)"/gi;
+    const ogMatches = html.match(ogImageRegex);
+    if (ogMatches) {
+      ogMatches.forEach((m) => {
+        const url = m.match(/content="([^"]+)"/)?.[1];
+        if (url && !images.includes(url)) {
+          images.push(url);
+        }
+      });
+    }
+
+    // Deduplicate and limit to 15 images
+    const uniqueImages = [...new Set(images)].slice(0, 15);
 
     const videoOptions: MediaOption[] = [];
     const fbVideoPatterns = [
@@ -1300,7 +1337,7 @@ async function scrapeFacebookInfo(url: string): Promise<MediaInfo> {
       duration: null,
       uploader,
       platform: "facebook",
-      images: images.length > 0 ? [...new Set(images)].slice(0, 15) : undefined,
+      images: uniqueImages.length > 0 ? uniqueImages : undefined,
       videoOptions,
       audioOptions: [],
     });
@@ -1509,6 +1546,72 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
     extractorArgs: sourceProfile.extractorArgs,
   });
 
+  // Try fallbacks FIRST for Facebook and YouTube (yt-dlp doesn't work well for these)
+  if (
+    sourceProfile.platform === "facebook" ||
+    sourceProfile.platform === "youtube"
+  ) {
+    try {
+      logServer("info", "media.info.fetch.trying_fallbacks_first", {
+        platform: sourceProfile.platform,
+      });
+      const fallbackInfo = await executeFallbacks<FallbackMediaInfo>(
+        allFallbacks,
+        url,
+        sourceProfile.platform,
+        "fetchInfo",
+      );
+
+      if (
+        fallbackInfo.title ||
+        fallbackInfo.resolvedUrl ||
+        fallbackInfo.resolvedVideoUrl
+      ) {
+        logServer("info", "media.info.fetch.fallbacks_success", {
+          platform: sourceProfile.platform,
+          hasTitle: !!fallbackInfo.title,
+          hasResolvedUrl: !!fallbackInfo.resolvedUrl,
+          hasResolvedVideoUrl: !!fallbackInfo.resolvedVideoUrl,
+        });
+
+        // For Facebook carousels, try to extract images
+        let images: string[] | undefined;
+        if (sourceProfile.platform === "facebook") {
+          try {
+            const facebookInfo = await scrapeFacebookInfo(url);
+            images = facebookInfo.images;
+          } catch {
+            // Ignore if carousel extraction fails
+          }
+        }
+
+        return normalizeMediaInfo({
+          title: fallbackInfo.title || "Media",
+          thumbnail: fallbackInfo.thumbnail || "",
+          duration: fallbackInfo.duration || null,
+          uploader: fallbackInfo.uploader || sourceProfile.platform,
+          platform: sourceProfile.platform,
+          videoOptions: [],
+          audioOptions: [],
+          resolvedUrl: fallbackInfo.resolvedUrl,
+          resolvedVideoUrl: fallbackInfo.resolvedVideoUrl,
+          width: fallbackInfo.width,
+          height: fallbackInfo.height,
+          images,
+        });
+      }
+    } catch (fallbackErr) {
+      logServer("warn", "media.info.fetch.fallbacks_failed", {
+        platform: sourceProfile.platform,
+        error:
+          fallbackErr instanceof Error
+            ? fallbackErr.message
+            : String(fallbackErr),
+      });
+      // Continue to yt-dlp as fallback
+    }
+  }
+
   try {
     const result = await runCommand(
       appConfig.ytDlpBin,
@@ -1677,8 +1780,8 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       }
     }
 
-    // Fallback for resolved URLs: If yt-dlp didn't provide valid resolved URLs, try fallbacks
-    if (!mediaInfo.resolvedUrl && !mediaInfo.resolvedVideoUrl) {
+    // Use fallbacks as primary method for resolved URLs (except threads)
+    if (sourceProfile.platform !== "threads") {
       try {
         const fallbackUrls = await getResolvedUrlsViaFallbacks(
           url,
@@ -1691,7 +1794,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
           mediaInfo.resolvedVideoUrl = fallbackUrls.resolvedVideoUrl;
         }
       } catch {
-        // Fallback failed, continue without resolved URLs
+        // Fallback failed, continue with yt-dlp URLs
       }
     }
 
