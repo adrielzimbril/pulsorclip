@@ -418,7 +418,7 @@ export function MediaCard({
 
             <button
               className="btn-outline w-full sm:w-auto"
-              disabled={!canDownload && !card.resolvedUrl}
+              disabled={!canDownload}
               onClick={() => {
                 onDownload();
               }}

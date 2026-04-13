@@ -77,6 +77,7 @@ export type DownloadJob = {
   filename?: string;
   queuePosition?: number;
   source: JobSource;
+  userId?: string;
   createdAt: number;
   updatedAt: number;
   /** A direct media URL found during original analysis, used to bypass standard extractors. */
@@ -97,6 +98,7 @@ export type DownloadRequestPayload = {
   targetExt?: string | null;
   title?: string | null;
   source?: JobSource | null;
+  userId?: string;
   resolvedUrl?: string | null;
   resolvedVideoUrl?: string | null;
   thumbnail?: string | null;

@@ -110,9 +110,15 @@ export function VideoPlayerModal({
               ) : (
                 <video
                   src={`/api/stream?url=${encodeURIComponent(src)}`}
+                  autoPlay
                   controls
                   loop
+                  aria-disabled
                   preload="auto"
+                  controlsList="nodownload noremoteplayback"
+                  disablePictureInPicture={true}
+                  disableRemotePlayback={true}
+                  onContextMenu={(e) => e.preventDefault()}
                   className="w-full h-full max-h-[84dvh] object-contain"
                   playsInline
                   translate="yes"

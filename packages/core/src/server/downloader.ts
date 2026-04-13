@@ -2236,6 +2236,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     targetExt: input.targetExt || defaultExt,
     title: input.title || "",
     source: input.source || "web",
+    userId: input.userId,
     status: "queued",
     progress: 0,
     progressLabel: "Queued",
@@ -2298,9 +2299,13 @@ export function getQueueSnapshot() {
   };
 }
 
-export function listDownloadJobs(source?: "web" | "bot") {
+export function listDownloadJobs(source?: "web" | "bot", userId?: string) {
   return [...getJobs().values()]
-    .filter((job) => !source || job.source === source)
+    .filter((job) => {
+      if (source && job.source !== source) return false;
+      if (userId && job.userId !== userId) return false;
+      return true;
+    })
     .sort((left, right) => right.createdAt - left.createdAt);
 }
 
