@@ -121,7 +121,6 @@ export function VideoPlayerModal({
                   onContextMenu={(e) => e.preventDefault()}
                   className="w-full h-full max-h-[84dvh] object-contain"
                   playsInline
-                  translate="yes"
                 />
               )}
             </div>

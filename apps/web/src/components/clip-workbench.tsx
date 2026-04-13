@@ -570,6 +570,7 @@ export function ClipWorkbench({
           title: card.title,
           source: "web",
           resolvedUrl: directUrl,
+          resolvedVideoUrl: card.resolvedVideoUrl || null,
           thumbnail: card.thumbnail,
         }),
       });

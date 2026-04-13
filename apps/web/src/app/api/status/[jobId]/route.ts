@@ -49,5 +49,7 @@ export async function GET(
     filename: job.filename || null,
     title: job.title || null,
     thumbnail: job.thumbnail || null,
+    url: job.url || null,
+    resolvedVideoUrl: job.resolvedVideoUrl || null,
   });
 }
