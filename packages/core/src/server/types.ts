@@ -28,4 +28,6 @@ export type DownloadJob = {
   filename?: string;
   createdAt: number;
   updatedAt: number;
+  resolvedUrl?: string;
+  resolvedVideoUrl?: string;
 };

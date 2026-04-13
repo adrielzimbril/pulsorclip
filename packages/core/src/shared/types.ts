@@ -81,6 +81,8 @@ export type DownloadJob = {
   updatedAt: number;
   /** A direct media URL found during original analysis, used to bypass standard extractors. */
   resolvedUrl?: string | null;
+  /** A direct video URL found during original analysis, distinct from resolvedUrl which is audio. */
+  resolvedVideoUrl?: string | null;
   thumbnail?: string | null;
   description?: string;
   tags?: string[];
@@ -96,6 +98,7 @@ export type DownloadRequestPayload = {
   title?: string | null;
   source?: JobSource | null;
   resolvedUrl?: string | null;
+  resolvedVideoUrl?: string | null;
   thumbnail?: string | null;
   description?: string;
   tags?: string[];

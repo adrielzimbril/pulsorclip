@@ -1835,8 +1835,18 @@ export async function executeDownload(jobId: string) {
     return;
   }
 
-  let jobUrl = job.resolvedUrl || job.url;
-  const isDirect = !!job.resolvedUrl;
+  // For video mode, use resolvedVideoUrl if available, otherwise resolvedUrl or url
+  // For audio mode, use resolvedUrl if available, otherwise url
+  let jobUrl: string;
+  const isDirect = !!job.resolvedUrl || !!job.resolvedVideoUrl;
+
+  if (job.mode === "video" && job.resolvedVideoUrl) {
+    jobUrl = job.resolvedVideoUrl;
+  } else if (job.resolvedUrl) {
+    jobUrl = job.resolvedUrl;
+  } else {
+    jobUrl = job.url;
+  }
 
   const tempDir = getJobTempDir(jobId);
   mkdirSync(tempDir, { recursive: true });
@@ -2208,6 +2218,7 @@ export function createDownloadJob(input: DownloadRequestPayload) {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     resolvedUrl: input.resolvedUrl,
+    resolvedVideoUrl: input.resolvedVideoUrl,
     thumbnail: input.thumbnail,
     description: input.description,
     tags: input.tags,

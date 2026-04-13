@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
-import { Video } from "next-video";
+import Video from "next-video";
 
 interface VideoPlayerModalProps {
   isOpen: boolean;
@@ -41,6 +41,7 @@ export function VideoPlayerModal({
           resolvedVideoUrl.includes("youtu.be"))) ||
       false;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsYouTube(isYoutube);
 
     if (isYoutube) {
@@ -108,7 +109,7 @@ export function VideoPlayerModal({
                   allowFullScreen
                 />
               ) : (
-                <video
+                <Video
                   ref={videoRef}
                   src={`/api/stream?url=${encodeURIComponent(src)}`}
                   controls
