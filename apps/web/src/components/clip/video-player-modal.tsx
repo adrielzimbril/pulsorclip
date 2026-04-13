@@ -74,7 +74,7 @@ export function VideoPlayerModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-5xl max-h-[90dvh] overflow-hidden rounded-[32px] border border-line bg-surface shadow-2xl"
+            className="relative w-full max-w-5xl max-h-[95dvh] overflow-hidden rounded-[32px] border border-line bg-surface shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-line bg-surface/50 px-6 py-4 backdrop-blur-sm">
@@ -85,14 +85,14 @@ export function VideoPlayerModal({
               </div>
               <button
                 onClick={onClose}
-                className="ml-4 rounded-full bg-background/50 p-2 text-muted transition hover:bg-foreground hover:text-background"
+                className="ml-4 rounded-full bg-background/50 p-2 text-muted cursor-pointer transition hover:bg-foreground hover:text-background"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Video Container */}
-            <div className="aspect-video w-full bg-black">
+            <div className="aspect-video w-full h-full bg-black">
               {isYouTube && youtubeEmbedUrl ? (
                 <iframe
                   src={youtubeEmbedUrl}

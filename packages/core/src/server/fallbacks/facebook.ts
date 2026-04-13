@@ -83,6 +83,8 @@ export const facebookFallback: FallbackHandler = {
 
       logServer("info", "fallbacks.facebook.pattern_matched", {
         matchedPattern,
+        hasTitle: !!titleMatch?.[1],
+        hasThumbnail: !!thumbnailMatch?.[1],
       });
 
       // Decode URL if needed

@@ -127,6 +127,13 @@ export const youtubeFallback: FallbackHandler = {
         try {
           const data = await fetchFromInvidious(instance, videoId);
 
+          logServer("info", "fallbacks.youtube.invidious_success", {
+            instance,
+            videoId,
+            hasTitle: !!data.title,
+            hasResolvedUrl: !!data.formatStreams?.[0]?.url,
+          });
+
           return {
             title: data.title,
             thumbnail: data.videoThumbnails?.[0]?.url,
@@ -139,7 +146,7 @@ export const youtubeFallback: FallbackHandler = {
           };
         } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err));
-          logServer("debug", "fallbacks.youtube.instance_failed", {
+          logServer("debug", "fallbacks.youtube.invidious_instance_failed", {
             instance,
             error: lastError.message,
           });
@@ -150,7 +157,13 @@ export const youtubeFallback: FallbackHandler = {
       // If all Invidious instances failed, try noembed as last resort
       logServer("info", "fallbacks.youtube.trying_noembed", { videoId });
       try {
-        return await fetchFromNoembed(videoId);
+        const result = await fetchFromNoembed(videoId);
+        logServer("info", "fallbacks.youtube.noembed_success", {
+          videoId,
+          hasTitle: !!result.title,
+          hasThumbnail: !!result.thumbnail,
+        });
+        return result;
       } catch (noembedErr) {
         logServer("warn", "fallbacks.youtube.noembed_failed", {
           error:

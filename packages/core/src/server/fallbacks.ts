@@ -73,6 +73,7 @@ export async function executeFallbacks<T>(
         const result = (await fallback.fetchInfo(url, platform)) as T;
         logServer("info", "fallbacks.success", {
           fallback: fallback.name,
+          fallbackPriority: fallback.priority,
           platform,
           action,
           hasTitle: !!(result as FallbackMediaInfo).title,
@@ -84,6 +85,7 @@ export async function executeFallbacks<T>(
         const result = (await fallback.getDownloadUrl(url, platform)) as T;
         logServer("info", "fallbacks.success", {
           fallback: fallback.name,
+          fallbackPriority: fallback.priority,
           platform,
           action,
           success: (result as FallbackDownloadResult).success,

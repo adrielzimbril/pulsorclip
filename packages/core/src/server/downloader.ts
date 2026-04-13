@@ -1738,7 +1738,9 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
               return formatUrl ? normalizeUrl(formatUrl as string) : undefined;
             })()
           : typeof parsed.url === "string"
-            ? normalizeUrl(parsed.url)
+            ? sourceProfile.platform === "youtube"
+              ? url
+              : normalizeUrl(parsed.url)
             : undefined,
     };
 

@@ -95,6 +95,14 @@ export const cobaltFallback: FallbackHandler = {
       try {
         const data = await fetchFromCobalt(url, platform, instance);
 
+        logServer("info", "fallbacks.cobalt.instance_success", {
+          platform,
+          instance,
+          hasTitle: !!(data.filename || data.title),
+          hasVideoUrl: !!data.url,
+          hasAudioUrl: !!data.audio,
+        });
+
         return {
           title: data.filename || data.title,
           thumbnail: data.thumbnail,
