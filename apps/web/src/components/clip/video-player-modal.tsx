@@ -2,9 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import "@videojs/react/video/skin.css";
-import { createPlayer, videoFeatures } from "@videojs/react";
-import { VideoSkin, Video } from "@videojs/react/video";
+import { useRef, useEffect } from "react";
 
 interface VideoPlayerModalProps {
   isOpen: boolean;
@@ -13,14 +11,22 @@ interface VideoPlayerModalProps {
   title?: string;
 }
 
-const Player = createPlayer({ features: videoFeatures });
-
 export function VideoPlayerModal({
   isOpen,
   onClose,
   src,
   title,
 }: VideoPlayerModalProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (isOpen && videoRef.current) {
+      videoRef.current.play().catch(() => {
+        // Auto-play might be blocked by browser
+      });
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -54,25 +60,23 @@ export function VideoPlayerModal({
               </button>
             </div>
 
-            {/* Player Container */}
+            {/* Video Container */}
             <div className="aspect-video w-full bg-black">
-              <Player.Provider>
-                <Video
-                  src={`/api/stream?url=${encodeURIComponent(src)}`}
-                  autoPlay
-                  controls
-                  loop
-                  preload="auto"
-                >
-                  <VideoSkin />
-                </Video>{" "}
-              </Player.Provider>
+              <video
+                ref={videoRef}
+                src={`/api/stream?url=${encodeURIComponent(src)}`}
+                controls
+                loop
+                preload="auto"
+                className="w-full h-full object-contain"
+                playsInline
+              />
             </div>
 
             {/* Footer / Hint */}
             <div className="bg-surface/50 px-6 py-4 backdrop-blur-sm">
               <p className="text-center text-xs text-muted font-medium uppercase tracking-widest">
-                Preview powered by @videojs/react & PulsorClip
+                Preview powered by PulsorClip
               </p>
             </div>
           </motion.div>

@@ -54,13 +54,17 @@ export async function executeFallbacks<T>(
     platform,
     url: url.substring(0, 100),
     availableFallbacks: sortedFallbacks.length,
+    fallbackNames: sortedFallbacks.map((fb) => fb.name),
     action,
   });
+
+  let lastError: Error | null = null;
 
   for (const fallback of sortedFallbacks) {
     try {
       logServer("info", "fallbacks.attempting", {
         fallback: fallback.name,
+        fallbackPriority: fallback.priority,
         platform,
         action,
       });
@@ -71,6 +75,9 @@ export async function executeFallbacks<T>(
           fallback: fallback.name,
           platform,
           action,
+          hasTitle: !!(result as FallbackMediaInfo).title,
+          hasResolvedUrl: !!(result as FallbackMediaInfo).resolvedUrl,
+          hasResolvedVideoUrl: !!(result as FallbackMediaInfo).resolvedVideoUrl,
         });
         return result;
       } else if (action === "getDownloadUrl" && fallback.getDownloadUrl) {
@@ -79,20 +86,32 @@ export async function executeFallbacks<T>(
           fallback: fallback.name,
           platform,
           action,
+          success: (result as FallbackDownloadResult).success,
         });
         return result;
       }
     } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
       logServer("warn", "fallbacks.failed", {
         fallback: fallback.name,
+        fallbackPriority: fallback.priority,
         platform,
         action,
-        error: err instanceof Error ? err.message : String(err),
+        error: lastError.message,
       });
     }
   }
 
-  throw new Error(`No fallback succeeded for ${platform} - ${action}`);
+  logServer("error", "fallbacks.all_failed", {
+    platform,
+    action,
+    attemptedFallbacks: sortedFallbacks.map((fb) => fb.name),
+    lastError: lastError?.message,
+  });
+
+  throw new Error(
+    `No fallback succeeded for ${platform} - ${action}. Last error: ${lastError?.message}`,
+  );
 }
 
 /**

@@ -6,7 +6,7 @@ import type {
 } from "../fallbacks";
 
 /**
- * YouTube fallback using Invidious instances
+ * YouTube fallback using Invidious instances and noembed API
  * Invidious is an open-source YouTube frontend that provides direct video URLs
  */
 const INVIDIOUS_INSTANCES = [
@@ -71,6 +71,41 @@ async function fetchFromInvidious(
   }
 }
 
+// Fallback using noembed API (oEmbed for YouTube)
+async function fetchFromNoembed(videoId: string): Promise<FallbackMediaInfo> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+  try {
+    const apiUrl = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`;
+    const response = await fetch(apiUrl, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      title: data.title,
+      thumbnail: data.thumbnail_url,
+      duration: null, // noembed doesn't provide duration
+      uploader: data.author_name,
+      resolvedUrl: undefined,
+      resolvedVideoUrl: undefined,
+      width: undefined,
+      height: undefined,
+    };
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
 export const youtubeFallback: FallbackHandler = {
   name: "youtube_invidious",
   priority: 20, // Lower than Cobalt
@@ -87,7 +122,7 @@ export const youtubeFallback: FallbackHandler = {
 
       let lastError: Error | null = null;
 
-      // Try each instance
+      // Try each Invidious instance
       for (const instance of INVIDIOUS_INSTANCES) {
         try {
           const data = await fetchFromInvidious(instance, videoId);
@@ -112,7 +147,20 @@ export const youtubeFallback: FallbackHandler = {
         }
       }
 
-      throw lastError || new Error("All Invidious instances failed");
+      // If all Invidious instances failed, try noembed as last resort
+      logServer("info", "fallbacks.youtube.trying_noembed", { videoId });
+      try {
+        return await fetchFromNoembed(videoId);
+      } catch (noembedErr) {
+        logServer("warn", "fallbacks.youtube.noembed_failed", {
+          error:
+            noembedErr instanceof Error
+              ? noembedErr.message
+              : String(noembedErr),
+        });
+      }
+
+      throw lastError || new Error("All YouTube fallbacks failed");
     } catch (err) {
       logServer("warn", "fallbacks.youtube.fetch_failed", {
         error: err instanceof Error ? err.message : String(err),
