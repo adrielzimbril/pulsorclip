@@ -126,11 +126,18 @@ Pour YouTube et d'autres plateformes protégées, PulsorClip supporte plusieurs 
 
 ### Option 1: Commande Telegram (Recommandée pour VPS)
 
-Les admins peuvent mettre à jour les cookies directement via Telegram:
+Les admins peuvent mettre à jour les cookies directement via Telegram avec base64:
 
 ```
-/cookies <coller le contenu cookies.txt ici>
+/cookies <cookies-base64>
 ```
+
+**Étapes:**
+
+1. Exportez les cookies depuis votre navigateur avec "Get cookies.txt" ou "Cookie-Editor"
+2. Générez le base64: `npm run encode-cookies ./cookies.txt ./cookies-base64.txt`
+3. Copiez la chaîne base64 depuis cookies-base64.txt
+4. Envoyez `/cookies <chaîne-base64>` dans Telegram
 
 Les cookies sont stockés dans le système de metadata et utilisés automatiquement pour les téléchargements bot et web.
 
@@ -139,10 +146,10 @@ Les cookies sont stockés dans le système de metadata et utilisés automatiquem
 Pour le développement local ou la configuration manuelle:
 
 ```bash
-npm run encode-cookies ./cookies.txt
+npm run encode-cookies ./cookies.txt ./cookies-base64.txt
 ```
 
-Cela encode votre cookies.txt en base64 et affiche la valeur pour `YTDLP_COOKIES_BASE64`.
+Cela encode votre cookies.txt en base64. Définissez `YTDLP_COOKIES_BASE64` avec la valeur base64.
 
 ### Option 3: Variables d'Environnement
 

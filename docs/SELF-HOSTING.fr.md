@@ -86,12 +86,17 @@ Pour YouTube et d'autres plateformes protégées, vous devrez peut-être configu
 
 ### Méthode Recommandée: Commande Telegram
 
-Pour les déploiements VPS, utilisez la commande admin `/cookies` dans Telegram:
+Pour les déploiements VPS, utilisez la commande admin `/cookies` dans Telegram avec base64:
 
 1. Installez l'extension "Get cookies.txt" ou "Cookie-Editor" sur votre navigateur
 2. Connectez-vous à YouTube sur votre PC
 3. Exportez les cookies au format Netscape
-4. Copiez le contenu et envoyez: `/cookies <coller le contenu>`
+4. Générez le base64 avec le script d'encodage:
+   ```bash
+   npm run encode-cookies ./cookies.txt ./cookies-base64.txt
+   ```
+5. Copiez la chaîne base64 depuis cookies-base64.txt
+6. Envoyez: `/cookies <chaîne-base64>`
 
 Cela stocke les cookies dans le système de metadata et fonctionne pour les téléchargements bot et web.
 
@@ -100,10 +105,10 @@ Cela stocke les cookies dans le système de metadata et fonctionne pour les tél
 **Script d'Encodage (pour configuration manuelle):**
 
 ```bash
-npm run encode-cookies ./cookies.txt
+npm run encode-cookies ./cookies.txt ./cookies-base64.txt
 ```
 
-Ensuite définissez `YTDLP_COOKIES_BASE64` avec la valeur affichée.
+Ensuite définissez `YTDLP_COOKIES_BASE64` avec la valeur base64.
 
 **Variables d'Environnement:**
 

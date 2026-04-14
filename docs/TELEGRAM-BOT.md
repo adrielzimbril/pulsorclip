@@ -167,18 +167,22 @@ These commands should only be visible to configured admins.
 
 ### /cookies Command
 
-Admins can update yt-dlp cookies directly via Telegram:
+Admins can update yt-dlp cookies directly via Telegram using base64:
 
 ```
-/cookies <paste cookies.txt content here>
+/cookies <base64-encoded-cookies>
 ```
 
 **Usage:**
 
 1. Generate cookies.txt using a browser extension (Get cookies.txt, Cookie-Editor)
-2. Copy the entire content of the file
-3. Send `/cookies` followed by the content
-4. Cookies are stored in metadata and used for both bot and web downloads
+2. Generate base64 using the encode script:
+   ```bash
+   npm run encode-cookies ./cookies.txt ./cookies-base64.txt
+   ```
+3. Copy the base64 string from cookies-base64.txt
+4. Send `/cookies` followed by the base64 string
+5. Cookies are stored in metadata and used for both bot and web downloads
 
 **Benefits:**
 
@@ -186,6 +190,7 @@ Admins can update yt-dlp cookies directly via Telegram:
 - Shared between bot and web downloads
 - Persistent across restarts
 - No redeployment needed
+- Base64 avoids escaping issues with newlines
 
 They should never appear in public help copy or public command scopes.
 

@@ -8,10 +8,10 @@ PulsorClip supports four ways to pass cookies into `yt-dlp`.
 
 ## Option 1: Telegram Command (Recommended for VPS)
 
-Admins can update cookies directly via the Telegram bot:
+Admins can update cookies directly via the Telegram bot using base64:
 
 ```
-/cookies <paste cookies.txt content here>
+/cookies <base64-encoded-cookies>
 ```
 
 **Steps:**
@@ -19,8 +19,12 @@ Admins can update cookies directly via the Telegram bot:
 1. Install a browser extension like "Get cookies.txt" or "Cookie-Editor" on Chrome/Firefox
 2. Log into YouTube on your PC
 3. Export/Download the cookies in Netscape format (creates `cookies.txt`)
-4. Open the file in a text editor and copy all content
-5. In Telegram: `/cookies` then paste the content
+4. Generate base64 using the encode script:
+   ```bash
+   npm run encode-cookies ./cookies.txt ./cookies-base64.txt
+   ```
+5. Copy the content of `cookies-base64.txt` (the base64 string)
+6. In Telegram: `/cookies <base64-string>`
 
 **Benefits:**
 
@@ -28,6 +32,7 @@ Admins can update cookies directly via the Telegram bot:
 - Cookies are shared between bot and web downloads
 - Stored in metadata system (persistent across restarts)
 - Easy to update without redeploying
+- Base64 avoids escaping issues with newlines
 
 ## Option 2: Browser cookies
 
