@@ -492,8 +492,8 @@ function ensureCookieFileFromMetadata() {
 
   let decoded = Buffer.from(metadataCookies, "base64").toString("utf-8");
 
-  // Fix escaped newlines that may come from Telegram message
-  decoded = decoded.replace(/\\n/g, "\n");
+  // Fix escaped newlines and tabs that may come from Telegram message
+  decoded = decoded.replace(/\\n/g, "\n").replace(/\\t/g, "\t");
 
   logServer("info", "cookies.metadata.decoded", {
     length: decoded.length,

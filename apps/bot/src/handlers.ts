@@ -1638,22 +1638,22 @@ export function registerBotHandlers(bot: Telegraf) {
     await sendPresence(ctx, "typing");
 
     const text = ctx.message.text;
-    const cookiesContent = text.replace("/cookies", "").trim();
+    const base64Content = text.replace("/cookies ", "").trim();
 
-    if (!cookiesContent) {
+    if (!base64Content) {
       const helpText =
         locale === "fr"
           ? "<b>🍪 Gestion des cookies yt-dlp</b>\n\n" +
-            "Envoyez le contenu de votre fichier cookies.txt après la commande.\n\n" +
+            "Envoyez le cookies en base64 après la commande.\n\n" +
             "<i>Exemple:</i>\n" +
-            "/cookies <code># Netscape HTTP Cookie File\n# This file ...</code>\n\n" +
-            "Ou utilisez le script local:\n" +
+            "/cookies <code>SGVsbG8gV29ybGQ=</code>\n\n" +
+            "Générer le base64:\n" +
             "<code>npm run encode-cookies ./cookies.txt</code>"
           : "<b>🍪 yt-dlp Cookies Management</b>\n\n" +
-            "Send your cookies.txt content after the command.\n\n" +
+            "Send the cookies in base64 after the command.\n\n" +
             "<i>Example:</i>\n" +
-            "/cookies <code># Netscape HTTP Cookie File\n# This file ...</code>\n\n" +
-            "Or use the local script:\n" +
+            "/cookies <code>SGVsbG8gV29ybGQ=</code>\n\n" +
+            "Generate base64:\n" +
             "<code>npm run encode-cookies ./cookies.txt</code>";
 
       await ctx.reply(helpText, { parse_mode: "HTML" });
@@ -1661,13 +1661,12 @@ export function registerBotHandlers(bot: Telegraf) {
     }
 
     try {
-      // Encode to base64 for storage
-      const base64Encoded = Buffer.from(cookiesContent).toString("base64");
-      setMetadata("ytdlp_cookies_base64", base64Encoded);
+      // Store base64 directly (no re-encoding needed)
+      setMetadata("ytdlp_cookies_base64", base64Content);
 
       logServer("info", "bot.cookies.updated", {
         adminId: ctx.from?.id,
-        length: cookiesContent.length,
+        length: base64Content.length,
       });
 
       const successText =
