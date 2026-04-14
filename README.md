@@ -116,6 +116,41 @@ Important variables:
 - `YTDLP_COOKIES_FROM_BROWSER`
 - `YTDLP_COOKIES_FILE`
 - `YTDLP_COOKIES_BASE64`
+- `PULSORCLIP_DAILY_REPORT_ENABLED`
+- `PULSORCLIP_DAILY_REPORT_HOUR`
+- `PULSORCLIP_HEALTH_CHECK_CADENCE_MINS`
+
+## Cookie Management
+
+For YouTube and other protected platforms, PulsorClip supports multiple cookie management methods:
+
+### Option 1: Telegram Command (Recommended for VPS)
+
+Admins can update cookies directly via Telegram:
+
+```
+/cookies <paste cookies.txt content here>
+```
+
+The cookies are stored in the metadata system and automatically used by both bot and web downloads.
+
+### Option 2: Encode Script
+
+For local development or manual setup:
+
+```bash
+npm run encode-cookies ./cookies.txt
+```
+
+This encodes your cookies.txt to base64 and logs the value for `YTDLP_COOKIES_BASE64`.
+
+### Option 3: Environment Variables
+
+- `YTDLP_COOKIES_FROM_BROWSER=chrome` - Extract from local browser (dev only)
+- `YTDLP_COOKIES_FILE=/path/to/cookies.txt` - Path to cookies file
+- `YTDLP_COOKIES_BASE64=<base64>` - Base64 encoded cookies (best for VPS)
+
+See [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md) for detailed instructions.
 
 ## Deployment
 
@@ -123,16 +158,16 @@ Important variables:
 
 ### Self-Hosting Dashboard
 
-| Platform | Deployment Method | One-Click | Status | Logo |
-| :--- | :--- | :---: | :--- | :---: |
-| **Railway** | `railway.json` | ✅ | Stable | <img src="docs/assets/logos/railway.svg" height="24" /> |
-| **Render** | `render.yaml` | ✅ | Stable | <img src="docs/assets/logos/render.png" height="24" /> |
-| **Cloudron** | `CloudronManifest.json` | ✅ | New | <img src="docs/assets/logos/cloudron.png" height="24" /> |
-| **CapRover** | `captain-definition` | ✅ | New | <img src="docs/assets/logos/caprover.png" height="24" /> |
-| **Coolify** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/coolify.svg" height="24" /> |
-| **Dokploy** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/dokploy.svg" height="24" /> |
-| **Hostinger** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/hostinger.ico" height="24" /> |
-| **HuggingFace**| Docker Spaces | ✅ | Stable | <img src="docs/assets/logos/huggingface.svg" height="24" /> |
+| Platform        | Deployment Method       | One-Click | Status |                            Logo                             |
+| :-------------- | :---------------------- | :-------: | :----- | :---------------------------------------------------------: |
+| **Railway**     | `railway.json`          |    ✅     | Stable |   <img src="docs/assets/logos/railway.svg" height="24" />   |
+| **Render**      | `render.yaml`           |    ✅     | Stable |   <img src="docs/assets/logos/render.png" height="24" />    |
+| **Cloudron**    | `CloudronManifest.json` |    ✅     | New    |  <img src="docs/assets/logos/cloudron.png" height="24" />   |
+| **CapRover**    | `captain-definition`    |    ✅     | New    |  <img src="docs/assets/logos/caprover.png" height="24" />   |
+| **Coolify**     | `docker-compose.yml`    |    ✅     | Stable |   <img src="docs/assets/logos/coolify.svg" height="24" />   |
+| **Dokploy**     | `docker-compose.yml`    |    ✅     | Stable |   <img src="docs/assets/logos/dokploy.svg" height="24" />   |
+| **Hostinger**   | `docker-compose.yml`    |    ✅     | Stable |  <img src="docs/assets/logos/hostinger.ico" height="24" />  |
+| **HuggingFace** | Docker Spaces           |    ✅     | Stable | <img src="docs/assets/logos/huggingface.svg" height="24" /> |
 
 ---
 
@@ -180,6 +215,32 @@ Repository docs:
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/TELEGRAM-BOT.md](docs/TELEGRAM-BOT.md)
 - [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md)
+- [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md)
+
+## Telegram Bot Commands
+
+### Public Commands
+
+- `/start` - Start the guided download flow
+- `/language` - Choose your preferred language
+- `/help` - Show commands and usage examples
+- `/video <url>` - Download video from a URL
+- `/audio <url>` - Download audio from a URL
+- `/track <job_id>` - Track a specific job status
+- `/support` - Get help or contact the operator
+- `/status` - View Bot services availability
+- `/queue` - View your active jobs and queue
+
+### Admin Commands
+
+- `/status` - View Bot & Web live counters
+- `/server` - Detailed server diagnostics
+- `/health` - Send health snapshot to admins
+- `/report` - Current daily statistics
+- `/daily` - Trigger daily report
+- `/broadcast` - Message all bot users
+- `/users` - User base statistics
+- `/cookies` - Manage yt-dlp cookies (update via Telegram)
 
 Community files:
 

@@ -1582,10 +1582,8 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   });
 
   // Try fallbacks FIRST for Facebook and YouTube (yt-dlp doesn't work well for these)
-  if (
-    sourceProfile.platform === "facebook" ||
-    sourceProfile.platform === "youtube"
-  ) {
+  // YouTube is handled separately below for now
+  if (sourceProfile.platform === "facebook") {
     try {
       logServer("info", "media.info.fetch.trying_fallbacks_first", {
         platform: sourceProfile.platform,

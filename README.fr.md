@@ -2,13 +2,14 @@
 
 > 🌟 **Démo Visuelle :** Découvrez les [Images de Preview PulsorClip](preview/preview.md) pour un aperçu de l'interface.
 
-|                 Mode Clair                 |               Mode Sombre                |
-| :----------------------------------------: | :--------------------------------------: |
+|                 Mode Clair                  |                Mode Sombre                |
+| :-----------------------------------------: | :---------------------------------------: |
 | ![preview-light](preview/preview-light.png) | ![preview-dark](preview/preview-dark.png) |
 
 PulsorClip est un workspace self-hosted de téléchargement et d'export média par **Adriel Zimbril**.
 
 ### 🚀 Statut du projet
+
 - 🌍 **Workspace Web :** ✅ 100% Fonctionnel
 - 🤖 **Bot Telegram :** ✅ 100% Fonctionnel
 - 🖥️ **Desktop (Native) :** 🏗️ En cours (Tauri)
@@ -115,21 +116,56 @@ Variables importantes:
 - `YTDLP_COOKIES_FROM_BROWSER`
 - `YTDLP_COOKIES_FILE`
 - `YTDLP_COOKIES_BASE64`
+- `PULSORCLIP_DAILY_REPORT_ENABLED`
+- `PULSORCLIP_DAILY_REPORT_HOUR`
+- `PULSORCLIP_HEALTH_CHECK_CADENCE_MINS`
+
+## Gestion des Cookies
+
+Pour YouTube et d'autres plateformes protégées, PulsorClip supporte plusieurs méthodes de gestion des cookies:
+
+### Option 1: Commande Telegram (Recommandée pour VPS)
+
+Les admins peuvent mettre à jour les cookies directement via Telegram:
+
+```
+/cookies <coller le contenu cookies.txt ici>
+```
+
+Les cookies sont stockés dans le système de metadata et utilisés automatiquement pour les téléchargements bot et web.
+
+### Option 2: Script d'Encodage
+
+Pour le développement local ou la configuration manuelle:
+
+```bash
+npm run encode-cookies ./cookies.txt
+```
+
+Cela encode votre cookies.txt en base64 et affiche la valeur pour `YTDLP_COOKIES_BASE64`.
+
+### Option 3: Variables d'Environnement
+
+- `YTDLP_COOKIES_FROM_BROWSER=chrome` - Extraire depuis le navigateur local (dev uniquement)
+- `YTDLP_COOKIES_FILE=/path/to/cookies.txt` - Chemin vers le fichier cookies
+- `YTDLP_COOKIES_BASE64=<base64>` - Cookies encodés en base64 (mieux pour VPS)
+
+Voir [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md) pour les instructions détaillées.
 
 ## Déploiement
 
 ### Dashboard d'Auto-Hébergement
 
-| Plateforme | Méthode | One-Click | Statut | Logo |
-| :--- | :--- | :---: | :--- | :---: |
-| **Railway** | `railway.json` | ✅ | Stable | <img src="docs/assets/logos/railway.svg" height="24" /> |
-| **Render** | `render.yaml` | ✅ | Stable | <img src="docs/assets/logos/render.png" height="24" /> |
-| **Cloudron** | `CloudronManifest.json` | ✅ | Nouveau | <img src="docs/assets/logos/cloudron.png" height="24" /> |
-| **CapRover** | `captain-definition` | ✅ | Nouveau | <img src="docs/assets/logos/caprover.png" height="24" /> |
-| **Coolify** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/coolify.svg" height="24" /> |
-| **Dokploy** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/dokploy.svg" height="24" /> |
-| **Hostinger** | `docker-compose.yml` | ✅ | Stable | <img src="docs/assets/logos/hostinger.ico" height="24" /> |
-| **HuggingFace**| Docker Spaces | ✅ | Stable | <img src="docs/assets/logos/huggingface.svg" height="24" /> |
+| Plateforme      | Méthode                 | One-Click | Statut  |                            Logo                             |
+| :-------------- | :---------------------- | :-------: | :------ | :---------------------------------------------------------: |
+| **Railway**     | `railway.json`          |    ✅     | Stable  |   <img src="docs/assets/logos/railway.svg" height="24" />   |
+| **Render**      | `render.yaml`           |    ✅     | Stable  |   <img src="docs/assets/logos/render.png" height="24" />    |
+| **Cloudron**    | `CloudronManifest.json` |    ✅     | Nouveau |  <img src="docs/assets/logos/cloudron.png" height="24" />   |
+| **CapRover**    | `captain-definition`    |    ✅     | Nouveau |  <img src="docs/assets/logos/caprover.png" height="24" />   |
+| **Coolify**     | `docker-compose.yml`    |    ✅     | Stable  |   <img src="docs/assets/logos/coolify.svg" height="24" />   |
+| **Dokploy**     | `docker-compose.yml`    |    ✅     | Stable  |   <img src="docs/assets/logos/dokploy.svg" height="24" />   |
+| **Hostinger**   | `docker-compose.yml`    |    ✅     | Stable  |  <img src="docs/assets/logos/hostinger.ico" height="24" />  |
+| **HuggingFace** | Docker Spaces           |    ✅     | Stable  | <img src="docs/assets/logos/huggingface.svg" height="24" /> |
 
 ---
 
@@ -177,6 +213,32 @@ Documentation du depot:
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - [docs/TELEGRAM-BOT.md](docs/TELEGRAM-BOT.md)
 - [docs/YOUTUBE-COOKIES.md](docs/YOUTUBE-COOKIES.md)
+- [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md)
+
+## Commandes du Bot Telegram
+
+### Commandes Publiques
+
+- `/start` - Démarrer le flow de téléchargement guidé
+- `/language` - Choisir votre langue préférée
+- `/help` - Afficher les commandes et exemples d'utilisation
+- `/video <url>` - Télécharger une vidéo depuis une URL
+- `/audio <url>` - Télécharger un audio depuis une URL
+- `/track <job_id>` - Suivre l'état d'un job spécifique
+- `/support` - Obtenir de l'aide ou contacter l'opérateur
+- `/status` - Voir la disponibilité des services Bot
+- `/queue` - Voir vos jobs actifs et la file d'attente
+
+### Commandes Admin
+
+- `/status` - Voir les compteurs Live Bot & Web
+- `/server` - Diagnostic serveur détaillé
+- `/health` - Envoyer un point santé aux admins
+- `/report` - Statistiques journalières actuelles
+- `/daily` - Déclencher le rapport journalier
+- `/broadcast` - Message à tous les utilisateurs du bot
+- `/users` - Statistiques de la base d'utilisateurs
+- `/cookies` - Gérer les cookies yt-dlp (mettre à jour via Telegram)
 
 Fichiers de projet:
 
@@ -186,14 +248,14 @@ Fichiers de projet:
 
 ## Plateformes
 
-| Plateforme | Statut | Méthode d'Extraction |
-| :--- | :--- | :--- |
-| **Threads** | ✅ Stable | Custom JSON Scraper (jusqu'à 1280p) |
-| **TikTok** | ✅ Stable | Tikwm API + Carousel Fallback |
-| **Instagram** | ✅ Stable | `yt-dlp` + direct CDN fallback |
-| **Facebook** | ✅ Stable | `yt-dlp` |
-| **X / Twitter** | ✅ Stable | `yt-dlp` |
-| **YouTube** | ⚠️ Restreint | Stable localement. Erreurs **"Sign in to confirm"** fréquentes sur VPS/Datacenter. Utiliser des cookies authentifiés. |
+| Plateforme      | Statut       | Méthode d'Extraction                                                                                                  |
+| :-------------- | :----------- | :-------------------------------------------------------------------------------------------------------------------- |
+| **Threads**     | ✅ Stable    | Custom JSON Scraper (jusqu'à 1280p)                                                                                   |
+| **TikTok**      | ✅ Stable    | Tikwm API + Carousel Fallback                                                                                         |
+| **Instagram**   | ✅ Stable    | `yt-dlp` + direct CDN fallback                                                                                        |
+| **Facebook**    | ✅ Stable    | `yt-dlp`                                                                                                              |
+| **X / Twitter** | ✅ Stable    | `yt-dlp`                                                                                                              |
+| **YouTube**     | ⚠️ Restreint | Stable localement. Erreurs **"Sign in to confirm"** fréquentes sur VPS/Datacenter. Utiliser des cookies authentifiés. |
 
 ## Disclaimer Légal et Éducatif
 

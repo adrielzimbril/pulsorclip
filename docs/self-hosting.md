@@ -4,32 +4,35 @@ PulsorClip is designed to be easily deployed on various platforms. Below are spe
 
 ## Compatibility Table
 
-| Platform | Deployment Method | One-Click Support | Logo |
-| :--- | :--- | :---: | :---: |
-| **Railway** | Templates / Docker | ✅ | <img src="./assets/logos/railway.svg" height="24" /> |
-| **Render** | `render.yaml` / Docker | ✅ | <img src="./assets/logos/render.png" height="24" /> |
-| **Cloudron** | `CloudronManifest.json` | ✅ | <img src="./assets/logos/cloudron.png" height="24" /> |
-| **CapRover** | `captain-definition` | ✅ | <img src="./assets/logos/caprover.png" height="24" /> |
-| **Coolify** | `docker-compose.yml` | ✅ | <img src="./assets/logos/coolify.svg" height="24" /> |
-| **Dokploy** | `docker-compose.yml` | ✅ | <img src="./assets/logos/dokploy.svg" height="24" /> |
-| **Hostinger** | `docker-compose.yml` | ✅ | <img src="./assets/logos/hostinger.ico" height="24" /> |
-| **HuggingFace**| Docker Spaces | ✅ | <img src="./assets/logos/huggingface.svg" height="24" /> |
+| Platform        | Deployment Method       | One-Click Support |                           Logo                           |
+| :-------------- | :---------------------- | :---------------: | :------------------------------------------------------: |
+| **Railway**     | Templates / Docker      |        ✅         |   <img src="./assets/logos/railway.svg" height="24" />   |
+| **Render**      | `render.yaml` / Docker  |        ✅         |   <img src="./assets/logos/render.png" height="24" />    |
+| **Cloudron**    | `CloudronManifest.json` |        ✅         |  <img src="./assets/logos/cloudron.png" height="24" />   |
+| **CapRover**    | `captain-definition`    |        ✅         |  <img src="./assets/logos/caprover.png" height="24" />   |
+| **Coolify**     | `docker-compose.yml`    |        ✅         |   <img src="./assets/logos/coolify.svg" height="24" />   |
+| **Dokploy**     | `docker-compose.yml`    |        ✅         |   <img src="./assets/logos/dokploy.svg" height="24" />   |
+| **Hostinger**   | `docker-compose.yml`    |        ✅         |  <img src="./assets/logos/hostinger.ico" height="24" />  |
+| **HuggingFace** | Docker Spaces           |        ✅         | <img src="./assets/logos/huggingface.svg" height="24" /> |
 
 ---
 
 ## 🚀 Deployment Instructions
 
 ### 1. CapRover
+
 - Push your code or connect your GitHub.
 - CapRover will automatically detect the `captain-definition` in the root.
 - Ensure you set the mandatory environment variables (see `.env.example`).
 
 ### 2. Cloudron
+
 - Install the [Cloudron CLI](https://docs.cloudron.io/custom-apps/cli/): `npm install -g cloudron`.
 - Run `cloudron install --location <your-location>`.
 - The `CloudronManifest.json` handles the port (10000) and persistent data volume at `/app/data`.
 
 ### 3. Coolify
+
 - Click **+ New Resource** in your project.
 - Select **Service** or **Docker Compose**.
 - Point to your repository or paste the content of `docker-compose.yml`.
@@ -37,12 +40,14 @@ PulsorClip is designed to be easily deployed on various platforms. Below are spe
 - Set your `TELEGRAM_BOT_TOKEN` in the **Environment Variables** tab.
 
 ### 4. Dokploy
+
 - Create a new project and select **Compose** or **App**.
 - If using **Compose**, point to the `docker-compose.yml` file in your repo.
 - If using **App**, select the **Dockerfile** build type and set the port to `10000`.
 - Don't forget to mount `/app/data/downloads` to a persistent volume in the **Mounts** tab.
 
 ### 5. Hostinger (VPS Docker)
+
 - Open your **VPS Dashboard** and go to **Docker Manager**.
 - Select **Compose** and choose **GitHub/Git**.
 - Paste your repository URL: `https://github.com/adrielzimbril/pulsorclip`.
@@ -50,22 +55,60 @@ PulsorClip is designed to be easily deployed on various platforms. Below are spe
 - Don't forget to configure your environment variables in the manager.
 
 ### 6. Railway (Internal Crons)
+
 If you want to ensure the daily report is sent even if the bot is in sleep mode:
+
 - Use **Railway Cron Jobs**.
 - Command: `npm run cron:report` (See package.json updates).
 
 ---
 
 ## 🛠️ Environment Variables
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `NEXT_PUBLIC_APP_URL` | Public web URL of your instance | `http://localhost:10000` |
-| `TELEGRAM_BOT_TOKEN` | Your Telegram Bot Token from @BotFather | (Required) |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated list of IDs to receive reports | (Required) |
-| `PULSORCLIP_DAILY_REPORT_ENABLED`| Enable daily admin summary | `true` |
-| `PULSORCLIP_DAILY_REPORT_HOUR` | UTC Hour for reports (0-23) | `0` |
-| `TELEGRAM_BOT_USERNAME` | Your bot's @username | `pulsorclip_bot` |
-| `PULSORCLIP_DOWNLOAD_DIR` | Path to persistent storage | `/app/data/downloads` |
-| `PULSORCLIP_DEBUG_LOGS` | Enable verbose logging | `true` |
-| `TELEGRAM_UPLOAD_LIMIT_MB` | Maximum file size for bot uploads | `45` |
-| `YTDLP_COOKIES_BASE64` | Base64 encoded cookies.txt for YouTube | (Optional) |
+
+| Variable                          | Description                                      | Default                  |
+| :-------------------------------- | :----------------------------------------------- | :----------------------- |
+| `NEXT_PUBLIC_APP_URL`             | Public web URL of your instance                  | `http://localhost:10000` |
+| `TELEGRAM_BOT_TOKEN`              | Your Telegram Bot Token from @BotFather          | (Required)               |
+| `TELEGRAM_ADMIN_IDS`              | Comma-separated list of IDs to receive reports   | (Required)               |
+| `PULSORCLIP_DAILY_REPORT_ENABLED` | Enable daily admin summary                       | `true`                   |
+| `PULSORCLIP_DAILY_REPORT_HOUR`    | UTC Hour for reports (0-23)                      | `0`                      |
+| `TELEGRAM_BOT_USERNAME`           | Your bot's @username                             | `pulsorclip_bot`         |
+| `PULSORCLIP_DOWNLOAD_DIR`         | Path to persistent storage                       | `/app/data/downloads`    |
+| `PULSORCLIP_DEBUG_LOGS`           | Enable verbose logging                           | `true`                   |
+| `TELEGRAM_UPLOAD_LIMIT_MB`        | Maximum file size for bot uploads                | `45`                     |
+| `YTDLP_COOKIES_BASE64`            | Base64 encoded cookies.txt for YouTube           | (Optional)               |
+| `YTDLP_COOKIES_FILE`              | Path to cookies.txt file                         | (Optional)               |
+| `YTDLP_COOKIES_FROM_BROWSER`      | Browser to extract cookies from (chrome/firefox) | (Optional)               |
+
+## 🍪 Cookie Management
+
+For YouTube and other protected platforms, you may need to configure cookies.
+
+### Recommended Method: Telegram Command
+
+For VPS deployments, use the `/cookies` admin command in Telegram:
+
+1. Install "Get cookies.txt" or "Cookie-Editor" browser extension
+2. Log into YouTube on your PC
+3. Export cookies in Netscape format
+4. Copy the content and send: `/cookies <paste content>`
+
+This stores cookies in the metadata system and works for both bot and web downloads.
+
+### Alternative Methods
+
+**Encode Script (for manual setup):**
+
+```bash
+npm run encode-cookies ./cookies.txt
+```
+
+Then set `YTDLP_COOKIES_BASE64` to the logged value.
+
+**Environment Variables:**
+
+- `YTDLP_COOKIES_BASE64` - Base64 encoded cookies (best for VPS)
+- `YTDLP_COOKIES_FILE` - Path to cookies.txt file
+- `YTDLP_COOKIES_FROM_BROWSER` - Extract from browser (dev only)
+
+See [docs/YOUTUBE-COOKIES.md](YOUTUBE-COOKIES.md) for detailed instructions.

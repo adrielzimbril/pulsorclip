@@ -154,12 +154,38 @@ The bot should ask for language before the main flow when the user has no saved 
 
 These commands should only be visible to configured admins.
 
-- `/status`
-- `/server`
-- `/queue`
-- `/health`
-- `/report`
-- `/daily`
+- `/status` - View Bot & Web live counters
+- `/server` - Detailed server diagnostics
+- `/queue` - Server queue snapshot
+- `/queuestatus` - Queue status (admin-specific)
+- `/health` - Send health snapshot to admins
+- `/report` - Current daily statistics
+- `/daily` - Trigger daily report
+- `/broadcast` - Message all bot users
+- `/users` - User base statistics
+- `/cookies` - Manage yt-dlp cookies
+
+### /cookies Command
+
+Admins can update yt-dlp cookies directly via Telegram:
+
+```
+/cookies <paste cookies.txt content here>
+```
+
+**Usage:**
+
+1. Generate cookies.txt using a browser extension (Get cookies.txt, Cookie-Editor)
+2. Copy the entire content of the file
+3. Send `/cookies` followed by the content
+4. Cookies are stored in metadata and used for both bot and web downloads
+
+**Benefits:**
+
+- Works on VPS without file access
+- Shared between bot and web downloads
+- Persistent across restarts
+- No redeployment needed
 
 They should never appear in public help copy or public command scopes.
 

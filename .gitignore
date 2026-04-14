@@ -50,3 +50,6 @@ scripts/setup_wsl.sh
 *.build.json
 
 apps/web/next-env.d.ts
+
+# Cookies file
+cookies-*.txt
