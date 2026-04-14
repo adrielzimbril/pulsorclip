@@ -252,7 +252,7 @@ export const appConfig = {
    * Env: PULSORCLIP_HEALTH_CHECK_CADENCE_MINS (Default: 15)
    */
   healthCheckCadenceMins: Number(
-    process.env.PULSORCLIP_HEALTH_CHECK_CADENCE_MINS || "15",
+    process.env.PULSORCLIP_HEALTH_CHECK_CADENCE_MINS || "1440",
   ),
 
   /**

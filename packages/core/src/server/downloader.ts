@@ -47,6 +47,34 @@ import type {
   PlaylistEntry,
 } from "../shared/types";
 
+// Simple in-memory cache for video metadata to reduce API calls
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const mediaInfoCache = new Map<
+  string,
+  { data: MediaInfo; expiresAt: number }
+>();
+
+function getCachedMediaInfo(url: string): MediaInfo | null {
+  const cached = mediaInfoCache.get(url);
+  if (!cached) return null;
+
+  if (Date.now() > cached.expiresAt) {
+    mediaInfoCache.delete(url);
+    return null;
+  }
+
+  logServer("info", "cache.hit", { url: urlForLogs(url) });
+  return cached.data;
+}
+
+function setCachedMediaInfo(url: string, data: MediaInfo): void {
+  mediaInfoCache.set(url, {
+    data,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+  logServer("info", "cache.set", { url: urlForLogs(url), ttl: CACHE_TTL_MS });
+}
+
 declare global {
   var __pulsorclipJobs: Map<string, DownloadJob> | undefined;
   var __pulsorclipQueue: string[] | undefined;
@@ -1587,6 +1615,13 @@ async function getResolvedUrlsViaFallbacks(
 
 export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   const url = await expandUrl(rawUrl);
+
+  // Check cache first
+  const cached = getCachedMediaInfo(url);
+  if (cached) {
+    return cached;
+  }
+
   const allowPlaylistInfo = isYoutubePlaylistUrl(url);
 
   const sourceProfile = getSourceProfile(url);
@@ -1662,40 +1697,69 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   }
 
   try {
-    const result = await runCommand(
-      appConfig.ytDlpBin,
-      [
-        ...getAuthArgs(),
-        ...sourceProfile.extractorArgs,
-        "--dump-single-json",
-        ...(allowPlaylistInfo ? [] : ["--no-playlist"]),
-        "--socket-timeout",
-        "30",
-        "--geo-bypass",
-        "--no-check-certificates",
-        url,
-      ],
-      INFO_TIMEOUT_MS,
-    );
-    logServer("info", "media.info.fetch.middle.result", {
-      platform: sourceProfile.platform,
-      url: urlForLogs(url),
-      extractorArgs: sourceProfile.extractorArgs,
-      result,
-    });
+    const clients = ["web", "android", "mweb"];
+    let result: Awaited<ReturnType<typeof runCommand>> | null = null;
+    let successfulClient: string | null = null;
 
-    if (result.exitCode !== 0) {
-      if (sourceProfile.platform === "threads") {
-        return await scrapeThreadsInfo(url);
+    for (const client of clients) {
+      const currentArgs = sourceProfile.extractorArgs.map((arg) =>
+        arg.includes("player_client=")
+          ? `youtube:player_client=${client}`
+          : arg,
+      );
+
+      const currentResult = await runCommand(
+        appConfig.ytDlpBin,
+        [
+          ...getAuthArgs(),
+          ...currentArgs,
+          "--dump-single-json",
+          ...(allowPlaylistInfo ? [] : ["--no-playlist"]),
+          "--socket-timeout",
+          "30",
+          "--geo-bypass",
+          "--no-check-certificates",
+          url,
+        ],
+        INFO_TIMEOUT_MS,
+      );
+
+      logServer("info", "media.info.fetch.middle.result", {
+        platform: sourceProfile.platform,
+        url: urlForLogs(url),
+        extractorArgs: currentArgs,
+        client,
+        result: currentResult,
+      });
+
+      if (currentResult.exitCode !== 0) {
+        // Check if it's a 429 error and we have more clients to try
+        if (
+          currentResult.stderr.includes("429") &&
+          clients.indexOf(client) < clients.length - 1
+        ) {
+          logServer("warn", "media.info.fetch.rate_limited_retry", {
+            client,
+            nextClient: clients[clients.indexOf(client) + 1],
+          });
+          continue; // Try next client
+        }
+        throw new Error(simplifyError(currentResult.stderr));
       }
-      if (sourceProfile.platform === "tiktok") {
-        return await scrapeTikTokCarousel(url);
-      }
-      if (sourceProfile.platform === "facebook") {
-        return await scrapeFacebookInfo(url);
-      }
-      throw new Error(simplifyError(result.stderr));
+
+      // Success - store result and break
+      result = currentResult;
+      successfulClient = client;
+      break;
     }
+
+    if (!result) {
+      throw new Error("All YouTube clients failed due to rate limiting");
+    }
+
+    logServer("info", "media.info.fetch.client_success", {
+      client: successfulClient,
+    });
 
     const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
     const playlistEntries = extractPlaylistEntries(parsed, url);
@@ -1864,7 +1928,9 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       }
     }
 
-    return normalizeMediaInfo(mediaInfo);
+    const normalized = normalizeMediaInfo(mediaInfo);
+    setCachedMediaInfo(url, normalized);
+    return normalized;
   } catch (err) {
     if (url.includes("threads.net") || url.includes("threads.com")) {
       return normalizeMediaInfo(await scrapeThreadsInfo(url));

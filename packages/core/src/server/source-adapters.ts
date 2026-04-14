@@ -86,7 +86,7 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
       "--age-limit",
       "100",
       "--extractor-retries",
-      "3",
+      "6",
     ],
     note: "YouTube: web client for cookie compatibility.",
   },
