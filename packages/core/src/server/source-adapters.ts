@@ -81,7 +81,7 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
       url.includes("music.youtube.com/"),
     extractorArgs: [
       "--extractor-args",
-      // Let yt-dlp handle n-signature challenge automatically
+      // Android client often gives better quality without cookies
       "youtube:player_client=android",
       "--age-limit",
       "100",
