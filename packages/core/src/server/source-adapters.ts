@@ -81,15 +81,14 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
       url.includes("music.youtube.com/"),
     extractorArgs: [
       "--extractor-args",
-      // Use android client which works well with cookies
-      // Fallback to mweb if android fails
-      "youtube:player_client=android,mweb",
+      // Let yt-dlp choose the best client with cookies
+      "youtube:player_client=web",
       "--age-limit",
       "100",
       "--extractor-retries",
       "3",
     ],
-    note: "YouTube: android+mweb player chain for cookie compatibility.",
+    note: "YouTube: web client for cookie compatibility.",
   },
 ];
 
