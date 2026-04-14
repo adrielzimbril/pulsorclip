@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { logServer } from "@pulsorclip/core/server";
 
 function encodeCookiesToBase64(cookiesPath: string) {
   try {
@@ -7,21 +8,23 @@ function encodeCookiesToBase64(cookiesPath: string) {
     const cookiesContent = readFileSync(absolutePath, "utf-8");
     const base64Encoded = Buffer.from(cookiesContent).toString("base64");
 
-    console.log("✅ Cookies encoded successfully!");
-    console.log("\n" + "=".repeat(60));
-    console.log("Add this to your environment variables:");
-    console.log("=".repeat(60));
-    console.log(`\nYTDLP_COOKIES_BASE64=${base64Encoded}`);
-    console.log("\n" + "=".repeat(60));
-    console.log("\nFor Railway/Render, paste the base64 value in the dashboard.");
-    console.log("For local .env, paste the entire line above.");
+    logServer("info", "cookies.encode.success", {
+      path: absolutePath,
+      length: cookiesContent.length,
+    });
+
+    logServer("info", "cookies.encode.output", {
+      message: "Add this to your environment variables:",
+      envVar: `YTDLP_COOKIES_BASE64=${base64Encoded}`,
+      instructions:
+        "For Railway/Render, paste the base64 value in the dashboard. For local .env, paste the entire line above.",
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("❌ Failed to encode cookies:", message);
-    console.error("\nMake sure:");
-    console.error("1. The cookies.txt file exists");
-    console.error("2. You have the correct path");
-    console.error("3. The file is readable");
+    logServer("error", "cookies.encode.failed", {
+      reason: message,
+      path: cookiesPath,
+    });
     process.exit(1);
   }
 }
@@ -30,12 +33,15 @@ function encodeCookiesToBase64(cookiesPath: string) {
 const cookiesPath = process.argv[2] || "./cookies.txt";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log("Usage: npm run encode-cookies [path-to-cookies.txt]");
-  console.log("\nExample:");
-  console.log("  npm run encode-cookies ./cookies.txt");
-  console.log("  npm run encode-cookies /path/to/your/cookies.txt");
-  console.log("\nThis script will encode your cookies.txt file to base64");
-  console.log("so you can use it with YTDLP_COOKIES_BASE64 environment variable.");
+  logServer("info", "cookies.encode.help", {
+    usage: "npm run encode-cookies [path-to-cookies.txt]",
+    examples: [
+      "npm run encode-cookies ./cookies.txt",
+      "npm run encode-cookies /path/to/your/cookies.txt",
+    ],
+    description:
+      "This script will encode your cookies.txt file to base64 so you can use it with YTDLP_COOKIES_BASE64 environment variable.",
+  });
   process.exit(0);
 }
 
