@@ -12,7 +12,12 @@ import {
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { extname, join } from "node:path";
-import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
+import {
+  getMetadata,
+  setMetadata,
+  trackDownloadCompleted,
+  trackDownloadCreated,
+} from "./analytics";
 import { appConfig, ensureAppDirs, resolveRealBinaryPath } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
@@ -474,7 +479,6 @@ function ensureCookieFileFromBase64() {
 }
 
 function ensureCookieFileFromMetadata() {
-  const { getMetadata } = require("./config");
   const metadataCookies = getMetadata("ytdlp_cookies_base64");
 
   if (!metadataCookies) {

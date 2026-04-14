@@ -53,3 +53,5 @@ apps/web/next-env.d.ts
 
 # Cookies file
 cookies-*.txt
+
+local_command.txt

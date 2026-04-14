@@ -17,7 +17,7 @@ function encodeCookiesToBase64(cookiesPath: string, outputPath?: string) {
 
     if (outputPath) {
       const outputAbsPath = resolve(outputPath);
-      writeFileSync(outputAbsPath, envVar, "utf-8");
+      writeFileSync(outputAbsPath, base64Encoded, "utf-8");
       logServer("info", "cookies.encode.saved", {
         outputPath: outputAbsPath,
       });
