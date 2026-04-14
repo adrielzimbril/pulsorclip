@@ -1697,7 +1697,7 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
   }
 
   try {
-    const clients = ["web", "android", "mweb"];
+    const clients = ["web", "mweb", "android"];
     let result: Awaited<ReturnType<typeof runCommand>> | null = null;
     let successfulClient: string | null = null;
 

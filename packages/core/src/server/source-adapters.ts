@@ -87,6 +87,8 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
       "100",
       "--extractor-retries",
       "6",
+      "--js-runtimes",
+      "node",
     ],
     note: "YouTube: android client to handle n-signature challenge.",
   },
