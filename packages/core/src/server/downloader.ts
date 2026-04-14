@@ -473,6 +473,23 @@ function ensureCookieFileFromBase64() {
   return cookieFile;
 }
 
+function ensureCookieFileFromMetadata() {
+  const { getMetadata } = require("./config");
+  const metadataCookies = getMetadata("ytdlp_cookies_base64");
+
+  if (!metadataCookies) {
+    return null;
+  }
+
+  const cookieDir = join(appConfig.downloadsDir, ".runtime");
+  const cookieFile = join(cookieDir, "yt-cookies-metadata.txt");
+
+  mkdirSync(cookieDir, { recursive: true });
+  writeFileSync(cookieFile, Buffer.from(metadataCookies, "base64"));
+
+  return cookieFile;
+}
+
 function getAuthArgs() {
   const args: string[] = [];
 
@@ -487,6 +504,13 @@ function getAuthArgs() {
 
     if (base64File) {
       args.push("--cookies", base64File);
+    } else {
+      // Check for cookies stored in metadata (set via /cookies command)
+      const metadataCookieFile = ensureCookieFileFromMetadata();
+
+      if (metadataCookieFile) {
+        args.push("--cookies", metadataCookieFile);
+      }
     }
   }
 

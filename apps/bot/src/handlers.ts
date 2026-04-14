@@ -16,6 +16,7 @@ import {
   cancelDownloadJob,
   getAllStoredUserIds,
   getDailySummary,
+  setMetadata,
 } from "@pulsorclip/core/server";
 import { t } from "@pulsorclip/core/i18n";
 import {
@@ -1625,6 +1626,70 @@ export function registerBotHandlers(bot: Telegraf) {
     rememberUser(ctx.from?.id);
     await sendDailySnapshot(bot);
     await ctx.reply(t(locale, "botReportSent"), { parse_mode: "HTML" });
+  });
+
+  bot.command("cookies", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      return;
+    }
+
+    const locale = localeForTelegram(ctx.from?.id, ctx.from?.language_code);
+    rememberUser(ctx.from?.id);
+    await sendPresence(ctx, "typing");
+
+    const text = ctx.message.text;
+    const cookiesContent = text.replace("/cookies", "").trim();
+
+    if (!cookiesContent) {
+      const helpText =
+        locale === "fr"
+          ? "<b>🍪 Gestion des cookies yt-dlp</b>\n\n" +
+            "Envoyez le contenu de votre fichier cookies.txt après la commande.\n\n" +
+            "<i>Exemple:</i>\n" +
+            "/cookies <code># Netscape HTTP Cookie File\n# This file ...</code>\n\n" +
+            "Ou utilisez le script local:\n" +
+            "<code>npm run encode-cookies ./cookies.txt</code>"
+          : "<b>🍪 yt-dlp Cookies Management</b>\n\n" +
+            "Send your cookies.txt content after the command.\n\n" +
+            "<i>Example:</i>\n" +
+            "/cookies <code># Netscape HTTP Cookie File\n# This file ...</code>\n\n" +
+            "Or use the local script:\n" +
+            "<code>npm run encode-cookies ./cookies.txt</code>";
+
+      await ctx.reply(helpText, { parse_mode: "HTML" });
+      return;
+    }
+
+    try {
+      // Encode to base64 for storage
+      const base64Encoded = Buffer.from(cookiesContent).toString("base64");
+      setMetadata("ytdlp_cookies_base64", base64Encoded);
+
+      logServer("info", "bot.cookies.updated", {
+        adminId: ctx.from?.id,
+        length: cookiesContent.length,
+      });
+
+      const successText =
+        locale === "fr"
+          ? "✅ Cookies mis à jour avec succès!\n\nLes cookies seront utilisés pour les prochains téléchargements yt-dlp."
+          : "✅ Cookies updated successfully!\n\nCookies will be used for future yt-dlp downloads.";
+
+      await ctx.reply(successText, { parse_mode: "HTML" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logServer("error", "bot.cookies.update_failed", {
+        adminId: ctx.from?.id,
+        reason: message,
+      });
+
+      const errorText =
+        locale === "fr"
+          ? "❌ Échec de la mise à jour des cookies.\n\nErreur: " + message
+          : "❌ Failed to update cookies.\n\nError: " + message;
+
+      await ctx.reply(errorText, { parse_mode: "HTML" });
+    }
   });
 
   bot.command("support", async (ctx) => {
