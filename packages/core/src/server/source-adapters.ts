@@ -81,15 +81,15 @@ const SOURCE_ADAPTERS: SourceAdapterRule[] = [
       url.includes("music.youtube.com/"),
     extractorArgs: [
       "--extractor-args",
-      // Use mweb+ios+tv_embedded as a fallback chain — avoids bot-detection on VPS
-      // mweb is the most resilient on headless servers without cookies
-      "youtube:player_client=mweb,ios,tv_embedded",
+      // Use android client which works well with cookies
+      // Fallback to mweb if android fails
+      "youtube:player_client=android,mweb",
       "--age-limit",
       "100",
       "--extractor-retries",
       "3",
     ],
-    note: "YouTube: mweb+ios+tv_embedded player chain with global IPv4 enforcement for VPS stability.",
+    note: "YouTube: android+mweb player chain for cookie compatibility.",
   },
 ];
 
