@@ -8,7 +8,7 @@ import {
 import { t } from "@pulsorclip/core/i18n";
 import { registerBotHandlers } from "./handlers";
 import { applyTelegramMetadata } from "./metadata";
-import { sendHealthSnapshot, startBotMonitoring } from "./monitoring";
+import { startBotMonitoring } from "./monitoring";
 import { notifyAdmins, validateAdminRecipients } from "./notifications";
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -168,7 +168,6 @@ async function bootstrap() {
       });
     }
 
-    await sendHealthSnapshot(bot);
     startBotMonitoring(bot);
 
     await runBootstrapStep(

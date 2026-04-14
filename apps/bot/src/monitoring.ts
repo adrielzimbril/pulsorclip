@@ -1,4 +1,12 @@
-import { flushDailySummary, getDailySummary, getServerDiagnostics, appConfig, logServer, getMetadata, setMetadata } from "@pulsorclip/core/server";
+import {
+  flushDailySummary,
+  getDailySummary,
+  getServerDiagnostics,
+  appConfig,
+  logServer,
+  getMetadata,
+  setMetadata,
+} from "@pulsorclip/core/server";
 import type { AppLocale } from "@pulsorclip/core/shared";
 import cron from "node-cron";
 import { notifyAdmins } from "./notifications";
@@ -8,7 +16,12 @@ let lastHealthSignature = "";
 let lastHealthCheckAt: string | null = null;
 let lastDailyReportAt: string | null = null;
 
-function formatBinaryLine(label: string, ok: boolean, version: string | null, error?: string) {
+function formatBinaryLine(
+  label: string,
+  ok: boolean,
+  version: string | null,
+  error?: string,
+) {
   if (ok) {
     return `${label}: ok${version ? ` (${version})` : ""}`;
   }
@@ -16,7 +29,10 @@ function formatBinaryLine(label: string, ok: boolean, version: string | null, er
   return `${label}: issue detected${error ? ` (${error})` : ""}`;
 }
 
-function formatAdminHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
+function formatAdminHealth(
+  snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>,
+  locale: AppLocale = "en",
+) {
   const activeJobLine = snapshot.queue.activeJob
     ? `<b>${snapshot.queue.activeJob.id}</b> · ${snapshot.queue.activeJob.mode} · <code>${snapshot.queue.activeJob.progress}%</code>`
     : "<i>None</i>";
@@ -58,7 +74,10 @@ function formatAdminHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnost
   return rows.join("\n");
 }
 
-function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
+function formatAdminServerHealth(
+  snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>,
+  locale: AppLocale = "en",
+) {
   const rows = [
     `<b>🖥️ FULL SERVER DIAGNOSTICS</b>`,
     `<i>${new Date(snapshot.checkedAt).toLocaleString(locale)}</i>`,
@@ -74,7 +93,7 @@ function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDi
     `⚙️ <b>CPU</b>`,
     `• Model: <code>${snapshot.cpuModel}</code>`,
     `• Cores: <code>${snapshot.cpuCores}</code>`,
-    `• Load Avg: <code>${snapshot.loadAvg.map(v => v.toFixed(2)).join(" / ")}</code>`,
+    `• Load Avg: <code>${snapshot.loadAvg.map((v) => v.toFixed(2)).join(" / ")}</code>`,
     "",
 
     `🧠 <b>Memory</b>`,
@@ -100,13 +119,16 @@ function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDi
 
     `🧩 Interfaces:`,
     snapshot.network.interfaces
-      .map(i =>
-        `🌐 <b>${i.interface}</b>\n` +
-        (i.details[0].mac ? `   • MAC: <code>${i.details[0].mac}</code>\n` : "") +
-        i.details
-          .filter(d => !d.internal)
-          .map(d => `   • IP: <code>${d.address}</code>`)
-          .join("\n")
+      .map(
+        (i) =>
+          `🌐 <b>${i.interface}</b>\n` +
+          (i.details[0].mac
+            ? `   • MAC: <code>${i.details[0].mac}</code>\n`
+            : "") +
+          i.details
+            .filter((d) => !d.internal)
+            .map((d) => `   • IP: <code>${d.address}</code>`)
+            .join("\n"),
       )
       .join("\n\n"),
     "",
@@ -123,35 +145,55 @@ function formatAdminServerHealth(snapshot: Awaited<ReturnType<typeof getServerDi
   return rows.join("\n");
 }
 
-function formatPublicHealth(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
-  const statusIcon = snapshot.maintenanceMode ? "🟠" : (snapshot.botEnabled ? "🟢" : "🔴");
-  const statusText = snapshot.maintenanceMode 
-    ? (locale === "fr" ? "Maintenance" : "Maintenance") 
-    : (snapshot.botEnabled ? (locale === "fr" ? "En ligne" : "Online") : (locale === "fr" ? "Hors ligne" : "Offline"));
-  
-  const totalLoad = snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
-  
+function formatPublicHealth(
+  snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>,
+  locale: AppLocale = "en",
+) {
+  const statusIcon = snapshot.maintenanceMode
+    ? "🟠"
+    : snapshot.botEnabled
+      ? "🟢"
+      : "🔴";
+  const statusText = snapshot.maintenanceMode
+    ? locale === "fr"
+      ? "Maintenance"
+      : "Maintenance"
+    : snapshot.botEnabled
+      ? locale === "fr"
+        ? "En ligne"
+        : "Online"
+      : locale === "fr"
+        ? "Hors ligne"
+        : "Offline";
+
+  const totalLoad =
+    snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
+
   const rows = [
     `<b>✨ PulsorClip Network Status</b>`,
     `━━━━━━━━━━━━━━━━━━`,
     `📡 <b>Core System:</b> ${statusIcon} ${statusText}`,
-    `⚡ <b>Current Load:</b> ${totalLoad} active session${totalLoad !== 1 ? 's' : ''}`,
+    `⚡ <b>Current Load:</b> ${totalLoad} active session${totalLoad !== 1 ? "s" : ""}`,
   ];
 
   rows.push(
     `━━━━━━━━━━━━━━━━━━`,
-    locale === "fr" 
+    locale === "fr"
       ? "<i>Tout fonctionne normalement. Prêt pour votre prochaine conversion média !</i>"
-      : "<i>Everything is running smoothly. Ready for your next high-speed media conversion!</i>"
+      : "<i>Everything is running smoothly. Ready for your next high-speed media conversion!</i>",
   );
 
   return rows.join("\n");
 }
 
-function formatAdminHealthMini(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
+function formatAdminHealthMini(
+  snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>,
+  locale: AppLocale = "en",
+) {
   const summary = getDailySummary();
-  const totalLoad = snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
-  
+  const totalLoad =
+    snapshot.queue.queuedCount + (snapshot.queue.activeJob ? 1 : 0);
+
   return [
     `<b>⚙️ Admin Quick Status</b>`,
     `<i>Checked at: ${new Date(snapshot.checkedAt).toLocaleString(locale)}</i>`,
@@ -164,13 +206,18 @@ function formatAdminHealthMini(snapshot: Awaited<ReturnType<typeof getServerDiag
     `• Users: <code>${summary.botUsers}</code>`,
     `• Jobs: <code>${summary.downloadsCompleted.bot + summary.downloadsCompleted.web}</code>`,
     "",
-    `<i>Use /health for full diagnostics.</i>`
+    `<i>Use /health for full diagnostics.</i>`,
   ].join("\n");
 }
 
-function formatQueue(snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>, locale: AppLocale = "en") {
+function formatQueue(
+  snapshot: Awaited<ReturnType<typeof getServerDiagnostics>>,
+  locale: AppLocale = "en",
+) {
   const queued = snapshot.queue.queuedJobIds.length
-    ? snapshot.queue.queuedJobIds.map((jobId, index) => `<code>${index + 1}. ${jobId}</code>`).join("\n")
+    ? snapshot.queue.queuedJobIds
+        .map((jobId, index) => `<code>${index + 1}. ${jobId}</code>`)
+        .join("\n")
     : "<i>No queued jobs.</i>";
 
   return [
@@ -206,7 +253,10 @@ function formatDailyReport(flushing: boolean = true) {
   ].join("\n");
 }
 
-export async function sendHealthSnapshot(bot: Telegraf, locale: AppLocale = "en") {
+export async function sendHealthSnapshot(
+  bot: Telegraf,
+  locale: AppLocale = "en",
+) {
   const snapshot = await getServerDiagnostics();
   await notifyAdmins(bot, formatAdminHealth(snapshot, locale));
   await notifyAdmins(bot, formatAdminServerHealth(snapshot, locale));
@@ -215,8 +265,9 @@ export async function sendHealthSnapshot(bot: Telegraf, locale: AppLocale = "en"
 export async function sendDailySnapshot(bot: Telegraf) {
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
-  lastDailyReportAt = now.toISOString().replace("T", " ").split(".")[0] + " UTC";
-  
+  lastDailyReportAt =
+    now.toISOString().replace("T", " ").split(".")[0] + " UTC";
+
   await notifyAdmins(bot, formatDailyReport(true));
   setMetadata("last_daily_report_date", dateKey);
 }
@@ -229,23 +280,33 @@ async function catchUpDailyReport(bot: Telegraf) {
   const todayDate = now.toISOString().slice(0, 10);
   const currentHour = now.getUTCHours();
 
-  logServer("info", "bot.monitoring.catchup.check", { 
-    lastReportDate, 
-    todayDate, 
-    currentHour, 
-    targetHour: appConfig.dailyReportHour 
+  logServer("info", "bot.monitoring.catchup.check", {
+    lastReportDate,
+    todayDate,
+    currentHour,
+    targetHour: appConfig.dailyReportHour,
   });
 
   // If we haven't reported today and it's past the reporting hour, do it now.
-  if (lastReportDate !== todayDate && currentHour >= appConfig.dailyReportHour) {
-    logServer("info", "bot.monitoring.catchup.triggering", { reason: "Missed scheduled window" });
+  if (
+    lastReportDate !== todayDate &&
+    currentHour >= appConfig.dailyReportHour
+  ) {
+    logServer("info", "bot.monitoring.catchup.triggering", {
+      reason: "Missed scheduled window",
+    });
     await sendDailySnapshot(bot);
   }
 }
 
-export async function getServerHealthText(locale: AppLocale = "en", isAdmin: boolean = false) {
+export async function getServerHealthText(
+  locale: AppLocale = "en",
+  isAdmin: boolean = false,
+) {
   const snapshot = await getServerDiagnostics();
-  return isAdmin ? formatAdminHealthMini(snapshot, locale) : formatPublicHealth(snapshot, locale);
+  return isAdmin
+    ? formatAdminHealthMini(snapshot, locale)
+    : formatPublicHealth(snapshot, locale);
 }
 
 export async function getServerHealthDetailedText(locale: AppLocale = "en") {
@@ -253,7 +314,9 @@ export async function getServerHealthDetailedText(locale: AppLocale = "en") {
   return formatAdminHealth(snapshot, locale);
 }
 
-export async function getServerHealthFullDetailedText(locale: AppLocale = "en") {
+export async function getServerHealthFullDetailedText(
+  locale: AppLocale = "en",
+) {
   const snapshot = await getServerDiagnostics();
   return formatAdminServerHealth(snapshot, locale);
 }
@@ -271,7 +334,8 @@ export function startBotMonitoring(bot: Telegraf) {
   void catchUpDailyReport(bot);
 
   const runHealthCheck = async () => {
-    lastHealthCheckAt = new Date().toISOString().replace("T", " ").split(".")[0] + " UTC";
+    lastHealthCheckAt =
+      new Date().toISOString().replace("T", " ").split(".")[0] + " UTC";
     const snapshot = await getServerDiagnostics();
     const signature = [
       snapshot.webHealthOk,
@@ -290,14 +354,15 @@ export function startBotMonitoring(bot: Telegraf) {
     }
   };
 
-  void runHealthCheck();
-  
+  // @TODO: Enable this when we will want to run health checks
+  // void runHealthCheck();
+
   // Custom cadence health check
   const healthCron = `*/${appConfig.healthCheckCadenceMins} * * * *`;
   cron.schedule(healthCron, () => {
-    logServer("info", "bot.monitoring.health_check.triggered", { 
+    logServer("info", "bot.monitoring.health_check.triggered", {
       cron: healthCron,
-      cadence: `${appConfig.healthCheckCadenceMins} mins` 
+      cadence: `${appConfig.healthCheckCadenceMins} mins`,
     });
     void runHealthCheck();
   });
@@ -305,25 +370,30 @@ export function startBotMonitoring(bot: Telegraf) {
   // Daily report at configurable hour (UTC)
   if (appConfig.dailyReportEnabled) {
     const dailyCron = `0 ${appConfig.dailyReportHour} * * *`;
-    cron.schedule(dailyCron, () => {
-      logServer("info", "bot.monitoring.daily_report.triggered", { 
-        cron: dailyCron,
-        hour: appConfig.dailyReportHour,
-        timezone: "UTC"
-      });
-      void sendDailySnapshot(bot);
-    }, {
-      timezone: "UTC"
-    });
+    cron.schedule(
+      dailyCron,
+      () => {
+        logServer("info", "bot.monitoring.daily_report.triggered", {
+          cron: dailyCron,
+          hour: appConfig.dailyReportHour,
+          timezone: "UTC",
+        });
+        void sendDailySnapshot(bot);
+      },
+      {
+        timezone: "UTC",
+      },
+    );
 
     logServer("info", "bot.monitoring.daily_report.scheduled", {
       cron: dailyCron,
       hour: appConfig.dailyReportHour,
-      timezone: "UTC"
+      timezone: "UTC",
     });
   } else {
     logServer("info", "bot.monitoring.daily_report.disabled", {
-      message: "Daily report is disabled via PULSORCLIP_DAILY_REPORT_ENABLED=false"
+      message:
+        "Daily report is disabled via PULSORCLIP_DAILY_REPORT_ENABLED=false",
     });
   }
 
