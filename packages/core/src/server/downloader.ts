@@ -489,7 +489,14 @@ function ensureCookieFileFromMetadata() {
   const cookieFile = join(cookieDir, "yt-cookies-metadata.txt");
 
   mkdirSync(cookieDir, { recursive: true });
-  writeFileSync(cookieFile, Buffer.from(metadataCookies, "base64"));
+
+  const decoded = Buffer.from(metadataCookies, "base64").toString("utf-8");
+  logServer("info", "cookies.metadata.decoded", {
+    length: decoded.length,
+    preview: decoded.substring(0, 100),
+  });
+
+  writeFileSync(cookieFile, decoded);
 
   return cookieFile;
 }
