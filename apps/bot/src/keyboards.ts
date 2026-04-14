@@ -5,7 +5,9 @@ import type { AppLocale, DownloadMode } from "@pulsorclip/core/shared";
 import type { PendingChoice } from "./types";
 
 export function webKeyboard(locale: AppLocale) {
-  return Markup.inlineKeyboard([Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)]);
+  return Markup.inlineKeyboard([
+    Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl),
+  ]);
 }
 
 export function trackKeyboard(locale: AppLocale, jobId: string) {
@@ -26,7 +28,10 @@ export function trackAndCancelKeyboard(locale: AppLocale, jobId: string) {
         `🔍 ${t(locale, "botTrackJob")}`,
         `${appConfig.baseUrl}/track/${jobId}`,
       ),
-      Markup.button.callback(`🛑 ${t(locale, "botCancel")}`, `cancelactive:${jobId}`),
+      Markup.button.callback(
+        `🛑 ${t(locale, "botCancel")}`,
+        `cancelactive:${jobId}`,
+      ),
     ],
   ]);
 }
@@ -34,8 +39,14 @@ export function trackAndCancelKeyboard(locale: AppLocale, jobId: string) {
 export function supportKeyboard(locale: AppLocale) {
   return Markup.inlineKeyboard([
     [
-      Markup.button.url("⭐ GitHub", "https://github.com/adrielzimbril/pulsorclip"),
-      Markup.button.url("💬 Support", `https://t.me/${appConfig.telegramAdminHandle}`),
+      Markup.button.url(
+        "⭐ GitHub",
+        "https://github.com/adrielzimbril/pulsorclip",
+      ),
+      Markup.button.url(
+        "💬 Support",
+        `https://t.me/${appConfig.telegramAdminHandle}`,
+      ),
     ],
   ]);
 }
@@ -62,25 +73,61 @@ export function languageKeyboard() {
 export function extensionKeyboard(choice: PendingChoice, mode: DownloadMode) {
   const locale = choice.locale;
   const exts = mode === "video" ? ["mp4", "webm", "mkv"] : ["mp3", "m4a"];
-  
+
   return Markup.inlineKeyboard([
-    exts.map(ext => Markup.button.callback(ext.toUpperCase(), `ext:${choice.id}:${mode}:${ext}`)),
+    exts.map((ext) =>
+      Markup.button.callback(
+        ext.toUpperCase(),
+        `ext:${choice.id}:${mode}:${ext}`,
+      ),
+    ),
     [Markup.button.callback(t(locale, "botBack"), "back:mode")],
+    [
+      Markup.button.callback(
+        `🛑 ${t(locale, "botCancel")}`,
+        `cancel:${choice.id}`,
+      ),
+    ],
     [Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)],
   ]);
 }
 
-export function qualityKeyboard(choice: PendingChoice, mode: DownloadMode, activeExt: string) {
+export function qualityKeyboard(
+  choice: PendingChoice,
+  mode: DownloadMode,
+  activeExt: string,
+) {
   const locale = choice.locale;
-  const options = mode === "video" ? choice.info.videoOptions.slice(0, 8) : choice.info.audioOptions.slice(0, 8);
+  const options =
+    mode === "video"
+      ? choice.info.videoOptions.slice(0, 8)
+      : choice.info.audioOptions.slice(0, 8);
 
   return Markup.inlineKeyboard([
-    [Markup.button.callback(`🔥 ${t(locale, "botBest")} (${activeExt.toUpperCase()})`, `dl:${choice.id}:${mode}:best:${activeExt}`)],
+    [
+      Markup.button.callback(
+        `🔥 ${t(locale, "botBest")} (${activeExt.toUpperCase()})`,
+        `dl:${choice.id}:${mode}:best:${activeExt}`,
+      ),
+    ],
     ...options.map((option) => [
-      Markup.button.callback(`${option.label} (${activeExt.toUpperCase()})`, `dl:${choice.id}:${mode}:${option.id}:${activeExt}`)
+      Markup.button.callback(
+        `${option.label} (${activeExt.toUpperCase()})`,
+        `dl:${choice.id}:${mode}:${option.id}:${activeExt}`,
+      ),
     ]),
-    [Markup.button.callback(t(locale, "botBack"), `back:ext:${choice.id}:${mode}`)],
+    [
+      Markup.button.callback(
+        t(locale, "botBack"),
+        `back:ext:${choice.id}:${mode}`,
+      ),
+    ],
+    [
+      Markup.button.callback(
+        `🛑 ${t(locale, "botCancel")}`,
+        `cancel:${choice.id}`,
+      ),
+    ],
     [Markup.button.url(t(locale, "openInWeb"), appConfig.baseUrl)],
   ]);
 }
-

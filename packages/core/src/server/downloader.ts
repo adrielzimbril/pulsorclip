@@ -1733,11 +1733,12 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
       });
 
       if (currentResult.exitCode !== 0) {
-        // Check if it's a 429 error or signature/n challenge failure and we have more clients to try
+        // Check if it's a 429 error, signature/n challenge failure, or format not available (android without cookies)
         const isRetryableError =
           currentResult.stderr.includes("429") ||
           currentResult.stderr.includes("Signature solving failed") ||
-          currentResult.stderr.includes("n challenge solving failed");
+          currentResult.stderr.includes("n challenge solving failed") ||
+          currentResult.stderr.includes("Requested format is not available");
 
         if (isRetryableError && clients.indexOf(client) < clients.length - 1) {
           logServer("warn", "media.info.fetch.client_retry", {
@@ -1745,7 +1746,11 @@ export async function fetchMediaInfo(rawUrl: string): Promise<MediaInfo> {
             nextClient: clients[clients.indexOf(client) + 1],
             reason: currentResult.stderr.includes("429")
               ? "rate_limited"
-              : "challenge_failed",
+              : currentResult.stderr.includes(
+                    "Requested format is not available",
+                  )
+                ? "format_not_available"
+                : "challenge_failed",
           });
           continue; // Try next client
         }

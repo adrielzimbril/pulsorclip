@@ -2439,4 +2439,44 @@ export function registerBotHandlers(bot: Telegraf) {
       await ctx.answerCbQuery("Error stopping job.").catch(() => {});
     }
   });
+
+  // Cancel pending choice before download starts
+  bot.action(/cancel:([a-z0-9]+)/, async (ctx) => {
+    const chatId = ctx.chat?.id;
+    const userId = ctx.from?.id;
+    if (!chatId || !userId) return;
+
+    const pendingId = ctx.match[1];
+    const choice = pendingByChat.get(chatId);
+
+    if (!choice || choice.id !== pendingId) {
+      await ctx.answerCbQuery("Expired.").catch(() => {});
+      return;
+    }
+
+    const locale = choice.locale;
+
+    try {
+      // Delete the choice message
+      if (choice.messageId) {
+        await ctx.deleteMessage(choice.messageId).catch(() => {});
+      }
+
+      // Remove from pending
+      pendingByChat.delete(chatId);
+
+      await ctx
+        .answerCbQuery(locale === "fr" ? "Annulé." : "Cancelled.")
+        .catch(() => {});
+
+      // Process next in queue
+      void processNextInQueue(bot, userId, ctx);
+    } catch (error) {
+      logServer("error", "bot.action.cancel.failed", {
+        pendingId,
+        error: String(error),
+      });
+      await ctx.answerCbQuery("Error cancelling.").catch(() => {});
+    }
+  });
 }
