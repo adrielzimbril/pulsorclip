@@ -13,7 +13,7 @@ import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { extname, join } from "node:path";
 import { trackDownloadCompleted, trackDownloadCreated } from "./analytics";
-import { appConfig, ensureAppDirs } from "./config";
+import { appConfig, ensureAppDirs, resolveRealBinaryPath } from "./config";
 import { logServer, stderrTail, urlForLogs } from "./logger";
 import { runCommand } from "./process";
 import {
@@ -1907,6 +1907,8 @@ export async function executeDownload(jobId: string) {
     } else {
       let sourceArgs: string[] = [];
 
+      const ffmpegRealPath = resolveRealBinaryPath(appConfig.ffmpegBin);
+
       if (sourceProfile.platform === "tiktok") {
         sourceArgs = [
           ...getAuthArgs(),
@@ -1916,8 +1918,9 @@ export async function executeDownload(jobId: string) {
           "--newline",
           "--progress",
           "--no-part",
-          "--ffmpeg-location",
-          appConfig.ffmpegBin,
+          ...(ffmpegRealPath !== "not_configured"
+            ? ["--ffmpeg-location", ffmpegRealPath]
+            : []),
           "-o",
           getTempOutputTemplate(jobId),
         ];
@@ -1939,8 +1942,9 @@ export async function executeDownload(jobId: string) {
           "--no-check-certificates",
           "--prefer-free-formats",
           "--hls-prefer-native",
-          "--ffmpeg-location",
-          appConfig.ffmpegBin,
+          ...(ffmpegRealPath !== "not_configured"
+            ? ["--ffmpeg-location", ffmpegRealPath]
+            : []),
           "-o",
           getTempOutputTemplate(jobId),
         ];
